@@ -9,7 +9,7 @@
   },
   "scripts": {
     "dev": "tsx watch src/main/server.ts",
-    "build": "tsc -p tsconfig.build.json",
+    "build": "tsc",
     "start": "node dist/main/server.js",
     "lint": "eslint .",
     "format": "prettier --write .",

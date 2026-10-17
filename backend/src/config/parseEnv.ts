@@ -1,17 +1,50 @@
-export type NodeEnv = 'development' | 'test' | 'production';
-export type LogLevel = 'fatal' | 'error' | 'warn' | 'info' | 'debug' | 'trace' | 'silent';
+import { z } from 'zod';
 
-export interface Env {
-  PORT: number;
-  NODE_ENV: NodeEnv;
-  LOG_LEVEL: LogLevel;
-  CORS_ORIGINS: string[];
-}
+const portMessage = 'deve ser um número inteiro entre 1 e 65535';
+
+const EnvSchema = z.object({
+  PORT: z.coerce
+    .number({ error: portMessage })
+    .int(portMessage)
+    .min(1, portMessage)
+    .max(65535, portMessage)
+    .default(3000),
+  NODE_ENV: z
+    .enum(['development', 'test', 'production'], {
+      error: 'deve ser development, test ou production',
+    })
+    .default('development'),
+  LOG_LEVEL: z
+    .enum(['fatal', 'error', 'warn', 'info', 'debug', 'trace', 'silent'], {
+      error: 'deve ser fatal, error, warn, info, debug, trace ou silent',
+    })
+    .default('info'),
+  CORS_ORIGINS: z
+    .string({ error: 'obrigatória' })
+    .transform((value) =>
+      value
+        .split(',')
+        .map((origin) => origin.trim())
+        .filter(Boolean),
+    )
+    .pipe(z.array(z.string()).min(1, 'obrigatória')),
+});
+
+export type Env = z.infer<typeof EnvSchema>;
 
 export class InvalidEnvError extends Error {
   override name = 'InvalidEnvError';
 }
 
-export function parseEnv(_source: Record<string, string | undefined>): Env {
-  throw new Error('Not implemented');
+export function parseEnv(source: Record<string, string | undefined>): Env {
+  // Empty values behave as unset so defaults apply.
+  const cleaned = Object.fromEntries(Object.entries(source).filter(([, value]) => value !== ''));
+  const result = EnvSchema.safeParse(cleaned);
+
+  if (!result.success) {
+    const lines = result.error.issues.map((issue) => `- ${issue.path.join('.')}: ${issue.message}`);
+    throw new InvalidEnvError(`Configuração inválida:\n${lines.join('\n')}`);
+  }
+
+  return result.data;
 }

@@ -59,15 +59,15 @@ Antes de abrir um PR: `typecheck`, `lint`, `test` e `test:int` precisam passar.
 
 ## Scripts
 
-| Script       | O que faz                                   |
-| ------------ | ------------------------------------------- |
-| `dev`        | `tsx watch src/main/server.ts`              |
-| `build`      | `tsc -p tsconfig.build.json` (exclui specs) |
-| `start`      | `node dist/main/server.js`                  |
-| `lint`       | `eslint .`                                  |
-| `typecheck`  | `tsc --noEmit` em `src` e `test`            |
-| `format`     | `prettier --write .`                        |
-| `test`       | `vitest run` (config `vitest.config.ts`)    |
-| `test:watch` | `vitest`                                    |
-| `test:int`   | `vitest run -c vitest.int.config.ts`        |
-| `test:cov`   | `vitest run --coverage`                     |
+| Script       | O que faz                                |
+| ------------ | ---------------------------------------- |
+| `dev`        | `tsx watch src/main/server.ts`           |
+| `build`      | `tsc` (specs ficam fora do `dist/`)      |
+| `start`      | `node dist/main/server.js`               |
+| `lint`       | `eslint .`                               |
+| `typecheck`  | `tsc --noEmit` em `src` e `test`         |
+| `format`     | `prettier --write .`                     |
+| `test`       | `vitest run` (config `vitest.config.ts`) |
+| `test:watch` | `vitest`                                 |
+| `test:int`   | `vitest run -c vitest.int.config.ts`     |
+| `test:cov`   | `vitest run --coverage`                  |
