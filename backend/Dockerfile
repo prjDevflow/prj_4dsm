@@ -1,0 +1,30 @@
+# syntax=docker/dockerfile:1
+
+FROM node:24-alpine AS base
+WORKDIR /app
+
+# All dependencies, to compile TypeScript.
+FROM base AS deps
+COPY package.json package-lock.json ./
+RUN npm ci
+
+FROM deps AS build
+COPY tsconfig.json ./
+COPY src ./src
+RUN npm run build
+
+# Production dependencies only; no install scripts needed at runtime.
+FROM base AS prod-deps
+COPY package.json package-lock.json ./
+RUN npm ci --omit=dev --ignore-scripts && npm cache clean --force
+
+FROM base AS runtime
+ENV NODE_ENV=production
+# Files stay owned by root, so the app user can read but not modify them.
+COPY --from=prod-deps /app/node_modules ./node_modules
+COPY --from=build /app/dist ./dist
+# version.ts reads the version from package.json.
+COPY package.json ./
+USER node
+EXPOSE 3000
+CMD ["node", "dist/main/server.js"]
