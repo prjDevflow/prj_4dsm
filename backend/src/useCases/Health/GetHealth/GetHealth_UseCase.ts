@@ -8,6 +8,10 @@ export class GetHealthUseCase {
   ) {}
 
   execute(): IGetHealthResponseDTO {
-    throw new Error('Not implemented');
+    return {
+      status: 'ok',
+      version: this.config.version,
+      time: this.clock.now().toISOString(),
+    };
   }
 }
