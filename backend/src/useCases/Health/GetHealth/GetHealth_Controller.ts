@@ -5,6 +5,6 @@ export class GetHealthController {
   constructor(private useCase: GetHealthUseCase) {}
 
   async handle(_req: Request, res: Response) {
-    return res.status(200).json(this.useCase.execute());
+    return res.status(200).json(await this.useCase.execute());
   }
 }

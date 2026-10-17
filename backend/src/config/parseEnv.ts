@@ -28,6 +28,9 @@ const EnvSchema = z.object({
         .filter(Boolean),
     )
     .pipe(z.array(z.string()).min(1, 'obrigatória')),
+  DATABASE_URL: z
+    .string({ error: 'obrigatória' })
+    .regex(/^postgres(ql)?:\/\//, 'deve começar com postgresql://'),
 });
 
 export type Env = z.infer<typeof EnvSchema>;
