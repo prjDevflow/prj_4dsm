@@ -64,10 +64,10 @@ Formato: data · decisão · motivo.
 - 2026-10-16 · `init: true` no serviço `api` · repassa SIGTERM ao Node sem precisar de código de desligamento agora.
 - 2026-10-16 · Estrutura de pastas do arquivo 01 substitui a árvore e o DoD de camadas do plano antigo · decisão do autor com base em `ANALISE-ESTRUTURA.md`.
 - 2026-10-17 · Prisma 7.10.1 com `@prisma/adapter-pg` e `prisma.config.ts`; CLI e client fixados na mesma versão (o `npm install prisma` trouxe um 8.0.0-rc) · o 7 é a versão estável e o client e a CLI precisam coincidir.
-- 2026-10-17 · Client gerado em `src/generated/prisma` (não versionado, gerado no build da imagem) · `tsc` o compila para `dist/` e a imagem de produção não precisa da CLI do Prisma.
+- 2026-10-17 · Client gerado em `src/generated/prisma` (não versionado, gerado no build da imagem) · `tsc` o compila para `dist/`; a API não executa a CLI do Prisma (ela vem na imagem como peer opcional do `@prisma/client`, e `npm ci --omit=dev --omit=peer` não a remove).
 - 2026-10-17 · `prisma.config.ts` lê `DATABASE_URL` sem exigir (string vazia) · `prisma generate` roda no build do Docker, que não tem banco; `migrate` falha com mensagem clara se faltar.
 - 2026-10-17 · Primeira migração (`init`) cria só o model descartável `ConnectionCheck`; a B04 o remove · o Prisma não gera migração sem model.
-- 2026-10-17 · Migrações rodam do computador (`npm run db:deploy`), não dentro do container da API · a imagem de produção não leva a CLI do Prisma.
+- 2026-10-17 · Migrações pelo serviço `migrate` do compose (`docker compose run --rm migrate`; perfil `tools`, não sobe com `up`), com estágio `migrate` próprio no Dockerfile · quem só quer rodar o projeto precisa só de Docker, sem Node. Banco de testes: `MIGRATE_DB=access_test`. `npm run db:deploy` continua para o desenvolvimento e para o banco em nuvem.
 - 2026-10-17 · `DATABASE_URL` é obrigatória no `env.ts`; o `/health` devolve `db: "down"` (HTTP 200) em cerca de 2 s quando o banco cai (timeout de conexão de 2 s) · a API não pode cair junto com o banco.
 - 2026-10-17 · `onPoolError` e `onConnectionError` do adapter ligados ao `ILogger` · sem eles, parar o banco derrubaria o processo pelo evento `error` do pool.
 - 2026-10-17 · `DB_PORT=5433` no `.env` local · a 5432 estava ocupada por outro PostgreSQL; `engines.node` subiu para `>=22.18` (exigência do Prisma 7).

@@ -6,36 +6,42 @@ Contexto para quem usa IA e documentação técnica: [AGENTS.md](AGENTS.md) e [d
 
 ## Pré-requisitos
 
-- Node.js 22.18 ou superior (exigência do Prisma 7; a imagem Docker usa Node 24)
+**Só para rodar a API e o banco:**
+
+- Docker Desktop (ou Docker Engine + Compose v2). Não precisa de Node nem de npm: a imagem da API traz o próprio Node 24.
+
+**Para desenvolver e rodar os testes** (além do Docker, que fornece o banco):
+
+- Node.js 22.18 ou superior (exigência do Prisma 7)
 - npm 10 ou superior
-- Docker Desktop (ou Docker Engine + Compose v2), para subir API e banco com um comando
 
 ## Instalar
 
 ```bash
 cd backend
-npm ci
-cp .env.example .env   # no PowerShell: Copy-Item .env.example .env
+cp .env.example .env   # no PowerShell: Copy-Item .env.example .env (necessário também para o Docker)
+npm ci                 # só para desenvolver e testar (precisa de Node)
 ```
 
 Variáveis do `.env`:
 
-| Variável                                            | Padrão                  | Uso                                        |
-| --------------------------------------------------- | ----------------------- | ------------------------------------------ |
-| `PORT`                                              | `3000`                  | porta HTTP                                 |
-| `NODE_ENV`                                          | `development`           | `development`, `test` ou `production`      |
-| `CORS_ORIGINS`                                      | `http://localhost:8081` | origens permitidas, separadas por vírgula  |
-| `LOG_LEVEL`                                         | `info`                  | nível de log do pino                       |
-| `POSTGRES_USER`, `POSTGRES_PASSWORD`, `POSTGRES_DB` | `access`, —, `access`   | banco local do docker compose              |
-| `DB_PORT`                                           | `5432`                  | porta do PostgreSQL no seu computador      |
-| `DATABASE_URL`                                      | —                       | conexão usada fora do Docker (obrigatória) |
+| Variável                                            | Padrão                  | Uso                                                     |
+| --------------------------------------------------- | ----------------------- | ------------------------------------------------------- |
+| `PORT`                                              | `3000`                  | porta HTTP                                              |
+| `NODE_ENV`                                          | `development`           | `development`, `test` ou `production`                   |
+| `CORS_ORIGINS`                                      | `http://localhost:8081` | origens permitidas, separadas por vírgula               |
+| `LOG_LEVEL`                                         | `info`                  | nível de log do pino                                    |
+| `POSTGRES_USER`, `POSTGRES_PASSWORD`, `POSTGRES_DB` | `access`, —, `access`   | banco local do docker compose                           |
+| `DB_PORT`                                           | `5432`                  | porta do PostgreSQL no seu computador                   |
+| `DATABASE_URL`                                      | —                       | conexão dos comandos `npm` (dev, testes) fora do Docker |
 
 O `.env` nunca vai para o Git nem para a imagem Docker. Troque a senha do exemplo no seu `.env`.
 A senha e a porta da `DATABASE_URL` precisam ser as mesmas de `POSTGRES_PASSWORD` e `DB_PORT`. Se a
 porta 5432 já estiver ocupada no seu computador, use outra (ex.: `DB_PORT=5433` e `...@localhost:5433/access`).
-Dentro do `docker compose` a API recebe a URL do serviço `db` automaticamente.
+Dentro do `docker compose` a API e as migrações recebem a URL do serviço `db` automaticamente; para
+rodar só com Docker, basta ajustar `POSTGRES_PASSWORD` (e `DB_PORT`, se precisar).
 
-Depois do `npm ci`, gere o client do Prisma (os tipos usados pelo código):
+Para desenvolver, depois do `npm ci`, gere o client do Prisma (os tipos usados pelo código):
 
 ```bash
 npm run db:generate
@@ -47,7 +53,7 @@ npm run db:generate
 cd backend
 cp .env.example .env         # se ainda não tiver
 docker compose up --build -d
-npm run db:deploy            # aplica as migrações no banco do compose (a partir do seu computador)
+docker compose run --rm migrate   # aplica as migrações, dentro do Docker (sem Node no seu computador)
 docker compose ps            # db "healthy" e api "running"
 curl http://localhost:3000/api/v1/health
 # {"status":"ok","version":"0.1.0","time":"...","db":"up"}
@@ -75,22 +81,24 @@ O script `docker/postgres/init/01-create-test-db.sql` só roda quando o volume e
 
 ### Banco de dados (Prisma)
 
-| Comando               | O que faz                                                                            |
-| --------------------- | ------------------------------------------------------------------------------------ |
-| `npm run db:migrate`  | cria uma nova migração a partir do `prisma/schema.prisma` e aplica (desenvolvimento) |
-| `npm run db:deploy`   | aplica as migrações existentes (use no banco do compose, de testes e da nuvem)       |
-| `npm run db:reset`    | **apaga** o banco `access`, reaplica as migrações e roda o seed                      |
-| `npm run db:seed`     | roda `prisma/seed.ts` (hoje vazio; o seed real é da etapa B04)                       |
-| `npm run db:generate` | gera o client do Prisma em `src/generated/` (não versionado)                         |
+| Comando                           | O que faz                                                                                |
+| --------------------------------- | ---------------------------------------------------------------------------------------- |
+| `docker compose run --rm migrate` | aplica as migrações existentes no banco do compose, só com Docker                        |
+| `npm run db:migrate`              | cria uma nova migração a partir do `prisma/schema.prisma` e aplica (desenvolvimento)     |
+| `npm run db:deploy`               | aplica as migrações existentes usando a `DATABASE_URL` do `.env` (inclui banco na nuvem) |
+| `npm run db:reset`                | **apaga** o banco `access`, reaplica as migrações e roda o seed                          |
+| `npm run db:seed`                 | roda `prisma/seed.ts` (hoje vazio; o seed real é da etapa B04)                           |
+| `npm run db:generate`             | gera o client do Prisma em `src/generated/` (não versionado)                             |
 
-Para que os testes de integração tenham as tabelas, aplique as migrações no banco de testes uma vez
-(troque `SENHA` e a porta pelos seus valores):
+Para que os testes de integração tenham as tabelas, aplique as migrações no banco de testes uma vez:
 
 ```bash
-DATABASE_URL=postgresql://access:SENHA@localhost:5432/access_test npm run db:deploy
+MIGRATE_DB=access_test docker compose run --rm migrate
 ```
 
-Para recomeçar do zero, apagando tudo: `docker compose down -v && docker compose up -d && npm run db:deploy`.
+Para recomeçar do zero, apagando tudo: `docker compose down -v && docker compose up -d && docker compose run --rm migrate`.
+
+O serviço `migrate` usa uma imagem própria (estágio `migrate` do Dockerfile) e não sobe com `docker compose up`.
 
 ## Rodar sem Docker
 
