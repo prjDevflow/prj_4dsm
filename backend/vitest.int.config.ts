@@ -7,5 +7,10 @@ export default defineConfig({
     passWithNoTests: true,
     fileParallelism: false,
     testTimeout: 15000,
+    env: {
+      NODE_ENV: 'test',
+      CORS_ORIGINS: 'http://localhost:8081',
+      LOG_LEVEL: 'silent',
+    },
   },
 });
