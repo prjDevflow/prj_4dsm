@@ -75,22 +75,22 @@ Como ler cada etapa:
 
 **Lista de testes**
 
-- [ ] U `GetHealth`: com o probe respondendo, devolve `db: "up"`.
-- [ ] U `GetHealth`: com o probe falhando ou lançando erro, devolve `db: "down"` sem lançar exceção.
-- [ ] I `GET /health` contra o PostgreSQL de testes: `db: "up"`.
-- [ ] Verificação manual: parar o container do banco e conferir `db: "down"` com a API de pé.
+- [x] U `GetHealth`: com o probe respondendo, devolve `db: "up"`.
+- [x] U `GetHealth`: com o probe falhando ou lançando erro, devolve `db: "down"` sem lançar exceção.
+- [x] I `GET /health` contra o PostgreSQL de testes: `db: "up"`.
+- [x] Verificação manual: parar o container do banco e conferir `db: "down"` com a API de pé.
 
 **Critérios de aceitação**
 
-- [ ] `docker compose up` sobe API e banco; `GET /api/v1/health` mostra `"db": "up"`.
-- [ ] Parar o container do banco faz `/health` mostrar `"db": "down"` (e a API continua de pé).
-- [ ] A imagem não roda como root.
+- [x] `docker compose up` sobe API e banco; `GET /api/v1/health` mostra `"db": "up"`.
+- [x] Parar o container do banco faz `/health` mostrar `"db": "down"` (e a API continua de pé).
+- [x] A imagem não roda como root.
 - [ ] A migração inicial roda no banco local **e** no banco em nuvem.
-- [ ] `DATABASE_URL` não aparece em nenhum arquivo versionado.
+- [x] `DATABASE_URL` não aparece em nenhum arquivo versionado.
 
 **Definição de pronto**
 
-- [ ] README explica como subir o ambiente e como resetar o banco.
+- [x] README explica como subir o ambiente e como resetar o banco.
 - [ ] Pedro e Lucas conseguem rodar o backend local seguindo o README (peça para um deles testar).
 
 ---

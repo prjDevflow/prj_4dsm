@@ -6,7 +6,7 @@ Contexto para quem usa IA e documentação técnica: [AGENTS.md](AGENTS.md) e [d
 
 ## Pré-requisitos
 
-- Node.js 22 ou superior (desenvolvido com Node 24)
+- Node.js 22.18 ou superior (exigência do Prisma 7; a imagem Docker usa Node 24)
 - npm 10 ou superior
 - Docker Desktop (ou Docker Engine + Compose v2), para subir API e banco com um comando
 
@@ -20,16 +20,26 @@ cp .env.example .env   # no PowerShell: Copy-Item .env.example .env
 
 Variáveis do `.env`:
 
-| Variável                                            | Padrão                  | Uso                                       |
-| --------------------------------------------------- | ----------------------- | ----------------------------------------- |
-| `PORT`                                              | `3000`                  | porta HTTP                                |
-| `NODE_ENV`                                          | `development`           | `development`, `test` ou `production`     |
-| `CORS_ORIGINS`                                      | `http://localhost:8081` | origens permitidas, separadas por vírgula |
-| `LOG_LEVEL`                                         | `info`                  | nível de log do pino                      |
-| `POSTGRES_USER`, `POSTGRES_PASSWORD`, `POSTGRES_DB` | `access`, —, `access`   | banco local do docker compose             |
-| `DB_PORT`                                           | `5432`                  | porta do PostgreSQL no seu computador     |
+| Variável                                            | Padrão                  | Uso                                        |
+| --------------------------------------------------- | ----------------------- | ------------------------------------------ |
+| `PORT`                                              | `3000`                  | porta HTTP                                 |
+| `NODE_ENV`                                          | `development`           | `development`, `test` ou `production`      |
+| `CORS_ORIGINS`                                      | `http://localhost:8081` | origens permitidas, separadas por vírgula  |
+| `LOG_LEVEL`                                         | `info`                  | nível de log do pino                       |
+| `POSTGRES_USER`, `POSTGRES_PASSWORD`, `POSTGRES_DB` | `access`, —, `access`   | banco local do docker compose              |
+| `DB_PORT`                                           | `5432`                  | porta do PostgreSQL no seu computador      |
+| `DATABASE_URL`                                      | —                       | conexão usada fora do Docker (obrigatória) |
 
 O `.env` nunca vai para o Git nem para a imagem Docker. Troque a senha do exemplo no seu `.env`.
+A senha e a porta da `DATABASE_URL` precisam ser as mesmas de `POSTGRES_PASSWORD` e `DB_PORT`. Se a
+porta 5432 já estiver ocupada no seu computador, use outra (ex.: `DB_PORT=5433` e `...@localhost:5433/access`).
+Dentro do `docker compose` a API recebe a URL do serviço `db` automaticamente.
+
+Depois do `npm ci`, gere o client do Prisma (os tipos usados pelo código):
+
+```bash
+npm run db:generate
+```
 
 ## Subir com Docker (API + PostgreSQL)
 
@@ -37,9 +47,13 @@ O `.env` nunca vai para o Git nem para a imagem Docker. Troque a senha do exempl
 cd backend
 cp .env.example .env         # se ainda não tiver
 docker compose up --build -d
+npm run db:deploy            # aplica as migrações no banco do compose (a partir do seu computador)
 docker compose ps            # db "healthy" e api "running"
 curl http://localhost:3000/api/v1/health
+# {"status":"ok","version":"0.1.0","time":"...","db":"up"}
 ```
+
+Com o banco parado (`docker compose stop db`) o `/health` continua respondendo 200, com `"db":"down"`.
 
 O que sobe:
 
@@ -58,6 +72,25 @@ Comandos úteis:
 | `docker compose exec api whoami`           | mostra o usuário da API (`node`, não root)                                  |
 
 O script `docker/postgres/init/01-create-test-db.sql` só roda quando o volume está vazio. Se o volume foi criado antes dele, use `docker compose down -v`.
+
+### Banco de dados (Prisma)
+
+| Comando               | O que faz                                                                            |
+| --------------------- | ------------------------------------------------------------------------------------ |
+| `npm run db:migrate`  | cria uma nova migração a partir do `prisma/schema.prisma` e aplica (desenvolvimento) |
+| `npm run db:deploy`   | aplica as migrações existentes (use no banco do compose, de testes e da nuvem)       |
+| `npm run db:reset`    | **apaga** o banco `access`, reaplica as migrações e roda o seed                      |
+| `npm run db:seed`     | roda `prisma/seed.ts` (hoje vazio; o seed real é da etapa B04)                       |
+| `npm run db:generate` | gera o client do Prisma em `src/generated/` (não versionado)                         |
+
+Para que os testes de integração tenham as tabelas, aplique as migrações no banco de testes uma vez
+(troque `SENHA` e a porta pelos seus valores):
+
+```bash
+DATABASE_URL=postgresql://access:SENHA@localhost:5432/access_test npm run db:deploy
+```
+
+Para recomeçar do zero, apagando tudo: `docker compose down -v && docker compose up -d && npm run db:deploy`.
 
 ## Rodar sem Docker
 
@@ -128,15 +161,16 @@ Antes de abrir um PR: `typecheck`, `lint`, `test` e `test:int` precisam passar.
 
 ## Scripts
 
-| Script       | O que faz                                |
-| ------------ | ---------------------------------------- |
-| `dev`        | `tsx watch src/main/server.ts`           |
-| `build`      | `tsc` (specs ficam fora do `dist/`)      |
-| `start`      | `node dist/main/server.js`               |
-| `lint`       | `eslint .`                               |
-| `typecheck`  | `tsc --noEmit` em `src` e `test`         |
-| `format`     | `prettier --write .`                     |
-| `test`       | `vitest run` (config `vitest.config.ts`) |
-| `test:watch` | `vitest`                                 |
-| `test:int`   | `vitest run -c vitest.int.config.ts`     |
-| `test:cov`   | `vitest run --coverage`                  |
+| Script       | O que faz                                                |
+| ------------ | -------------------------------------------------------- |
+| `dev`        | `tsx watch src/main/server.ts`                           |
+| `build`      | `tsc` (specs ficam fora do `dist/`)                      |
+| `start`      | `node dist/main/server.js`                               |
+| `lint`       | `eslint .`                                               |
+| `typecheck`  | `tsc --noEmit` em `src` e `test`                         |
+| `format`     | `prettier --write .`                                     |
+| `test`       | `vitest run` (config `vitest.config.ts`)                 |
+| `test:watch` | `vitest`                                                 |
+| `test:int`   | `vitest run -c vitest.int.config.ts`                     |
+| `test:cov`   | `vitest run --coverage`                                  |
+| `db:*`       | Prisma: `generate`, `migrate`, `deploy`, `reset`, `seed` |

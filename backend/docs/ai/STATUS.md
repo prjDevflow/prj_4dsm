@@ -2,9 +2,9 @@
 
 Atualize este arquivo no fim de cada sessão de trabalho. A IA lê aqui qual é a etapa atual antes de começar.
 
-**Etapa atual:** B02 (parte Docker; Prisma em seguida)
+**Etapa atual:** B02 (Docker e Prisma prontos e verificados; faltam o banco em nuvem e o teste do README por Pedro e Lucas)
 **Branch:** `feature/B02-docker-prisma` (empilhada sobre `feature/B01-setup`)
-**Último teste vermelho/verde:** 2026-10-16 · integração de health, 404 e tratador de erros (verde)
+**Último teste vermelho/verde:** 2026-10-17 · `GetHealth` com `db up/down` (unitário e integração, verde)
 
 Legenda: ⬜ pendente · 🟨 em andamento · ✅ pronta (critérios e DoD marcados, PR integrado em `develop`).
 
@@ -13,7 +13,7 @@ Legenda: ⬜ pendente · 🟨 em andamento · ✅ pronta (critérios e DoD marca
 | Etapa | Nome | Depende de | Arquivo | Status | PR |
 |---|---|---|---|---|---|
 | B01 | Setup do projeto | G01 | 04 | 🟨 em revisão | #1 |
-| B02 | Docker, PostgreSQL e Prisma | B01 | 04 | 🟨 Docker escrito, verificação pendente; falta Prisma | |
+| B02 | Docker, PostgreSQL e Prisma | B01 | 04 | 🟨 Docker e Prisma verificados localmente; falta banco em nuvem | |
 | B03 | Pipeline de CI | B01, B02 | 04 | ⬜ | |
 | B04 | Modelo de dados e seed | B02 | 04 | ⬜ | |
 | B05 | Autenticação | B04 | 04 | ⬜ | |
@@ -63,6 +63,15 @@ Formato: data · decisão · motivo.
 - 2026-10-16 · Banco de testes `access_test` no mesmo container do banco local, criado por script de init · um só serviço para desenvolver e testar.
 - 2026-10-16 · `init: true` no serviço `api` · repassa SIGTERM ao Node sem precisar de código de desligamento agora.
 - 2026-10-16 · Estrutura de pastas do arquivo 01 substitui a árvore e o DoD de camadas do plano antigo · decisão do autor com base em `ANALISE-ESTRUTURA.md`.
+- 2026-10-17 · Prisma 7.10.1 com `@prisma/adapter-pg` e `prisma.config.ts`; CLI e client fixados na mesma versão (o `npm install prisma` trouxe um 8.0.0-rc) · o 7 é a versão estável e o client e a CLI precisam coincidir.
+- 2026-10-17 · Client gerado em `src/generated/prisma` (não versionado, gerado no build da imagem) · `tsc` o compila para `dist/` e a imagem de produção não precisa da CLI do Prisma.
+- 2026-10-17 · `prisma.config.ts` lê `DATABASE_URL` sem exigir (string vazia) · `prisma generate` roda no build do Docker, que não tem banco; `migrate` falha com mensagem clara se faltar.
+- 2026-10-17 · Primeira migração (`init`) cria só o model descartável `ConnectionCheck`; a B04 o remove · o Prisma não gera migração sem model.
+- 2026-10-17 · Migrações rodam do computador (`npm run db:deploy`), não dentro do container da API · a imagem de produção não leva a CLI do Prisma.
+- 2026-10-17 · `DATABASE_URL` é obrigatória no `env.ts`; o `/health` devolve `db: "down"` (HTTP 200) em cerca de 2 s quando o banco cai (timeout de conexão de 2 s) · a API não pode cair junto com o banco.
+- 2026-10-17 · `onPoolError` e `onConnectionError` do adapter ligados ao `ILogger` · sem eles, parar o banco derrubaria o processo pelo evento `error` do pool.
+- 2026-10-17 · `DB_PORT=5433` no `.env` local · a 5432 estava ocupada por outro PostgreSQL; `engines.node` subiu para `>=22.18` (exigência do Prisma 7).
+- 2026-10-17 · Integração usa `access_test` (URL montada em `vitest.int.config.ts` a partir de `POSTGRES_*` e `DB_PORT`, ou `DATABASE_URL_TEST`); as migrações precisam ser aplicadas nele uma vez (README).
 - Pendente de registrar: requisição sem autenticação (401) na B15 não gera evento.
 
 ## Perguntas em aberto
@@ -82,3 +91,4 @@ Formato: data · decisão · motivo.
 | 2026-10-16 | B01 | Configuração: package.json e dependências, tsconfig (build e test), ESLint com fronteira de camadas, Prettier, Vitest unit/int, `.env.example`, `.gitignore`, README | — |
 | 2026-10-16 | B01 | Árvore de pastas do doc 01; TDD de `GetHealth`, `parseEnv` e integração (health, 404, 500, AppError, JSON malformado, ZodError); app, container, middlewares, `openapi.yaml` | Abrir PR `[B01]` para `develop`; pedir para alguém de fora testar o README (DoD); B02 |
 | 2026-10-16 | B02 | Parte Docker: Dockerfile multi-stage não-root, `.dockerignore`, compose com `api` e `db` (healthcheck, volume, `access_test`), README. Estágio runtime simulado sem Docker (só deps de produção → health 200) | Rodar o roteiro de verificação Docker numa máquina com Docker; parte Prisma da B02 |
+| 2026-10-17 | B02 | Docker verificado (db healthy antes da api, não-root, `access_test` criado no init, API de pé com o banco parado). Prisma 7: schema, `prisma.config.ts`, migração `init` aplicada em `access` e `access_test`, scripts `db:*`, `IDatabaseProbe` + `PrismaDatabaseProbe`, `db: up/down` no `/health` (TDD: unitário, integração, implementação), `DATABASE_URL` no env, Dockerfile gera o client, README e `openapi.yaml`. Stack recriada do zero com `down -v`: `up` → parar o db → `down` em cerca de 2 s → `up` de novo | Criar o banco em nuvem e aplicar `db:deploy` nele (precisa de conta e segredo); pedir a Pedro ou Lucas para testar o README; abrir o PR `[B02]`; B03 |
