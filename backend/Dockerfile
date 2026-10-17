@@ -9,9 +9,11 @@ COPY package.json package-lock.json ./
 RUN npm ci
 
 FROM deps AS build
-COPY tsconfig.json ./
+COPY tsconfig.json prisma.config.ts ./
+COPY prisma ./prisma
 COPY src ./src
-RUN npm run build
+# The client is generated here (no database needed) and compiled into dist/ by tsc.
+RUN npm run db:generate && npm run build
 
 # Production dependencies only; no install scripts needed at runtime.
 FROM base AS prod-deps
