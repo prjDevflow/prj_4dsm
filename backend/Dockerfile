@@ -16,9 +16,18 @@ COPY src ./src
 RUN npm run db:generate && npm run build
 
 # Production dependencies only; no install scripts needed at runtime.
+# npm still installs the Prisma CLI here (optional peer of @prisma/client); the API never runs it.
 FROM base AS prod-deps
 COPY package.json package-lock.json ./
 RUN npm ci --omit=dev --ignore-scripts && npm cache clean --force
+
+# One-off image for `docker compose run --rm migrate`: the Prisma CLI plus the migrations, nothing else.
+# Not part of the production image; `runtime` below stays the last stage.
+FROM deps AS migrate
+COPY prisma.config.ts ./
+COPY prisma ./prisma
+USER node
+CMD ["node_modules/.bin/prisma", "migrate", "deploy"]
 
 FROM base AS runtime
 ENV NODE_ENV=production

@@ -20,8 +20,24 @@ services:
       timeout: 5s
       retries: 10
 
+  # Applies the Prisma migrations. Not started by `up`; run it with `docker compose run --rm migrate`.
+  # To migrate the test database: `MIGRATE_DB=access_test docker compose run --rm migrate`.
+  migrate:
+    build:
+      context: .
+      target: migrate
+    image: access-control-migrate:local
+    profiles: ['tools']
+    environment:
+      DATABASE_URL: postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@db:5432/${MIGRATE_DB:-${POSTGRES_DB}}
+    depends_on:
+      db:
+        condition: service_healthy
+
   api:
-    build: .
+    build:
+      context: .
+      target: runtime
     image: access-control-backend:local
     # Forwards SIGTERM to Node so `docker compose stop` is immediate.
     init: true
