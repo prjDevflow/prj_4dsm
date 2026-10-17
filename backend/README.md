@@ -8,6 +8,7 @@ Contexto para quem usa IA e documentação técnica: [AGENTS.md](AGENTS.md) e [d
 
 - Node.js 22 ou superior (desenvolvido com Node 24)
 - npm 10 ou superior
+- Docker Desktop (ou Docker Engine + Compose v2), para subir API e banco com um comando
 
 ## Instalar
 
@@ -19,14 +20,46 @@ cp .env.example .env   # no PowerShell: Copy-Item .env.example .env
 
 Variáveis do `.env`:
 
-| Variável       | Padrão                  | Uso                                       |
-| -------------- | ----------------------- | ----------------------------------------- |
-| `PORT`         | `3000`                  | porta HTTP                                |
-| `NODE_ENV`     | `development`           | `development`, `test` ou `production`     |
-| `CORS_ORIGINS` | `http://localhost:8081` | origens permitidas, separadas por vírgula |
-| `LOG_LEVEL`    | `info`                  | nível de log do pino                      |
+| Variável                                            | Padrão                  | Uso                                       |
+| --------------------------------------------------- | ----------------------- | ----------------------------------------- |
+| `PORT`                                              | `3000`                  | porta HTTP                                |
+| `NODE_ENV`                                          | `development`           | `development`, `test` ou `production`     |
+| `CORS_ORIGINS`                                      | `http://localhost:8081` | origens permitidas, separadas por vírgula |
+| `LOG_LEVEL`                                         | `info`                  | nível de log do pino                      |
+| `POSTGRES_USER`, `POSTGRES_PASSWORD`, `POSTGRES_DB` | `access`, —, `access`   | banco local do docker compose             |
+| `DB_PORT`                                           | `5432`                  | porta do PostgreSQL no seu computador     |
 
-## Rodar
+O `.env` nunca vai para o Git nem para a imagem Docker. Troque a senha do exemplo no seu `.env`.
+
+## Subir com Docker (API + PostgreSQL)
+
+```bash
+cd backend
+cp .env.example .env         # se ainda não tiver
+docker compose up --build -d
+docker compose ps            # db "healthy" e api "running"
+curl http://localhost:3000/api/v1/health
+```
+
+O que sobe:
+
+- `db`: PostgreSQL 17 com os bancos `access` (desenvolvimento) e `access_test` (testes de integração), dados no volume `pgdata`.
+- `api`: a imagem de produção do backend, que só inicia depois que o banco responde ao `healthcheck`.
+
+Comandos úteis:
+
+| Comando                                    | O que faz                                                                   |
+| ------------------------------------------ | --------------------------------------------------------------------------- |
+| `docker compose logs -f api`               | acompanha os logs da API                                                    |
+| `docker compose stop db`                   | para só o banco (a API continua de pé)                                      |
+| `docker compose down`                      | para tudo e mantém os dados                                                 |
+| `docker compose down -v`                   | para tudo e **apaga o banco**; na próxima subida o `access_test` é recriado |
+| `docker compose exec db psql -U access -l` | lista os bancos                                                             |
+| `docker compose exec api whoami`           | mostra o usuário da API (`node`, não root)                                  |
+
+O script `docker/postgres/init/01-create-test-db.sql` só roda quando o volume está vazio. Se o volume foi criado antes dele, use `docker compose down -v`.
+
+## Rodar sem Docker
 
 ```bash
 npm run dev      # desenvolvimento, recarrega ao salvar
