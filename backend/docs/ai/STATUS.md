@@ -4,7 +4,7 @@ Atualize este arquivo no fim de cada sessão de trabalho. A IA lê aqui qual é 
 
 **Etapa atual:** B01
 **Branch:** `feature/B01-setup`
-**Último teste vermelho/verde:** (preencher)
+**Último teste vermelho/verde:** 2026-10-16 · integração de health, 404 e tratador de erros (verde)
 
 Legenda: ⬜ pendente · 🟨 em andamento · ✅ pronta (critérios e DoD marcados, PR integrado em `develop`).
 
@@ -12,7 +12,7 @@ Legenda: ⬜ pendente · 🟨 em andamento · ✅ pronta (critérios e DoD marca
 
 | Etapa | Nome | Depende de | Arquivo | Status | PR |
 |---|---|---|---|---|---|
-| B01 | Setup do projeto | G01 | 04 | 🟨 | |
+| B01 | Setup do projeto | G01 | 04 | 🟨 código pronto, falta PR | |
 | B02 | Docker, PostgreSQL e Prisma | B01 | 04 | ⬜ | |
 | B03 | Pipeline de CI | B01, B02 | 04 | ⬜ | |
 | B04 | Modelo de dados e seed | B02 | 04 | ⬜ | |
@@ -52,6 +52,12 @@ Formato: data · decisão · motivo.
 - 2026-10-16 · Vitest como runner · menos configuração com TypeScript.
 - 2026-10-16 · Setup da B01 criado do zero, sem o `node_server_template` · template e `ANALISE-ESTRUTURA.md` indisponíveis; docs 01 e 02 descrevem a estrutura.
 - 2026-10-16 · TypeScript 6 com `module: NodeNext` em pacote CommonJS (imports relativos sem extensão) e `types: ["node"]` explícito (TS 6 não inclui `@types/*` automaticamente); sem `typeRoots` — `src/@types/*.d.ts` entra pelo `include`.
+- 2026-10-16 · Árvore completa do doc 01 criada já na B01, com `.gitkeep` nas pastas sem código · pedido do autor; sobrepõe a regra "não criar pastas vazias" do doc 01 §7. Remover o `.gitkeep` quando a pasta ganhar código.
+- 2026-10-16 · `CORS_ORIGINS` é obrigatória (sem padrão) · o doc 03 não define um valor padrão; origem errada em produção é pior que falhar na partida.
+- 2026-10-16 · Corpo de erro 500 traz `stack` só fora de produção · facilita depurar em dev; o contrato vale em produção.
+- 2026-10-16 · Specs fora do `tsconfig.json` (rootDir `src`); typecheck deles via `test/tsconfig.json` · specs importam `test/doubles`.
+- 2026-10-16 · `parseEnv.ts` (puro, testado) separado de `env.ts` (carrega `.env` e encerra o processo) · teste unitário não depende do ambiente.
+- 2026-10-16 · Log de requisições oculta `authorization`, `cookie` e `x-terminal-key` · regra 8 do AGENTS.md.
 - 2026-10-16 · Estrutura de pastas do arquivo 01 substitui a árvore e o DoD de camadas do plano antigo · decisão do autor com base em `ANALISE-ESTRUTURA.md`.
 - Pendente de registrar: requisição sem autenticação (401) na B15 não gera evento.
 
@@ -69,4 +75,5 @@ Formato: data · decisão · motivo.
 
 | Data | Etapa | O que foi feito | Próximo passo |
 |---|---|---|---|
-| 2026-10-16 | B01 | Configuração: package.json e dependências, tsconfig (build e test), ESLint com fronteira de camadas, Prettier, Vitest unit/int, `.env.example`, `.gitignore`, README | TDD da B01: `GetHealth`, `parseEnv`, `AppError`, `errorHandler`/`notFound`/`requestId`, `app.ts`/`server.ts` |
+| 2026-10-16 | B01 | Configuração: package.json e dependências, tsconfig (build e test), ESLint com fronteira de camadas, Prettier, Vitest unit/int, `.env.example`, `.gitignore`, README | — |
+| 2026-10-16 | B01 | Árvore de pastas do doc 01; TDD de `GetHealth`, `parseEnv` e integração (health, 404, 500, AppError, JSON malformado, ZodError); app, container, middlewares, `openapi.yaml` | Abrir PR `[B01]` para `develop`; pedir para alguém de fora testar o README (DoD); B02 |

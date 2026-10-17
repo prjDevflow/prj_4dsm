@@ -31,26 +31,26 @@ Como ler cada etapa:
 
 **Lista de testes**
 
-- [ ] U `GetHealth`: deve devolver `status: "ok"`, a versão e a hora do relógio injetado.
-- [ ] U `parseEnv`: deve falhar com mensagem clara quando falta uma variável obrigatória.
-- [ ] U `parseEnv`: deve aplicar os padrões e converter números.
-- [ ] I `GET /api/v1/health`: 200 com o JSON esperado.
-- [ ] I rota inexistente: 404 no formato `{ error: { code: "NOT_FOUND", message } }`.
-- [ ] I erro lançado numa rota de teste: 500 `INTERNAL_ERROR` sem stack quando `NODE_ENV=production`.
-- [ ] I `AppError` lançado: usa o `status` e o `code` dele.
-- [ ] I JSON malformado no corpo: 422 `VALIDATION_ERROR`.
+- [x] U `GetHealth`: deve devolver `status: "ok"`, a versão e a hora do relógio injetado.
+- [x] U `parseEnv`: deve falhar com mensagem clara quando falta uma variável obrigatória.
+- [x] U `parseEnv`: deve aplicar os padrões e converter números.
+- [x] I `GET /api/v1/health`: 200 com o JSON esperado.
+- [x] I rota inexistente: 404 no formato `{ error: { code: "NOT_FOUND", message } }`.
+- [x] I erro lançado numa rota de teste: 500 `INTERNAL_ERROR` sem stack quando `NODE_ENV=production`.
+- [x] I `AppError` lançado: usa o `status` e o `code` dele.
+- [x] I JSON malformado no corpo: 422 `VALIDATION_ERROR`.
 
 **Critérios de aceitação**
 
-- [ ] `npm run dev` sobe o servidor e `GET /api/v1/health` responde 200 com `{ "status": "ok", "version": "0.1.0", "time": "<ISO>" }`.
-- [ ] Uma rota inexistente responde 404 no formato padrão de erro.
-- [ ] Um erro lançado dentro de uma rota vira 500 no formato padrão, **sem** stack trace quando `NODE_ENV=production`.
-- [ ] Iniciar sem uma variável obrigatória faz o servidor falhar na partida com mensagem clara.
-- [ ] `npm run build` gera `dist/` e `npm start` roda a partir dele.
+- [x] `npm run dev` sobe o servidor e `GET /api/v1/health` responde 200 com `{ "status": "ok", "version": "0.1.0", "time": "<ISO>" }`.
+- [x] Uma rota inexistente responde 404 no formato padrão de erro.
+- [x] Um erro lançado dentro de uma rota vira 500 no formato padrão, **sem** stack trace quando `NODE_ENV=production`.
+- [x] Iniciar sem uma variável obrigatória faz o servidor falhar na partida com mensagem clara.
+- [x] `npm run build` gera `dist/` e `npm start` roda a partir dele.
 
 **Definição de pronto**
 
-- [ ] Teste de integração do `/health`, do 404 e do tratador de erros.
+- [x] Teste de integração do `/health`, do 404 e do tratador de erros.
 - [ ] README permite que alguém de fora rode o projeto em menos de 5 minutos.
 
 ---

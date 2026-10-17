@@ -34,7 +34,43 @@ npm run build    # compila para dist/
 npm start        # roda dist/main/server.js
 ```
 
-A API fica em `http://localhost:3000/api/v1` (saúde: `GET /api/v1/health`).
+A API fica em `http://localhost:3000/api/v1`. Para conferir se subiu:
+
+```bash
+curl http://localhost:3000/api/v1/health
+# {"status":"ok","version":"0.1.0","time":"2026-10-16T12:00:00.000Z"}
+```
+
+Se faltar uma variável obrigatória (hoje, `CORS_ORIGINS`), o servidor não sobe e mostra qual é:
+
+```text
+Configuração inválida:
+- CORS_ORIGINS: obrigatória
+```
+
+O contrato da API está em [openapi.yaml](openapi.yaml). Erros seguem sempre o formato
+`{ "error": { "code", "message", "details?" } }`.
+
+## Estrutura
+
+Clean Architecture, um use case por pasta. Detalhes e regra de dependência em
+[docs/ai/01-architecture.md](docs/ai/01-architecture.md).
+
+```text
+src/
+  config/         variáveis de ambiente validadas (zod) e versão
+  shared/errors/  AppError e subclasses
+  entities/       entidades e regras puras
+  repositories/   ports de repositório
+  providers/      ports de serviços (IClock, ILogger, ...)
+  useCases/       <Módulo>/<UseCase>/ com UseCase, Controller, DTO, spec e index
+  infra/          implementações: http (middlewares), providers, database, repositories, jobs
+  main/           container, app (sem listen), server (listen), routes
+test/
+  doubles/        fakes para testes unitários (FakeClock, ...)
+  factories/      makeUser(), ...
+  integration/    supertest
+```
 
 ## Testar
 

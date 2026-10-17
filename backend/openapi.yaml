@@ -1,0 +1,109 @@
+openapi: 3.1.0
+info:
+  title: API de Controle de Acesso
+  version: 0.1.0
+  description: Backend do sistema integrado de controle de acesso (ABP 2026-2).
+servers:
+  - url: http://localhost:3000/api/v1
+    description: Local
+paths:
+  /health:
+    get:
+      tags: [Health]
+      summary: Saúde da API
+      operationId: getHealth
+      security: []
+      responses:
+        '200':
+          description: API no ar
+          headers:
+            X-Request-Id:
+              $ref: '#/components/headers/XRequestId'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Health'
+              example:
+                status: ok
+                version: 0.1.0
+                time: '2026-10-16T12:00:00.000Z'
+        '500':
+          $ref: '#/components/responses/InternalError'
+components:
+  headers:
+    XRequestId:
+      description: Identificador da requisição. Reaproveitado se enviado pelo cliente e válido.
+      schema:
+        type: string
+        pattern: '^[\w-]{1,100}$'
+  schemas:
+    Health:
+      type: object
+      required: [status, version, time]
+      properties:
+        status:
+          type: string
+          enum: [ok]
+        version:
+          type: string
+        time:
+          type: string
+          format: date-time
+    Error:
+      type: object
+      required: [error]
+      properties:
+        error:
+          type: object
+          required: [code, message]
+          properties:
+            code:
+              type: string
+              examples: [VALIDATION_ERROR, NOT_FOUND, INTERNAL_ERROR]
+            message:
+              type: string
+            details:
+              type: array
+              description: Presente só em erros de validação.
+              items:
+                type: object
+                required: [field, message]
+                properties:
+                  field:
+                    type: string
+                  message:
+                    type: string
+  responses:
+    ValidationError:
+      description: Corpo inválido ou JSON malformado
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          example:
+            error:
+              code: VALIDATION_ERROR
+              message: Dados inválidos
+              details:
+                - field: email
+                  message: E-mail inválido
+    NotFound:
+      description: Rota ou recurso inexistente
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          example:
+            error:
+              code: NOT_FOUND
+              message: Rota não encontrada
+    InternalError:
+      description: Erro interno (sem stack trace em produção)
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          example:
+            error:
+              code: INTERNAL_ERROR
+              message: Erro interno do servidor
