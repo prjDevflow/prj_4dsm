@@ -186,6 +186,10 @@ O job final **`backend-ci`** é o único check a exigir na proteção de `develo
 o backend foi validado ou quando o PR não mexe no backend, então PRs só de `mobile/` ou `terminal/` não
 ficam presos esperando um check que não rodou.
 
+A regra de proteção está pronta em [`.github/rulesets/protecao-develop-main.json`](../.github/rulesets/protecao-develop-main.json)
+(PR obrigatório, 1 aprovação, check `backend-ci` obrigatório, sem force-push nem exclusão). Quem é admin do
+repositório a aplica em **Settings > Rules > Rulesets > New ruleset > Import a ruleset**.
+
 Para ser avisado quando um run falhar, ligue **GitHub > Settings > Notifications > Actions**.
 
 Reproduzir o CI na sua máquina (com o banco do compose de pé e migrado):

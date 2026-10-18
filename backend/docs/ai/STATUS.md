@@ -2,9 +2,9 @@
 
 Atualize este arquivo no fim de cada sessão de trabalho. A IA lê aqui qual é a etapa atual antes de começar.
 
-**Etapa atual:** B02 (Docker e Prisma prontos e verificados; faltam o banco em nuvem e o teste do README por Pedro e Lucas)
-**Branch:** `feature/B02-docker-prisma` (empilhada sobre `feature/B01-setup`)
-**Último teste vermelho/verde:** 2026-10-17 · `GetHealth` com `db up/down` (unitário e integração, verde)
+**Etapa atual:** B03 (CI verde e provado; falta ligar a proteção de branch, que exige o admin do repositório). B02 aguarda o banco em nuvem e o teste do README por Pedro e Lucas
+**Branch:** `feature/B03-ci-pipeline` (empilhada sobre `feature/B02-docker-prisma`, que está sobre `feature/B01-setup`)
+**Último teste vermelho/verde:** 2026-10-17 · CI no GitHub: vermelho (teste quebrado e violação de camadas) e verde (PR #4 e #5, descartados)
 
 Legenda: ⬜ pendente · 🟨 em andamento · ✅ pronta (critérios e DoD marcados, PR integrado em `develop`).
 
@@ -14,7 +14,7 @@ Legenda: ⬜ pendente · 🟨 em andamento · ✅ pronta (critérios e DoD marca
 |---|---|---|---|---|---|
 | B01 | Setup do projeto | G01 | 04 | 🟨 em revisão | #1 |
 | B02 | Docker, PostgreSQL e Prisma | B01 | 04 | 🟨 Docker e Prisma verificados localmente; falta banco em nuvem | |
-| B03 | Pipeline de CI | B01, B02 | 04 | ⬜ | |
+| B03 | Pipeline de CI | B01, B02 | 04 | 🟨 CI verde e provado; falta a proteção de branch (admin) | #3 |
 | B04 | Modelo de dados e seed | B02 | 04 | ⬜ | |
 | B05 | Autenticação | B04 | 04 | ⬜ | |
 | B06 | Usuários | B05 | 05 | ⬜ | |
@@ -72,6 +72,12 @@ Formato: data · decisão · motivo.
 - 2026-10-17 · `onPoolError` e `onConnectionError` do adapter ligados ao `ILogger` · sem eles, parar o banco derrubaria o processo pelo evento `error` do pool.
 - 2026-10-17 · `DB_PORT=5433` no `.env` local · a 5432 estava ocupada por outro PostgreSQL; `engines.node` subiu para `>=22.18` (exigência do Prisma 7).
 - 2026-10-17 · Integração usa `access_test` (URL montada em `vitest.int.config.ts` a partir de `POSTGRES_*` e `DB_PORT`, ou `DATABASE_URL_TEST`); as migrações precisam ser aplicadas nele uma vez (README).
+- 2026-10-17 · `ci.yml` com três jobs: `changes` (detecta `backend/**`), `backend` e `backend-ci` · o job de passagem `backend-ci` é o único check obrigatório e passa quando o backend não mudou; com filtro `paths` simples o merge de PRs de `mobile/` e `terminal/` ficaria preso em "pending".
+- 2026-10-17 · CI em Node 24 e `ubuntu-24.04` · igual à imagem de produção; o `ubuntu-latest` migra para o Ubuntu 26 em 19/10/2026.
+- 2026-10-17 · Banco do CI é um serviço `postgres:17-alpine` com senha descartável no próprio workflow · só existe dentro do job; não é segredo do projeto.
+- 2026-10-17 · Cobertura: limiares do `vitest.config.ts` mantidos (80% linhas, 75% branches); relatório publicado como artefato `backend-coverage` · a medição atual cobre só o `GetHealth_UseCase` (100%).
+- 2026-10-17 · Notificação de falha pelas notificações nativas do GitHub · sem secret nem serviço externo; Discord/Slack ficam para depois, se o grupo quiser.
+- 2026-10-17 · Ruleset de `develop` e `main` versionado em `.github/rulesets/protecao-develop-main.json` · só a conta `prjDevflow` é admin; os integrantes têm `write` e não conseguem ligar a proteção.
 - Pendente de registrar: requisição sem autenticação (401) na B15 não gera evento.
 
 ## Perguntas em aberto
@@ -92,3 +98,4 @@ Formato: data · decisão · motivo.
 | 2026-10-16 | B01 | Árvore de pastas do doc 01; TDD de `GetHealth`, `parseEnv` e integração (health, 404, 500, AppError, JSON malformado, ZodError); app, container, middlewares, `openapi.yaml` | Abrir PR `[B01]` para `develop`; pedir para alguém de fora testar o README (DoD); B02 |
 | 2026-10-16 | B02 | Parte Docker: Dockerfile multi-stage não-root, `.dockerignore`, compose com `api` e `db` (healthcheck, volume, `access_test`), README. Estágio runtime simulado sem Docker (só deps de produção → health 200) | Rodar o roteiro de verificação Docker numa máquina com Docker; parte Prisma da B02 |
 | 2026-10-17 | B02 | Docker verificado (db healthy antes da api, não-root, `access_test` criado no init, API de pé com o banco parado). Prisma 7: schema, `prisma.config.ts`, migração `init` aplicada em `access` e `access_test`, scripts `db:*`, `IDatabaseProbe` + `PrismaDatabaseProbe`, `db: up/down` no `/health` (TDD: unitário, integração, implementação), `DATABASE_URL` no env, Dockerfile gera o client, README e `openapi.yaml`. Stack recriada do zero com `down -v`: `up` → parar o db → `down` em cerca de 2 s → `up` de novo | Criar o banco em nuvem e aplicar `db:deploy` nele (precisa de conta e segredo); pedir a Pedro ou Lucas para testar o README; abrir o PR `[B02]`; B03 |
+| 2026-10-17 | B03 | `.github/workflows/ci.yml` (changes, backend, backend-ci), ensaio local dos mesmos comandos, selo e seção de CI no README, ruleset de proteção versionado. Primeiro run verde em runner limpo (26 testes: 16 unitários + 10 de integração). Provas: teste quebrado deixa o `backend-ci` vermelho e volta a verde (PR #4); `useCase` importando `infra` falha o passo de lint (PR #5). Os dois PRs foram fechados sem merge | Admin da conta `prjDevflow` importa o ruleset; só então tirar o print do merge bloqueado; avisar Lucas e Pedro do padrão para o CI deles; integrar B01 → B02 → B03 retargetando a base para `develop`; B04 |
