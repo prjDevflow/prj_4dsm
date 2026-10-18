@@ -1,0 +1,163 @@
+# Backend CI: lint, typecheck, build and tests (unit with coverage, integration with PostgreSQL).
+#
+# The workflow always runs, so the single required check `backend-ci` never stays "pending" on pull
+# requests that only touch other folders (mobile/, terminal/, ...). Heavy steps run only when
+# backend/** (or this file) changed.
+name: Backend CI
+
+on:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: backend-ci-${{ github.event.pull_request.number || github.ref }}
+  # Never cancel runs on main/develop: the CD pipeline (B10) relies on each commit's result.
+  cancel-in-progress: ${{ !contains(fromJSON('["refs/heads/main", "refs/heads/develop"]'), github.ref) }}
+
+jobs:
+  changes:
+    name: Detectar mudanças no backend
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    outputs:
+      backend: ${{ steps.filter.outputs.backend }}
+    steps:
+      - name: Baixar o repositório
+        uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+
+      - name: Verificar se backend/** mudou
+        id: filter
+        env:
+          EVENT: ${{ github.event_name }}
+          PR_BASE: ${{ github.event.pull_request.base.sha }}
+          PUSH_BEFORE: ${{ github.event.before }}
+          HEAD_SHA: ${{ github.sha }}
+        run: |
+          set -euo pipefail
+          base="$PUSH_BEFORE"
+          if [ "$EVENT" = "pull_request" ]; then
+            base="$PR_BASE"
+          fi
+
+          # New branch (all-zero "before"), force push or missing commit: no reliable base, run everything.
+          if [ -z "$base" ] || [[ "$base" =~ ^0+$ ]] || ! git cat-file -e "${base}^{commit}" 2>/dev/null; then
+            echo "Sem base para comparar; o backend roda por completo."
+            echo "backend=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          changed="$(git diff --name-only "$base" "$HEAD_SHA")"
+          echo "Arquivos alterados:"
+          echo "$changed"
+
+          if echo "$changed" | grep -qE '^(backend/|\.github/workflows/ci\.yml$)'; then
+            echo "backend=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "Nada do backend mudou; os passos pesados serão pulados."
+            echo "backend=false" >> "$GITHUB_OUTPUT"
+          fi
+
+  backend:
+    name: Backend
+    needs: changes
+    if: needs.changes.outputs.backend == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    defaults:
+      run:
+        working-directory: backend
+    env:
+      # Throwaway credentials of the CI database service; they exist only inside this job.
+      POSTGRES_USER: access
+      POSTGRES_PASSWORD: ci-only-password
+      POSTGRES_DB: access_test
+      DB_PORT: '5432'
+    services:
+      postgres:
+        image: postgres:17-alpine
+        env:
+          POSTGRES_USER: ${{ env.POSTGRES_USER }}
+          POSTGRES_PASSWORD: ${{ env.POSTGRES_PASSWORD }}
+          POSTGRES_DB: ${{ env.POSTGRES_DB }}
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U access -d access_test"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    steps:
+      - name: Baixar o repositório
+        uses: actions/checkout@v7
+
+      - name: Instalar dependências
+        uses: actions/setup-node@v7
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: backend/package-lock.json
+
+      - name: Instalar pacotes (npm ci)
+        run: npm ci
+
+      - name: Gerar o client do Prisma
+        run: npm run db:generate
+
+      - name: Lint (inclui a fronteira de camadas)
+        run: npm run lint
+
+      - name: Typecheck
+        run: npm run typecheck
+
+      - name: Build
+        run: npm run build
+
+      - name: Migrar o banco de teste
+        env:
+          DATABASE_URL: postgresql://${{ env.POSTGRES_USER }}:${{ env.POSTGRES_PASSWORD }}@localhost:${{ env.DB_PORT }}/${{ env.POSTGRES_DB }}
+        run: npm run db:deploy
+
+      - name: Testes unitários com cobertura
+        run: npm run test:cov
+
+      - name: Publicar o relatório de cobertura
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: backend-coverage
+          path: backend/coverage
+          if-no-files-found: warn
+          retention-days: 14
+
+      - name: Testes de integração
+        run: npm run test:int
+
+  # The only check to mark as required in the branch protection. It passes when the backend job
+  # passed or was skipped (no backend changes) and fails when it failed or was cancelled.
+  backend-ci:
+    name: backend-ci
+    if: always()
+    needs: [changes, backend]
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Conferir o resultado do backend
+        env:
+          CHANGES_RESULT: ${{ needs.changes.result }}
+          BACKEND_RESULT: ${{ needs.backend.result }}
+        run: |
+          echo "changes: $CHANGES_RESULT | backend: $BACKEND_RESULT"
+          if [ "$CHANGES_RESULT" != "success" ]; then
+            echo "A detecção de mudanças falhou."
+            exit 1
+          fi
+          case "$BACKEND_RESULT" in
+            success) echo "Backend verde." ;;
+            skipped) echo "Backend sem mudanças; nada a validar." ;;
+            *) echo "Backend: $BACKEND_RESULT."; exit 1 ;;
+          esac
