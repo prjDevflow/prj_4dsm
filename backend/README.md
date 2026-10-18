@@ -1,5 +1,7 @@
 # Backend — Controle de Acesso (ABP 2026-2)
 
+[![Backend CI](https://github.com/prjDevflow/prj_4dsm/actions/workflows/ci.yml/badge.svg?branch=develop)](https://github.com/prjDevflow/prj_4dsm/actions/workflows/ci.yml)
+
 API em Node.js + Express 5 + TypeScript (`strict`) que atende o app mobile (JWT) e o terminal de acesso (ESP32 ou simulador).
 
 Contexto para quem usa IA e documentação técnica: [AGENTS.md](AGENTS.md) e [docs/ai/](docs/ai/).
@@ -166,6 +168,41 @@ npm run format      # Prettier
 ```
 
 Antes de abrir um PR: `typecheck`, `lint`, `test` e `test:int` precisam passar.
+
+## Integração contínua (CI)
+
+O workflow [`.github/workflows/ci.yml`](../.github/workflows/ci.yml) ("Backend CI") roda em **todo push e
+em todo pull request**. Quando `backend/**` mudou, ele executa, nesta ordem:
+
+1. instalar dependências (`npm ci`, com cache) e gerar o client do Prisma;
+2. lint (inclui a regra de fronteira de camadas) e typecheck;
+3. build;
+4. migrar o banco de teste (PostgreSQL 17 como serviço do job);
+5. testes unitários com cobertura (mínimo 80% de linhas e 75% de branches), com o relatório publicado
+   como artefato `backend-coverage` (aba **Actions** do run);
+6. testes de integração.
+
+O job final **`backend-ci`** é o único check a exigir na proteção de `develop` e `main`. Ele passa quando
+o backend foi validado ou quando o PR não mexe no backend, então PRs só de `mobile/` ou `terminal/` não
+ficam presos esperando um check que não rodou.
+
+A regra de proteção está pronta em [`.github/rulesets/protecao-develop-main.json`](../.github/rulesets/protecao-develop-main.json)
+(PR obrigatório, 1 aprovação, check `backend-ci` obrigatório, sem force-push nem exclusão). Quem é admin do
+repositório a aplica em **Settings > Rules > Rulesets > New ruleset > Import a ruleset**.
+
+Para ser avisado quando um run falhar, ligue **GitHub > Settings > Notifications > Actions**.
+
+Reproduzir o CI na sua máquina (com o banco do compose de pé e migrado):
+
+```bash
+npm run db:generate && npm run lint && npm run typecheck && npm run build
+npm run test:cov && npm run test:int
+```
+
+**Adicionar o CI de outra parte do repositório (mobile, terminal):** não edite o `ci.yml`. Crie um arquivo
+novo em `.github/workflows/` (ex.: `mobile-ci.yml`) com `name` próprio, rode em `push` e `pull_request`,
+use o mesmo padrão de detecção de mudanças da sua pasta e termine com um job de passagem de nome único
+(ex.: `mobile-ci`) para ser o check obrigatório da sua parte.
 
 ## Scripts
 
