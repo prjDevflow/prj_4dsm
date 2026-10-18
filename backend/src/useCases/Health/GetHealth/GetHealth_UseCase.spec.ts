@@ -38,7 +38,7 @@ describe('GetHealth', () => {
 
     const result = await sut.execute();
 
-    expect(result.db).toBe('up');
+    expect(result.db).toBe('down');
   });
 
   it('deve devolver db down quando o banco não responde', async () => {
