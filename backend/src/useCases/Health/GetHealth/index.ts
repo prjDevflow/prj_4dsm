@@ -1,6 +1,8 @@
-import { container as c } from '../../../main/container';
+import { container } from '../../../main/container';
 import { GetHealthController } from './GetHealth_Controller';
 import { GetHealthUseCase } from './GetHealth_UseCase';
 
-const useCase = new GetHealthUseCase(c.clock, { version: c.appVersion });
+const useCase = new GetHealthUseCase(container.clock, container.databaseProbe, {
+  version: container.appVersion,
+});
 export const getHealthController = new GetHealthController(useCase);

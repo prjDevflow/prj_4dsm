@@ -75,22 +75,22 @@ Como ler cada etapa:
 
 **Lista de testes**
 
-- [ ] U `GetHealth`: com o probe respondendo, devolve `db: "up"`.
-- [ ] U `GetHealth`: com o probe falhando ou lançando erro, devolve `db: "down"` sem lançar exceção.
-- [ ] I `GET /health` contra o PostgreSQL de testes: `db: "up"`.
-- [ ] Verificação manual: parar o container do banco e conferir `db: "down"` com a API de pé.
+- [x] U `GetHealth`: com o probe respondendo, devolve `db: "up"`.
+- [x] U `GetHealth`: com o probe falhando ou lançando erro, devolve `db: "down"` sem lançar exceção.
+- [x] I `GET /health` contra o PostgreSQL de testes: `db: "up"`.
+- [x] Verificação manual: parar o container do banco e conferir `db: "down"` com a API de pé.
 
 **Critérios de aceitação**
 
-- [ ] `docker compose up` sobe API e banco; `GET /api/v1/health` mostra `"db": "up"`.
-- [ ] Parar o container do banco faz `/health` mostrar `"db": "down"` (e a API continua de pé).
-- [ ] A imagem não roda como root.
+- [x] `docker compose up` sobe API e banco; `GET /api/v1/health` mostra `"db": "up"`.
+- [x] Parar o container do banco faz `/health` mostrar `"db": "down"` (e a API continua de pé).
+- [x] A imagem não roda como root.
 - [ ] A migração inicial roda no banco local **e** no banco em nuvem.
-- [ ] `DATABASE_URL` não aparece em nenhum arquivo versionado.
+- [x] `DATABASE_URL` não aparece em nenhum arquivo versionado.
 
 **Definição de pronto**
 
-- [ ] README explica como subir o ambiente e como resetar o banco.
+- [x] README explica como subir o ambiente e como resetar o banco.
 - [ ] Pedro e Lucas conseguem rodar o backend local seguindo o README (peça para um deles testar).
 
 ---
@@ -114,17 +114,17 @@ Como ler cada etapa:
 
 **Lista de verificação (não há use case; os testes já existem desde B01 e B02)**
 
-- [ ] Existem pelo menos 4 testes automatizados rodando no CI (os de B01 e B02).
+- [x] Existem pelo menos 4 testes automatizados rodando no CI (os de B01 e B02).
 - [ ] Um teste quebrado deixa o PR vermelho e o merge fica bloqueado.
-- [ ] O pipeline passa do zero, sem depender da sua máquina.
-- [ ] Lint com violação de fronteira (importar `infra` dentro de `useCases`) falha o CI.
+- [x] O pipeline passa do zero, sem depender da sua máquina.
+- [x] Lint com violação de fronteira (importar `infra` dentro de `useCases`) falha o CI.
 
 **Critérios de aceitação**
 
-- [ ] Todo push dispara o pipeline.
+- [x] Todo push dispara o pipeline.
 - [ ] Falha em lint, build ou teste deixa o PR vermelho e impede o merge.
-- [ ] O pipeline passa do zero (sem depender de estado da sua máquina).
-- [ ] Há ao menos 4 testes automatizados executados no CI.
+- [x] O pipeline passa do zero (sem depender de estado da sua máquina).
+- [x] Há ao menos 4 testes automatizados executados no CI.
 - [ ] O selo no README mostra o estado atual.
 
 **Definição de pronto**

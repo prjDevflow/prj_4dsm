@@ -3,11 +3,16 @@ import { describe, it, expect } from 'vitest';
 import { app } from '../../src/main/app';
 
 describe('GET /api/v1/health', () => {
-  it('200 com status ok, a versão do package.json e a hora em ISO', async () => {
+  it('200 com status ok, a versão do package.json, a hora em ISO e db up', async () => {
     const res = await request(app).get('/api/v1/health');
 
     expect(res.status).toBe(200);
-    expect(res.body).toEqual({ status: 'ok', version: '0.1.0', time: expect.any(String) });
+    expect(res.body).toEqual({
+      status: 'ok',
+      version: '0.1.0',
+      time: expect.any(String),
+      db: 'up',
+    });
     expect(new Date(res.body.time).toISOString()).toBe(res.body.time);
   });
 
