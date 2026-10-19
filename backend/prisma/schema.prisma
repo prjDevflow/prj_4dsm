@@ -1,0 +1,17 @@
+generator client {
+  provider     = "prisma-client"
+  output       = "../src/generated/prisma"
+  moduleFormat = "cjs"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+// Placeholder that exists only to produce the first migration (B02). B04 replaces it with the v1 data model.
+model ConnectionCheck {
+  id        Int      @id @default(autoincrement())
+  createdAt DateTime @default(now())
+
+  @@map("connection_checks")
+}

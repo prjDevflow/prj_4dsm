@@ -1,0 +1,28 @@
+# Never send secrets or local builds to the image.
+.env
+.env.*
+!.env.example
+node_modules
+dist
+coverage
+# Generated inside the image by `prisma generate`.
+src/generated
+*.log
+
+# Not needed to build or run.
+.git
+.gitattributes
+.gitignore
+test
+docs
+docker
+*.md
+openapi.yaml
+eslint.config.mjs
+.prettierrc
+.prettierignore
+vitest.config.ts
+vitest.int.config.ts
+docker-compose.yml
+Dockerfile
+.dockerignore
