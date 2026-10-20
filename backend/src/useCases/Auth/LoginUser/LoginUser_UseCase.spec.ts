@@ -68,9 +68,35 @@ describe('LoginUser', () => {
     expect(unknownEmail.message).toBe(wrongPassword.message);
   });
 
-  it.todo('deve comparar a senha com um hash falso quando o e-mail não existe');
-  it.todo('deve lançar USUARIO_INATIVO (403) quando a conta está inativa e a senha está certa');
-  it.todo(
-    'deve continuar lançando CREDENCIAIS_INVALIDAS (401) quando a conta está inativa e a senha está errada',
-  );
+  it('deve comparar a senha com um hash falso quando o e-mail não existe', async () => {
+    const { sut, hash } = makeSut();
+
+    await sut.execute({ email: 'x@b.com', senha: SENHA }).catch(() => undefined);
+
+    expect(hash.compareCalls).toBe(1);
+  });
+
+  it('deve lançar USUARIO_INATIVO (403) quando a conta está inativa e a senha está certa', async () => {
+    const { sut, users, hash } = makeSut();
+    await users.save(
+      makeUser({ email: 'a@b.com', ativo: false, senhaHash: await hash.hash(SENHA) }),
+    );
+
+    const error = await sut.execute({ email: 'a@b.com', senha: SENHA }).catch((e) => e);
+
+    expect(error.code).toBe('USUARIO_INATIVO');
+    expect(error.status).toBe(403);
+  });
+
+  it('deve continuar lançando CREDENCIAIS_INVALIDAS (401) quando a conta está inativa e a senha está errada', async () => {
+    const { sut, users, hash } = makeSut();
+    await users.save(
+      makeUser({ email: 'a@b.com', ativo: false, senhaHash: await hash.hash(SENHA) }),
+    );
+
+    const error = await sut.execute({ email: 'a@b.com', senha: 'errada-123' }).catch((e) => e);
+
+    expect(error.code).toBe('CREDENCIAIS_INVALIDAS');
+    expect(error.status).toBe(401);
+  });
 });
