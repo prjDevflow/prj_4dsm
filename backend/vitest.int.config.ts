@@ -19,6 +19,10 @@ export default defineConfig({
       CORS_ORIGINS: 'http://localhost:8081',
       LOG_LEVEL: 'silent',
       DATABASE_URL: testDatabaseUrl,
+      // Throwaway value, only for the test database; not a secret.
+      JWT_SECRET: 'segredo-somente-para-testes-de-integracao-0123456789',
+      // Cheapest bcrypt cost, so the tests that hash passwords stay fast.
+      BCRYPT_COST: '4',
     },
   },
 });

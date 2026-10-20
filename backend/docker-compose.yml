@@ -75,6 +75,11 @@ services:
       CORS_ORIGINS: ${CORS_ORIGINS:?defina CORS_ORIGINS no .env}
       LOG_LEVEL: ${LOG_LEVEL:-info}
       DATABASE_URL: postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB}
+      JWT_SECRET: ${JWT_SECRET:?defina JWT_SECRET no .env (mínimo 32 caracteres)}
+      # Vazio = padrão do código (a API trata variável vazia como ausente).
+      JWT_EXPIRES_IN: ${JWT_EXPIRES_IN:-}
+      BCRYPT_COST: ${BCRYPT_COST:-}
+      LOGIN_MAX_PER_MINUTE: ${LOGIN_MAX_PER_MINUTE:-}
     ports:
       - '${PORT:-3000}:3000'
     depends_on:
