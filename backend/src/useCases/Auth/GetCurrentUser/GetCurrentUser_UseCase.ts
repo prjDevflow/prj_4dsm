@@ -1,5 +1,6 @@
 import type { UserProfile } from '../../../entities/User';
 import type { IUserRepository } from '../../../repositories/IUserRepository';
+import { UnauthorizedError } from '../../../shared/errors/AppError';
 
 export interface CurrentUser {
   id: string;
@@ -11,7 +12,10 @@ export interface CurrentUser {
 export class GetCurrentUserUseCase {
   constructor(private users: IUserRepository) {}
 
-  async execute(_userId: string): Promise<CurrentUser> {
-    throw new Error('não implementado');
+  async execute(userId: string): Promise<CurrentUser> {
+    const user = await this.users.findById(userId);
+    if (!user) throw new UnauthorizedError('Token ausente, inválido ou expirado');
+
+    return { id: user.id, nome: user.nome, email: user.email, perfil: user.perfil };
   }
 }
