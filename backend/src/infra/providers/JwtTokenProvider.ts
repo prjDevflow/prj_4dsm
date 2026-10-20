@@ -30,7 +30,9 @@ export class JwtTokenProvider implements ITokenProvider {
       });
       if (typeof claims === 'string') return null;
 
-      const { sub, perfil } = claims;
+      const { sub, perfil, exp } = claims;
+      // jsonwebtoken accepts a token with no exp; ours must always expire.
+      if (typeof exp !== 'number') return null;
       if (typeof sub !== 'string' || !PROFILES.includes(perfil)) return null;
       return { sub, perfil };
     } catch {
