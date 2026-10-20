@@ -116,9 +116,10 @@ describe('PrismaUserRepository', () => {
       ]);
     });
 
-    it('trata % e _ em q como texto comum, não como curinga', async () => {
+    it('trata %, _ e \\ em q como texto comum, não como curinga', async () => {
       expect((await repository.list({ ...defaults, q: '%' })).total).toBe(0);
       expect((await repository.list({ ...defaults, q: '_' })).total).toBe(0);
+      expect((await repository.list({ ...defaults, q: '\\' })).total).toBe(0);
     });
 
     it('combina os filtros', async () => {
