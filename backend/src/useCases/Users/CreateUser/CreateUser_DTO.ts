@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { NO_NUL_MESSAGE, hasNoNul } from '../../../shared/noNul';
 
 // bcrypt reads only the first 72 bytes, so a longer password would be cut without warning.
 const MAX_PASSWORD_BYTES = 72;
@@ -8,7 +9,8 @@ export const CreateUserSchema = z.object({
     .string({ error: 'obrigatório' })
     .trim()
     .min(3, 'deve ter no mínimo 3 caracteres')
-    .max(120, 'deve ter no máximo 120 caracteres'),
+    .max(120, 'deve ter no máximo 120 caracteres')
+    .refine(hasNoNul, NO_NUL_MESSAGE),
   email: z
     .string({ error: 'obrigatório' })
     .trim()

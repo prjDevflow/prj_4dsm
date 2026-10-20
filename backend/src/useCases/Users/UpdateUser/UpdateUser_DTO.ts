@@ -11,6 +11,9 @@ export const UpdateUserSchema = z
   })
   .partial()
   .strict()
-  .refine((body) => Object.keys(body).length > 0, 'informe ao menos um campo para alterar');
+  .refine((body) => Object.keys(body).length > 0, {
+    message: 'informe ao menos um campo para alterar',
+    path: ['corpo'],
+  });
 
 export type IUpdateUserDTO = z.infer<typeof UpdateUserSchema>;
