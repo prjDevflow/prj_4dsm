@@ -44,8 +44,8 @@ ENV NODE_ENV=production
 # Files stay owned by root, so the app user can read but not modify them.
 COPY --from=prod-deps /app/node_modules ./node_modules
 COPY --from=build /app/dist ./dist
-# version.ts reads the version from package.json.
-COPY package.json ./
+# version.ts reads the version from package.json; /docs serves openapi.yaml.
+COPY package.json openapi.yaml ./
 USER node
 EXPOSE 3000
 CMD ["node", "dist/main/server.js"]
