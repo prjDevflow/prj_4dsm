@@ -29,6 +29,16 @@ COPY prisma ./prisma
 USER node
 CMD ["node_modules/.bin/prisma", "migrate", "deploy"]
 
+# One-off image for `docker compose run --rm seed`: the dev seed (tsx), the generated Prisma client and
+# the few src/ files the seed imports. Development data only; never the production image.
+FROM deps AS seed
+COPY tsconfig.json prisma.config.ts ./
+COPY prisma ./prisma
+COPY src ./src
+RUN npm run db:generate
+USER node
+CMD ["node_modules/.bin/tsx", "prisma/seed.ts"]
+
 FROM base AS runtime
 ENV NODE_ENV=production
 # Files stay owned by root, so the app user can read but not modify them.

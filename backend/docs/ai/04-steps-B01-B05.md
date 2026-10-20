@@ -156,28 +156,28 @@ Como ler cada etapa:
 
 **Lista de testes**
 
-- [ ] U `computeEffectiveStatus`: `CANCELADA` vence qualquer outra situação.
-- [ ] U `computeEffectiveStatus`: último dia (`dataFim` igual a hoje) ainda é `ATIVA`; dia seguinte é `EXPIRADA`.
-- [ ] U `computeEffectiveStatus`: `usosRealizados` igual a `usosPermitidos` é `ESGOTADA`; um a menos é `ATIVA`.
-- [ ] U `computeEffectiveStatus`: expirada e esgotada ao mesmo tempo é `EXPIRADA`.
-- [ ] U `todayInSaoPaulo`: `2026-10-20T02:30:00Z` é dia 19 em São Paulo; `2026-10-20T03:00:00Z` é dia 20.
-- [ ] I migração aplicada a um banco vazio cria as tabelas e restrições esperadas.
-- [ ] I `runSeed` executado duas vezes não duplica registros nem falha.
-- [ ] I inserir dois usuários com o mesmo e-mail falha.
-- [ ] I inserir `usosRealizados` maior que `usosPermitidos` falha (CHECK).
-- [ ] I conferir no `schema.prisma` que nenhuma coluna guarda senha, token ou chave em texto puro (`senhaHash`, `apiKeyHash`, `tokenHash`).
+- [x] U `computeEffectiveStatus`: `CANCELADA` vence qualquer outra situação.
+- [x] U `computeEffectiveStatus`: último dia (`dataFim` igual a hoje) ainda é `ATIVA`; dia seguinte é `EXPIRADA`.
+- [x] U `computeEffectiveStatus`: `usosRealizados` igual a `usosPermitidos` é `ESGOTADA`; um a menos é `ATIVA`.
+- [x] U `computeEffectiveStatus`: expirada e esgotada ao mesmo tempo é `EXPIRADA`.
+- [x] U `todayInSaoPaulo`: `2026-10-20T02:30:00Z` é dia 19 em São Paulo; `2026-10-20T03:00:00Z` é dia 20.
+- [x] I migração aplicada a um banco vazio cria as tabelas e restrições esperadas.
+- [x] I `runSeed` executado duas vezes não duplica registros nem falha.
+- [x] I inserir dois usuários com o mesmo e-mail falha.
+- [x] I inserir `usosRealizados` maior que `usosPermitidos` falha (CHECK).
+- [x] I conferir no `schema.prisma` que nenhuma coluna guarda senha, token ou chave em texto puro (`senhaHash`, `apiKeyHash`, `tokenHash`).
 
 **Critérios de aceitação**
 
-- [ ] Migração roda do zero e a estrutura bate com a tabela da seção 7 do arquivo 03.
-- [ ] `db:seed` pode ser executado duas vezes sem duplicar registros nem falhar.
-- [ ] Inserir dois usuários com o mesmo e-mail falha; inserir `usosRealizados > usosPermitidos` falha.
-- [ ] Nenhuma coluna guarda senha, token ou chave em texto puro.
-- [ ] Testes unitários de `computeEffectiveStatus` cobrem os quatro estados e os limites de data (último dia vale; dia seguinte não).
+- [x] Migração roda do zero e a estrutura bate com a tabela da seção 7 do arquivo 03.
+- [x] `db:seed` pode ser executado duas vezes sem duplicar registros nem falhar.
+- [x] Inserir dois usuários com o mesmo e-mail falha; inserir `usosRealizados > usosPermitidos` falha.
+- [x] Nenhuma coluna guarda senha, token ou chave em texto puro.
+- [x] Testes unitários de `computeEffectiveStatus` cobrem os quatro estados e os limites de data (último dia vale; dia seguinte não).
 
 **Definição de pronto**
 
-- [ ] Diagrama ER gerado a partir do schema e salvo em `docs/`.
+- [x] Diagrama ER gerado a partir do schema e salvo em `docs/`.
 - [ ] Lucas e Pedro conseguem entrar com os usuários do seed (a partir da B05).
 
 ---

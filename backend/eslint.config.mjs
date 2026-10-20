@@ -41,6 +41,7 @@ export default tseslint.config(
           paths: [
             { name: '@prisma/client', message: 'Use a repository port.' },
             { name: 'bcrypt', message: 'Use IHashProvider.' },
+            { name: 'bcryptjs', message: 'Use IHashProvider.' },
             { name: 'jsonwebtoken', message: 'Use ITokenProvider.' },
             {
               name: 'express',

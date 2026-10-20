@@ -36,6 +36,7 @@ Variáveis do `.env`:
 | `POSTGRES_USER`, `POSTGRES_PASSWORD`, `POSTGRES_DB` | `access`, —, `access`   | banco local do docker compose                           |
 | `DB_PORT`                                           | `5432`                  | porta do PostgreSQL no seu computador                   |
 | `DATABASE_URL`                                      | —                       | conexão dos comandos `npm` (dev, testes) fora do Docker |
+| `SEED_*`, `BCRYPT_COST`                             | ver `.env.example`      | credenciais e local do seed de desenvolvimento          |
 
 O `.env` nunca vai para o Git nem para a imagem Docker. Troque a senha do exemplo no seu `.env`.
 A senha e a porta da `DATABASE_URL` precisam ser as mesmas de `POSTGRES_PASSWORD` e `DB_PORT`. Se a
@@ -56,6 +57,7 @@ cd backend
 cp .env.example .env         # se ainda não tiver
 docker compose up --build -d
 docker compose run --rm migrate   # aplica as migrações, dentro do Docker (sem Node no seu computador)
+docker compose run --rm seed      # dados de desenvolvimento: usuários, catraca, terminal (ver docs/ambiente-dev.md)
 docker compose ps            # db "healthy" e api "running"
 curl http://localhost:3000/api/v1/health
 # {"status":"ok","version":"0.1.0","time":"...","db":"up"}
@@ -88,8 +90,10 @@ O script `docker/postgres/init/01-create-test-db.sql` só roda quando o volume e
 | `docker compose run --rm migrate` | aplica as migrações existentes no banco do compose, só com Docker                        |
 | `npm run db:migrate`              | cria uma nova migração a partir do `prisma/schema.prisma` e aplica (desenvolvimento)     |
 | `npm run db:deploy`               | aplica as migrações existentes usando a `DATABASE_URL` do `.env` (inclui banco na nuvem) |
-| `npm run db:reset`                | **apaga** o banco `access`, reaplica as migrações e roda o seed                          |
-| `npm run db:seed`                 | roda `prisma/seed.ts` (hoje vazio; o seed real é da etapa B04)                           |
+| `docker compose run --rm seed`    | semeia o banco do compose com os dados de desenvolvimento, só com Docker                 |
+| `npm run db:reset`                | **apaga** o banco `access`, reaplica as migrações e semeia em seguida (pede confirmação) |
+| `npm run db:seed`                 | roda `prisma/seed.ts` com as variáveis `SEED_*` do `.env`                                |
+| `npm run db:erd`                  | regenera `docs/modelo-de-dados.md` (diagrama ER) a partir do `schema.prisma`             |
 | `npm run db:generate`             | gera o client do Prisma em `src/generated/` (não versionado)                             |
 
 Para que os testes de integração tenham as tabelas, aplique as migrações no banco de testes uma vez:
@@ -98,9 +102,17 @@ Para que os testes de integração tenham as tabelas, aplique as migrações no 
 MIGRATE_DB=access_test docker compose run --rm migrate
 ```
 
-Para recomeçar do zero, apagando tudo: `docker compose down -v && docker compose up -d && docker compose run --rm migrate`.
+Para recomeçar do zero, apagando tudo: `docker compose down -v && docker compose up -d && docker compose run --rm migrate && docker compose run --rm seed`.
+O banco de testes volta vazio (`access_test`): migre-o de novo com `MIGRATE_DB=access_test docker compose run --rm migrate` antes do `npm run test:int`.
 
-O serviço `migrate` usa uma imagem própria (estágio `migrate` do Dockerfile) e não sobe com `docker compose up`.
+Os serviços `migrate` e `seed` usam imagens próprias (estágios do Dockerfile), não sobem com `docker compose up`
+e se reconstroem a cada execução, para nunca aplicarem migrações velhas (`--quiet-build` silencia o log do build).
+
+O seed é **idempotente** (pode rodar quantas vezes quiser) e cria o administrador, um condômino, um visitante,
+um edifício, uma catraca, um terminal e uma autorização do visitante. As credenciais, o id e a chave do terminal
+estão em [docs/ambiente-dev.md](docs/ambiente-dev.md) e são **só para desenvolvimento** (públicas). O seed se
+recusa a rodar com `NODE_ENV=production`. O modelo de dados (9 tabelas) está em
+[docs/modelo-de-dados.md](docs/modelo-de-dados.md).
 
 ## Rodar sem Docker
 
@@ -142,10 +154,12 @@ src/
   useCases/       <Módulo>/<UseCase>/ com UseCase, Controller, DTO, spec e index
   infra/          implementações: http (middlewares), providers, database, repositories, jobs
   main/           container, app (sem listen), server (listen), routes
+prisma/           schema.prisma, migrations/ (com os CHECK em SQL) e seed.ts
+scripts/          ferramentas de desenvolvimento (gerador do diagrama ER)
 test/
-  doubles/        fakes para testes unitários (FakeClock, ...)
-  factories/      makeUser(), ...
-  integration/    supertest
+  doubles/        fakes para testes unitários (FakeClock, FakeDatabaseProbe, ...)
+  factories/      makeAuthorization(), ...
+  integration/    supertest + PostgreSQL (schema, seed, health)
 ```
 
 ## Testar
@@ -206,16 +220,16 @@ use o mesmo padrão de detecção de mudanças da sua pasta e termine com um job
 
 ## Scripts
 
-| Script       | O que faz                                                |
-| ------------ | -------------------------------------------------------- |
-| `dev`        | `tsx watch src/main/server.ts`                           |
-| `build`      | `tsc` (specs ficam fora do `dist/`)                      |
-| `start`      | `node dist/main/server.js`                               |
-| `lint`       | `eslint .`                                               |
-| `typecheck`  | `tsc --noEmit` em `src` e `test`                         |
-| `format`     | `prettier --write .`                                     |
-| `test`       | `vitest run` (config `vitest.config.ts`)                 |
-| `test:watch` | `vitest`                                                 |
-| `test:int`   | `vitest run -c vitest.int.config.ts`                     |
-| `test:cov`   | `vitest run --coverage`                                  |
-| `db:*`       | Prisma: `generate`, `migrate`, `deploy`, `reset`, `seed` |
+| Script       | O que faz                                                                    |
+| ------------ | ---------------------------------------------------------------------------- |
+| `dev`        | `tsx watch src/main/server.ts`                                               |
+| `build`      | `tsc` (specs ficam fora do `dist/`)                                          |
+| `start`      | `node dist/main/server.js`                                                   |
+| `lint`       | `eslint .`                                                                   |
+| `typecheck`  | `tsc --noEmit` em `src` e `test`                                             |
+| `format`     | `prettier --write .`                                                         |
+| `test`       | `vitest run` (config `vitest.config.ts`)                                     |
+| `test:watch` | `vitest`                                                                     |
+| `test:int`   | `vitest run -c vitest.int.config.ts`                                         |
+| `test:cov`   | `vitest run --coverage`                                                      |
+| `db:*`       | Prisma: `generate`, `migrate`, `deploy`, `reset`, `seed`, e `erd` (diagrama) |
