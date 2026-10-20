@@ -7,6 +7,9 @@ const validSource = {
   JWT_SECRET: 'segredo-de-teste-com-mais-de-32-caracteres',
 };
 
+const without = (key: keyof typeof validSource) =>
+  Object.fromEntries(Object.entries(validSource).filter(([name]) => name !== key));
+
 describe('parseEnv', () => {
   it('deve falhar com mensagem clara quando falta CORS_ORIGINS', () => {
     const error = (() => {
@@ -52,9 +55,7 @@ describe('parseEnv', () => {
   });
 
   it('deve falhar com mensagem clara quando falta DATABASE_URL', () => {
-    const { DATABASE_URL: _omitted, ...withoutDatabase } = validSource;
-
-    expect(() => parseEnv(withoutDatabase)).toThrow('DATABASE_URL: obrigatória');
+    expect(() => parseEnv(without('DATABASE_URL'))).toThrow('DATABASE_URL: obrigatória');
   });
 
   it('deve aceitar DATABASE_URL com postgresql:// ou postgres://', () => {
@@ -77,9 +78,7 @@ describe('parseEnv', () => {
   });
 
   it('deve falhar com mensagem clara quando falta JWT_SECRET', () => {
-    const { JWT_SECRET: _omitted, ...withoutSecret } = validSource;
-
-    expect(() => parseEnv(withoutSecret)).toThrow('JWT_SECRET: obrigatória');
+    expect(() => parseEnv(without('JWT_SECRET'))).toThrow('JWT_SECRET: obrigatória');
   });
 
   it('deve rejeitar JWT_SECRET com menos de 32 caracteres sem repetir o valor', () => {
