@@ -20,13 +20,18 @@ export class AuthenticateUserUseCase {
     private tokens: ITokenProvider,
   ) {}
 
-  async execute({ token }: AuthenticateUserInput): Promise<AuthenticatedUser> {
+  async execute({
+    token,
+    allowInactive = false,
+  }: AuthenticateUserInput): Promise<AuthenticatedUser> {
     const payload = token ? this.tokens.verify(token) : null;
     if (!payload) throw new UnauthorizedError('Token ausente, inválido ou expirado');
 
     // The profile comes from the database, so a role change applies without a new login.
     const user = await this.users.findById(payload.sub);
-    if (!user) throw new UnauthorizedError('Token ausente, inválido ou expirado');
+    if (!user || (!user.ativo && !allowInactive)) {
+      throw new UnauthorizedError('Token ausente, inválido ou expirado');
+    }
 
     return { userId: user.id, perfil: user.perfil };
   }
