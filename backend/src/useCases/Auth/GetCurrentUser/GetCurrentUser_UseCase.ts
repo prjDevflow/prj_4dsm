@@ -1,6 +1,6 @@
 import type { UserProfile } from '../../../entities/User';
 import type { IUserRepository } from '../../../repositories/IUserRepository';
-import { UnauthorizedError } from '../../../shared/errors/AppError';
+import { InvalidSessionError } from '../authErrors';
 
 export interface CurrentUser {
   id: string;
@@ -14,7 +14,7 @@ export class GetCurrentUserUseCase {
 
   async execute(userId: string): Promise<CurrentUser> {
     const user = await this.users.findById(userId);
-    if (!user) throw new UnauthorizedError('Token ausente, inválido ou expirado');
+    if (!user) throw new InvalidSessionError();
 
     return { id: user.id, nome: user.nome, email: user.email, perfil: user.perfil };
   }
