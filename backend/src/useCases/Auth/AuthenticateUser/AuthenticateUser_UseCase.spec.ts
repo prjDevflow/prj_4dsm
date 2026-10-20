@@ -77,7 +77,37 @@ describe('AuthenticateUser', () => {
     expect(error.status).toBe(401);
   });
 
-  it.todo('deve lançar UNAUTHORIZED quando o usuário do token não existe mais');
-  it.todo('deve recusar o usuário desativado depois da emissão do token');
-  it.todo('deve deixar passar o usuário inativo quando allowInactive é verdadeiro');
+  it('deve lançar UNAUTHORIZED (401) quando o usuário do token não existe mais', async () => {
+    const { sut, tokens } = makeSut();
+    const token = tokens.sign({ sub: makeUser().id, perfil: 'VISITANTE' });
+
+    const error = await sut.execute({ token }).catch((e) => e);
+
+    expect(error.code).toBe('UNAUTHORIZED');
+    expect(error.status).toBe(401);
+  });
+
+  it('deve recusar o usuário desativado depois da emissão do token', async () => {
+    const { sut, users, tokens } = makeSut();
+    const user = makeUser({ ativo: true });
+    await users.save(user);
+    const token = tokens.sign({ sub: user.id, perfil: user.perfil });
+    await users.save({ ...user, ativo: false });
+
+    const error = await sut.execute({ token }).catch((e) => e);
+
+    expect(error.code).toBe('UNAUTHORIZED');
+    expect(error.status).toBe(401);
+  });
+
+  it('deve deixar passar o usuário inativo quando allowInactive é verdadeiro', async () => {
+    const { sut, users, tokens } = makeSut();
+    const user = makeUser({ ativo: false });
+    await users.save(user);
+    const token = tokens.sign({ sub: user.id, perfil: user.perfil });
+
+    const result = await sut.execute({ token, allowInactive: true });
+
+    expect(result).toEqual({ userId: user.id, perfil: user.perfil });
+  });
 });
