@@ -1,3 +1,4 @@
+import { ConflictError } from '../../../shared/errors/AppError';
 import type { IClock } from '../../../providers/IClock';
 import type { IHashProvider } from '../../../providers/IHashProvider';
 import type { IIdGenerator } from '../../../providers/IIdGenerator';
@@ -14,11 +15,16 @@ export class CreateUserUseCase {
   ) {}
 
   async execute(input: ICreateUserDTO): Promise<UserView> {
+    const email = input.email.trim().toLowerCase();
+    if (await this.users.existsByEmail(email)) {
+      throw new ConflictError('EMAIL_JA_CADASTRADO', 'Já existe um usuário com este e-mail');
+    }
+
     const now = this.clock.now();
     const user = {
       id: this.ids.next(),
       nome: input.nome,
-      email: input.email.toLowerCase(),
+      email,
       senhaHash: await this.hash.hash(input.senha),
       perfil: input.perfil,
       ativo: true,
