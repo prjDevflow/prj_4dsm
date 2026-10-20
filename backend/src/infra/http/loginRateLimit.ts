@@ -1,9 +1,13 @@
 import { rateLimit, ipKeyGenerator } from 'express-rate-limit';
 import { RateLimitedError } from '../../shared/errors/AppError';
 
+// This runs before body validation, so the key must not grow with a 100 kb body (254 is the e-mail limit).
+const MAX_EMAIL_LENGTH = 254;
+
 /** The counter key: client IP plus the e-mail typed, so one account is limited per client. */
 export function makeLoginKey(ip: string, email: unknown) {
-  const normalized = typeof email === 'string' ? email.trim().toLowerCase() : '';
+  const normalized =
+    typeof email === 'string' ? email.trim().toLowerCase().slice(0, MAX_EMAIL_LENGTH) : '';
   return `${ipKeyGenerator(ip)}|${normalized}`;
 }
 
