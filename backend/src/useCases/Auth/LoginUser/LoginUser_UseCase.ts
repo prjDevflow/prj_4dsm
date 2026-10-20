@@ -47,7 +47,11 @@ export class LoginUserUseCase {
   }
 
   private getDummyHash() {
-    this.dummyHash ??= this.hash.hash('senha-descartavel');
+    this.dummyHash ??= this.hash.hash('senha-descartavel').catch((error: unknown) => {
+      // Do not keep a rejected promise: every later unknown-e-mail login would fail with it.
+      this.dummyHash = undefined;
+      throw error;
+    });
     return this.dummyHash;
   }
 }
