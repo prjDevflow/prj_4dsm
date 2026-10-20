@@ -77,4 +77,13 @@ describe('JwtTokenProvider', () => {
 
     expect(makeSut().sut.verify(token)).toBeNull();
   });
+
+  it('deve recusar um token com assinatura válida, mas sem prazo de validade (exp)', () => {
+    const iat = Date.parse('2026-10-20T14:00:00Z') / 1000;
+    const eternal = jwt.sign({ sub: PAYLOAD.sub, perfil: PAYLOAD.perfil, iat }, SECRET, {
+      algorithm: 'HS256',
+    });
+
+    expect(makeSut().sut.verify(eternal)).toBeNull();
+  });
 });
