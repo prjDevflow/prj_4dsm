@@ -1,5 +1,6 @@
 import type { User } from '../../entities/User';
 import type { Prisma, PrismaClient } from '../../generated/prisma/client';
+import { ConflictError } from '../../shared/errors/AppError';
 import type {
   IUserRepository,
   UserListFilter,
@@ -22,6 +23,11 @@ const toEntity = (row: UserRow): User => ({
 
 // `contains` passes the text to LIKE as is, so `%` and `_` would act as wildcards.
 const escapeLike = (text: string) => text.replace(/[\\%_]/g, '\\$&');
+
+// P2002 is Prisma's unique-constraint violation. The only unique column besides the id is the e-mail.
+const isEmailTaken = (error: unknown) =>
+  (error as { code?: string } | null)?.code === 'P2002' &&
+  JSON.stringify((error as { meta?: unknown }).meta ?? '').includes('email');
 
 export class PrismaUserRepository implements IUserRepository {
   constructor(private prisma: PrismaClient) {}
@@ -50,11 +56,19 @@ export class PrismaUserRepository implements IUserRepository {
       criadoEm: user.criadoEm,
       atualizadoEm: user.atualizadoEm,
     };
-    await this.prisma.user.upsert({
-      where: { id: user.id },
-      create: { id: user.id, ...data },
-      update: data,
-    });
+    try {
+      await this.prisma.user.upsert({
+        where: { id: user.id },
+        create: { id: user.id, ...data },
+        update: data,
+      });
+    } catch (error) {
+      // Two requests can pass `existsByEmail` together; the unique index decides who wins.
+      if (isEmailTaken(error)) {
+        throw new ConflictError('EMAIL_JA_CADASTRADO', 'Já existe um usuário com este e-mail');
+      }
+      throw error;
+    }
   }
 
   async list(filter: UserListFilter): Promise<UserListResult> {
