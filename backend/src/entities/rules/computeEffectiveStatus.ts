@@ -1,7 +1,10 @@
 import type { Authorization, EffectiveAuthorizationStatus } from '../Authorization';
 import { todayInSaoPaulo } from './todayInSaoPaulo';
 
-type StatusInput = Pick<Authorization, 'situacao' | 'dataFim' | 'usosPermitidos' | 'usosRealizados'>;
+type StatusInput = Pick<
+  Authorization,
+  'situacao' | 'dataFim' | 'usosPermitidos' | 'usosRealizados'
+>;
 
 /** Priority: CANCELADA, EXPIRADA, ESGOTADA, ATIVA. The last day of the period still counts. */
 export function computeEffectiveStatus(

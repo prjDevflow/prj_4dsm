@@ -67,7 +67,10 @@ describe('modelo de dados v1', () => {
     });
 
     it('rejeita e-mail com letra maiúscula', async () => {
-      await expectViolation(insertUser({ email: 'Maiuscula@teste.local' }), 'users_email_lowercase_chk');
+      await expectViolation(
+        insertUser({ email: 'Maiuscula@teste.local' }),
+        'users_email_lowercase_chk',
+      );
     });
 
     it('rejeita identificação repetida no mesmo edifício, mas aceita em outro', async () => {
@@ -85,7 +88,10 @@ describe('modelo de dados v1', () => {
       const point = await insertAccessPoint();
       await insertTerminal({ accessPointId: point.id });
 
-      await expectViolation(insertTerminal({ accessPointId: point.id }), 'terminals_accessPointId_key');
+      await expectViolation(
+        insertTerminal({ accessPointId: point.id }),
+        'terminals_accessPointId_key',
+      );
     });
 
     it('rejeita UID de tag NFC repetido', async () => {
@@ -194,15 +200,31 @@ describe('modelo de dados v1', () => {
 
   describe('outras restrições (CHECK)', () => {
     it.each([
-      ['latitude acima de 90', () => insertBuilding({ latitude: 90.1 }), 'buildings_coordenadas_chk'],
-      ['latitude abaixo de -90', () => insertBuilding({ latitude: -90.1 }), 'buildings_coordenadas_chk'],
-      ['longitude acima de 180', () => insertBuilding({ longitude: 180.1 }), 'buildings_coordenadas_chk'],
+      [
+        'latitude acima de 90',
+        () => insertBuilding({ latitude: 90.1 }),
+        'buildings_coordenadas_chk',
+      ],
+      [
+        'latitude abaixo de -90',
+        () => insertBuilding({ latitude: -90.1 }),
+        'buildings_coordenadas_chk',
+      ],
+      [
+        'longitude acima de 180',
+        () => insertBuilding({ longitude: 180.1 }),
+        'buildings_coordenadas_chk',
+      ],
       [
         'longitude abaixo de -180 no ponto de acesso',
         () => insertAccessPoint({ longitude: -180.1 }),
         'access_points_coordenadas_chk',
       ],
-      ['ultimaLat fora do intervalo', () => insertTerminal({ ultimaLat: 91 }), 'terminals_posicao_chk'],
+      [
+        'ultimaLat fora do intervalo',
+        () => insertTerminal({ ultimaLat: 91 }),
+        'terminals_posicao_chk',
+      ],
     ])('rejeita coordenada inválida: %s', async (_nome, insert, constraint) => {
       await expectViolation(insert(), constraint);
     });
@@ -290,7 +312,9 @@ describe('modelo de dados v1', () => {
 
     it('não declara no schema.prisma nenhuma coluna de segredo sem o sufixo Hash', () => {
       const schema = readFileSync(resolve(__dirname, '../../prisma/schema.prisma'), 'utf8');
-      const fields = [...schema.matchAll(/^ {2}([a-zA-Z]\w*)[ \t]+\S+/gm)].map((m) => m[1] as string);
+      const fields = [...schema.matchAll(/^ {2}([a-zA-Z]\w*)[ \t]+\S+/gm)].map(
+        (m) => m[1] as string,
+      );
       const secretLike = fields.filter((name) =>
         /senha|password|token|apikey|chave|secret/i.test(name),
       );
