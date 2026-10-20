@@ -25,7 +25,7 @@ export class LoginUserUseCase {
   ) {}
 
   async execute(input: ILoginUserDTO): Promise<LoginUserResult> {
-    const user = await this.users.findByEmail(input.email);
+    const user = await this.users.findByEmail(input.email.trim().toLowerCase());
     if (!user || !(await this.hash.compare(input.senha, user.senhaHash))) {
       throw new InvalidCredentialsError();
     }
