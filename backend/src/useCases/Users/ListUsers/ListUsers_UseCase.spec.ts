@@ -40,10 +40,57 @@ describe('ListUsers', () => {
     expect(result).toMatchObject({ page: 1, pageSize: 20, total: 4 });
   });
 
-  it.todo('deve filtrar por perfil');
-  it.todo('deve filtrar por ativo, verdadeiro e falso');
-  it.todo('deve buscar q no nome e no e-mail sem diferenciar maiúsculas');
-  it.todo('deve combinar perfil, ativo e q');
-  it.todo('deve paginar e informar o total antes da paginação');
-  it.todo('deve devolver os usuários sem o senhaHash');
+  it('deve filtrar por perfil', async () => {
+    const { sut } = await makeSut();
+
+    const result = await sut.execute({ ...defaults, perfil: 'CONDOMINO' });
+
+    expect(names(result)).toEqual(['Bruno Morador', 'Davi Morador']);
+  });
+
+  it('deve filtrar por ativo, verdadeiro e falso', async () => {
+    const { sut } = await makeSut();
+
+    const inactive = await sut.execute({ ...defaults, ativo: false });
+    const active = await sut.execute({ ...defaults, ativo: true });
+
+    expect(names(inactive)).toEqual(['Carla Visita']);
+    expect(names(active)).toEqual(['Ana Admin', 'Bruno Morador', 'Davi Morador']);
+  });
+
+  it('deve buscar q no nome e no e-mail sem diferenciar maiúsculas', async () => {
+    const { sut } = await makeSut();
+
+    const byName = await sut.execute({ ...defaults, q: 'MORADOR' });
+    const byEmail = await sut.execute({ ...defaults, q: 'Casa.Local' });
+
+    expect(names(byName)).toEqual(['Bruno Morador', 'Davi Morador']);
+    expect(names(byEmail)).toEqual(['Bruno Morador']);
+  });
+
+  it('deve combinar perfil, ativo e q', async () => {
+    const { sut } = await makeSut();
+
+    const result = await sut.execute({ ...defaults, perfil: 'CONDOMINO', ativo: true, q: 'davi' });
+
+    expect(names(result)).toEqual(['Davi Morador']);
+    expect(result.total).toBe(1);
+  });
+
+  it('deve paginar e informar o total antes da paginação', async () => {
+    const { sut } = await makeSut();
+
+    const second = await sut.execute({ page: 2, pageSize: 3 });
+
+    expect(names(second)).toEqual(['Davi Morador']);
+    expect(second).toMatchObject({ page: 2, pageSize: 3, total: 4 });
+  });
+
+  it('deve devolver os usuários sem o senhaHash', async () => {
+    const { sut } = await makeSut();
+
+    const result = await sut.execute(defaults);
+
+    for (const user of result.data) expect(user).not.toHaveProperty('senhaHash');
+  });
 });
