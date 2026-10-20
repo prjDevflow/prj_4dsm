@@ -62,6 +62,16 @@ describe('PrismaUserRepository', () => {
     expect(await prisma.user.count()).toBe(1);
   });
 
+  it('save recusa e-mail já usado por outro usuário com EMAIL_JA_CADASTRADO', async () => {
+    await insertUser({ email: 'maria@teste.local' });
+    const duplicate = makeUser({ id: newId(), email: 'maria@teste.local', senhaHash: BCRYPT_HASH });
+
+    const error = await repository.save(duplicate).catch((e: unknown) => e);
+
+    expect(error).toMatchObject({ code: 'EMAIL_JA_CADASTRADO', status: 409 });
+    expect(await prisma.user.count()).toBe(1);
+  });
+
   it('save grava criadoEm e atualizadoEm recebidos da entidade', async () => {
     const id = newId();
     const criadoEm = new Date('2026-10-21T10:00:00.000Z');

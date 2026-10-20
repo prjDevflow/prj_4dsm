@@ -63,6 +63,20 @@ describe('rotas /api/v1/users', () => {
       expect(res.body.error.code).toBe('EMAIL_JA_CADASTRADO');
     });
 
+    it('só um de vários POST simultâneos com o mesmo e-mail é criado; os outros dão 409', async () => {
+      const admin = await asAdmin();
+      const send = () =>
+        request(app).post('/api/v1/users').set('Authorization', bearer(admin)).send(validBody);
+
+      const results = await Promise.all([send(), send(), send(), send()]);
+
+      expect(results.map((r) => r.status).sort()).toEqual([201, 409, 409, 409]);
+      for (const res of results.filter((r) => r.status === 409)) {
+        expect(res.body.error.code).toBe('EMAIL_JA_CADASTRADO');
+      }
+      expect(await prisma.user.count({ where: { email: 'maria@teste.local' } })).toBe(1);
+    });
+
     it('422 com detalhes por campo para perfil inválido', async () => {
       const admin = await asAdmin();
 
