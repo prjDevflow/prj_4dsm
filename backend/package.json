@@ -22,7 +22,8 @@
     "db:deploy": "prisma migrate deploy",
     "db:seed": "prisma db seed",
     "db:reset": "prisma migrate reset && prisma db seed",
-    "db:generate": "prisma generate"
+    "db:generate": "prisma generate",
+    "db:erd": "tsx scripts/generate-erd.ts"
   },
   "dependencies": {
     "@prisma/adapter-pg": "7.10.1",
