@@ -13,6 +13,7 @@ Os valores abaixo são os padrões do `.env.example`. Se alguém trocar uma vari
 ```bash
 cd backend
 cp .env.example .env              # ajuste POSTGRES_PASSWORD (e DB_PORT, se a 5432 estiver ocupada)
+                                  # e defina JWT_SECRET com 32+ caracteres: openssl rand -base64 48
 docker compose up --build -d      # API + PostgreSQL
 docker compose run --rm migrate   # tabelas
 docker compose run --rm seed      # dados de desenvolvimento (pode repetir quantas vezes quiser)
@@ -24,7 +25,7 @@ build, acrescente `--quiet-build`. Sem Docker (Node 22.18+): `npm run db:seed`.
 
 ## Usuários
 
-Entram pelo `POST /auth/login` a partir da B05.
+Entram pelo `POST /auth/login` (B05), no Swagger em <http://localhost:3000/docs> ou com `curl` (exemplo no README).
 
 | Perfil    | E-mail                | Senha              | Id                                     |
 | --------- | --------------------- | ------------------ | -------------------------------------- |
