@@ -1,11 +1,13 @@
 import cors from 'cors';
 import express, { type Router } from 'express';
 import helmet from 'helmet';
+import swaggerUi from 'swagger-ui-express';
 import { makeErrorHandler } from '../infra/http/errorHandler';
 import { notFound } from '../infra/http/notFound';
 import { makeRequestLogger } from '../infra/http/requestLogger';
 import { requestId } from '../infra/http/requestId';
 import { container } from './container';
+import { loadOpenApiSpec } from './openapi';
 import { buildApiRouter } from './routes';
 
 export interface AppOptions {
@@ -25,6 +27,9 @@ export function createApp({
   app.use(helmet());
   app.use(cors({ origin: container.env.CORS_ORIGINS }));
   app.use(express.json({ limit: '100kb' }));
+
+  // Swagger UI reads the same openapi.yaml the contract is kept in.
+  app.use('/docs', swaggerUi.serve, swaggerUi.setup(loadOpenApiSpec()));
 
   const api = buildApiRouter();
   extraRoutes?.(api);
