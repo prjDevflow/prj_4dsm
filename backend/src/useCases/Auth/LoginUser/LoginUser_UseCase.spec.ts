@@ -76,6 +76,23 @@ describe('LoginUser', () => {
     expect(hash.compareCalls).toBe(1);
   });
 
+  it('deve tentar gerar o hash falso de novo quando a primeira tentativa falha', async () => {
+    const { sut, hash } = makeSut();
+    const generate = hash.hash.bind(hash);
+    let calls = 0;
+    hash.hash = async (plain) => {
+      calls += 1;
+      if (calls === 1) throw new Error('falha ao gerar o hash');
+      return generate(plain);
+    };
+
+    const first = await sut.execute({ email: 'x@b.com', senha: SENHA }).catch((e) => e);
+    const second = await sut.execute({ email: 'x@b.com', senha: SENHA }).catch((e) => e);
+
+    expect(first.message).toBe('falha ao gerar o hash');
+    expect(second.code).toBe('CREDENCIAIS_INVALIDAS');
+  });
+
   it('deve lançar USUARIO_INATIVO (403) quando a conta está inativa e a senha está certa', async () => {
     const { sut, users, hash } = makeSut();
     await users.save(
