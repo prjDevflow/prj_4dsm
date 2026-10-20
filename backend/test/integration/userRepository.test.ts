@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it } from 'vitest';
 import { PrismaUserRepository } from '../../src/infra/repositories/PrismaUserRepository';
-import { insertUser, newId, prisma, resetDatabase } from './helpers';
+import { makeUser } from '../factories/makeUser';
+import { BCRYPT_HASH, insertUser, newId, prisma, resetDatabase } from './helpers';
 
 describe('PrismaUserRepository', () => {
   const repository = new PrismaUserRepository(prisma);
@@ -38,5 +39,119 @@ describe('PrismaUserRepository', () => {
 
   it('findById devolve null quando o id não existe', async () => {
     expect(await repository.findById(newId())).toBeNull();
+  });
+
+  it('existsByEmail diz se o e-mail já está cadastrado', async () => {
+    await insertUser({ email: 'maria@teste.local' });
+
+    expect(await repository.existsByEmail('maria@teste.local')).toBe(true);
+    expect(await repository.existsByEmail('outra@teste.local')).toBe(false);
+  });
+
+  it('save insere um usuário novo e depois atualiza o mesmo id', async () => {
+    const id = newId();
+    const user = makeUser({ id, email: 'novo@teste.local', senhaHash: BCRYPT_HASH });
+
+    await repository.save(user);
+    const inserted = await repository.findById(id);
+    await repository.save({ ...inserted!, nome: 'Nome Novo', ativo: false, perfil: 'ADMIN' });
+    const updated = await repository.findById(id);
+
+    expect(inserted).toMatchObject({ id, nome: user.nome, email: 'novo@teste.local', ativo: true });
+    expect(updated).toMatchObject({ id, nome: 'Nome Novo', ativo: false, perfil: 'ADMIN' });
+    expect(await prisma.user.count()).toBe(1);
+  });
+
+  it('save grava criadoEm e atualizadoEm recebidos da entidade', async () => {
+    const id = newId();
+    const criadoEm = new Date('2026-10-21T10:00:00.000Z');
+
+    await repository.save(
+      makeUser({
+        id,
+        email: 'datas@teste.local',
+        senhaHash: BCRYPT_HASH,
+        criadoEm,
+        atualizadoEm: criadoEm,
+      }),
+    );
+
+    expect(await repository.findById(id)).toMatchObject({ criadoEm, atualizadoEm: criadoEm });
+  });
+
+  describe('list', () => {
+    const seed = async () => {
+      await insertUser({ nome: 'Ana Admin', email: 'ana@teste.local', perfil: 'ADMIN' });
+      await insertUser({ nome: 'Bruno Morador', email: 'bruno@casa.local', perfil: 'CONDOMINO' });
+      await insertUser({ nome: 'Carla Visita', email: 'carla@teste.local', ativo: false });
+      await insertUser({ nome: 'Davi Morador', email: 'davi@teste.local', perfil: 'CONDOMINO' });
+    };
+    const defaults = { page: 1, pageSize: 20 };
+    const names = (result: { items: { nome: string }[] }) => result.items.map((u) => u.nome);
+
+    beforeEach(seed);
+
+    it('ordena por nome e devolve o total', async () => {
+      const result = await repository.list(defaults);
+
+      expect(names(result)).toEqual(['Ana Admin', 'Bruno Morador', 'Carla Visita', 'Davi Morador']);
+      expect(result.total).toBe(4);
+    });
+
+    it('filtra por perfil e por ativo', async () => {
+      expect(names(await repository.list({ ...defaults, perfil: 'CONDOMINO' }))).toEqual([
+        'Bruno Morador',
+        'Davi Morador',
+      ]);
+      expect(names(await repository.list({ ...defaults, ativo: false }))).toEqual(['Carla Visita']);
+    });
+
+    it('busca q no nome e no e-mail sem diferenciar maiúsculas', async () => {
+      expect(names(await repository.list({ ...defaults, q: 'MORADOR' }))).toEqual([
+        'Bruno Morador',
+        'Davi Morador',
+      ]);
+      expect(names(await repository.list({ ...defaults, q: 'Casa.LOCAL' }))).toEqual([
+        'Bruno Morador',
+      ]);
+    });
+
+    it('trata % e _ em q como texto comum, não como curinga', async () => {
+      expect((await repository.list({ ...defaults, q: '%' })).total).toBe(0);
+      expect((await repository.list({ ...defaults, q: '_' })).total).toBe(0);
+    });
+
+    it('combina os filtros', async () => {
+      const result = await repository.list({
+        ...defaults,
+        perfil: 'CONDOMINO',
+        ativo: true,
+        q: 'davi',
+      });
+
+      expect(names(result)).toEqual(['Davi Morador']);
+      expect(result.total).toBe(1);
+    });
+
+    it('pagina e informa o total antes da paginação', async () => {
+      const second = await repository.list({ page: 2, pageSize: 3 });
+
+      expect(names(second)).toEqual(['Davi Morador']);
+      expect(second.total).toBe(4);
+    });
+
+    it('devolve entidades com o senhaHash, para o use case decidir o que expor', async () => {
+      const result = await repository.list(defaults);
+
+      expect(result.items[0]).toHaveProperty('senhaHash');
+    });
+  });
+
+  it('countActiveAdmins conta só administradores ativos', async () => {
+    await insertUser({ perfil: 'ADMIN' });
+    await insertUser({ perfil: 'ADMIN', ativo: false });
+    await insertUser({ perfil: 'CONDOMINO' });
+
+    expect(await repository.countActiveAdmins()).toBe(1);
   });
 });
