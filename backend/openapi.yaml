@@ -14,6 +14,8 @@ tags:
     description: Saúde da API
   - name: Auth
     description: Login e usuário autenticado
+  - name: Users
+    description: Cadastro de usuários (só ADMIN)
 paths:
   /health:
     get:
@@ -123,6 +125,194 @@ paths:
           $ref: '#/components/responses/Unauthorized'
         '500':
           $ref: '#/components/responses/InternalError'
+  /users:
+    post:
+      tags: [Users]
+      summary: Cadastrar usuário
+      description: >-
+        Só `ADMIN`. O e-mail é gravado em minúsculas e é único (a comparação ignora maiúsculas). A
+        senha tem de 8 a 72 bytes e é guardada só como hash; a resposta nunca a traz.
+      operationId: createUser
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CriarUsuario'
+            example:
+              nome: Maria Souza
+              email: Maria@Exemplo.com
+              perfil: CONDOMINO
+              senha: Senha-Valida-123
+      responses:
+        '201':
+          description: Usuário criado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UsuarioCompleto'
+              example:
+                id: 7c9e6679-7425-40de-944b-e07fc1f90ae7
+                nome: Maria Souza
+                email: maria@exemplo.com
+                perfil: CONDOMINO
+                ativo: true
+                criadoEm: '2026-10-21T14:32:07.000Z'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '409':
+          $ref: '#/components/responses/UserConflict'
+        '422':
+          $ref: '#/components/responses/UserValidationError'
+        '500':
+          $ref: '#/components/responses/InternalError'
+    get:
+      tags: [Users]
+      summary: Listar usuários
+      description: Só `ADMIN`. Ordenado por nome. `q` busca em parte do nome ou do e-mail.
+      operationId: listUsers
+      parameters:
+        - name: perfil
+          in: query
+          schema:
+            type: string
+            enum: [ADMIN, CONDOMINO, VISITANTE]
+        - name: ativo
+          in: query
+          schema:
+            type: boolean
+        - name: q
+          in: query
+          description: Parte do nome ou do e-mail, sem diferenciar maiúsculas (até 120 caracteres).
+          schema:
+            type: string
+            maxLength: 120
+        - name: page
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            default: 1
+        - name: pageSize
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 20
+      responses:
+        '200':
+          description: Página de usuários
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ListaUsuarios'
+              example:
+                data:
+                  - id: 5eed0000-0000-4000-8000-000000000001
+                    nome: Administrador
+                    email: admin@dev.local
+                    perfil: ADMIN
+                    ativo: true
+                    criadoEm: '2026-10-19T12:00:00.000Z'
+                  - id: 7c9e6679-7425-40de-944b-e07fc1f90ae7
+                    nome: Maria Souza
+                    email: maria@exemplo.com
+                    perfil: CONDOMINO
+                    ativo: true
+                    criadoEm: '2026-10-21T14:32:07.000Z'
+                page: 1
+                pageSize: 20
+                total: 2
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '422':
+          $ref: '#/components/responses/ValidationError'
+        '500':
+          $ref: '#/components/responses/InternalError'
+  /users/{id}:
+    parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+    get:
+      tags: [Users]
+      summary: Obter usuário
+      description: Só `ADMIN`. Um `id` que não é UUID também devolve 404.
+      operationId: getUser
+      responses:
+        '200':
+          description: O usuário
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UsuarioCompleto'
+              example:
+                id: 7c9e6679-7425-40de-944b-e07fc1f90ae7
+                nome: Maria Souza
+                email: maria@exemplo.com
+                perfil: CONDOMINO
+                ativo: true
+                criadoEm: '2026-10-21T14:32:07.000Z'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/UserNotFound'
+        '500':
+          $ref: '#/components/responses/InternalError'
+    patch:
+      tags: [Users]
+      summary: Alterar ou desativar usuário
+      description: >-
+        Só `ADMIN`. Aceita um ou mais de `nome`, `perfil`, `ativo` e `senha`. Não existe `DELETE`:
+        desativar é `ativo: false`, o que impede o login e invalida o token na hora. O `email` não
+        muda (enviá-lo dá 422). O administrador não desativa a si mesmo nem muda o próprio perfil
+        (409 `AUTO_DESATIVACAO`), e o sistema nunca fica sem administrador ativo (409
+        `ULTIMO_ADMIN`).
+      operationId: updateUser
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AtualizarUsuario'
+            example:
+              ativo: false
+      responses:
+        '200':
+          description: Usuário atualizado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UsuarioCompleto'
+              example:
+                id: 7c9e6679-7425-40de-944b-e07fc1f90ae7
+                nome: Maria Souza
+                email: maria@exemplo.com
+                perfil: CONDOMINO
+                ativo: false
+                criadoEm: '2026-10-21T14:32:07.000Z'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/UserNotFound'
+        '409':
+          $ref: '#/components/responses/UserConflict'
+        '422':
+          $ref: '#/components/responses/UserValidationError'
+        '500':
+          $ref: '#/components/responses/InternalError'
 components:
   securitySchemes:
     bearerAuth:
@@ -196,6 +386,79 @@ components:
           description: Validade do token em segundos (`JWT_EXPIRES_IN`, padrão 12 h = 43200).
         usuario:
           $ref: '#/components/schemas/Usuario'
+    UsuarioCompleto:
+      type: object
+      required: [id, nome, email, perfil, ativo, criadoEm]
+      description: O usuário como a API o expõe. Nunca traz `senhaHash`.
+      properties:
+        id:
+          type: string
+          format: uuid
+        nome:
+          type: string
+        email:
+          type: string
+          format: email
+        perfil:
+          type: string
+          enum: [ADMIN, CONDOMINO, VISITANTE]
+        ativo:
+          type: boolean
+        criadoEm:
+          type: string
+          format: date-time
+    CriarUsuario:
+      type: object
+      required: [nome, email, perfil, senha]
+      properties:
+        nome:
+          type: string
+          minLength: 3
+          maxLength: 120
+        email:
+          type: string
+          format: email
+          maxLength: 254
+        perfil:
+          type: string
+          enum: [ADMIN, CONDOMINO, VISITANTE]
+        senha:
+          type: string
+          minLength: 8
+          description: De 8 a 72 bytes (o bcrypt ignora o que passa disso, então a API recusa).
+    AtualizarUsuario:
+      type: object
+      minProperties: 1
+      additionalProperties: false
+      properties:
+        nome:
+          type: string
+          minLength: 3
+          maxLength: 120
+        perfil:
+          type: string
+          enum: [ADMIN, CONDOMINO, VISITANTE]
+        ativo:
+          type: boolean
+        senha:
+          type: string
+          minLength: 8
+          description: De 8 a 72 bytes.
+    ListaUsuarios:
+      type: object
+      required: [data, page, pageSize, total]
+      properties:
+        data:
+          type: array
+          items:
+            $ref: '#/components/schemas/UsuarioCompleto'
+        page:
+          type: integer
+        pageSize:
+          type: integer
+        total:
+          type: integer
+          description: Total de usuários que atendem aos filtros, antes da paginação.
     Error:
       type: object
       required: [error]
@@ -207,7 +470,17 @@ components:
             code:
               type: string
               examples:
-                [VALIDATION_ERROR, UNAUTHORIZED, FORBIDDEN, NOT_FOUND, RATE_LIMITED, INTERNAL_ERROR]
+                [
+                  VALIDATION_ERROR,
+                  UNAUTHORIZED,
+                  FORBIDDEN,
+                  NOT_FOUND,
+                  EMAIL_JA_CADASTRADO,
+                  AUTO_DESATIVACAO,
+                  ULTIMO_ADMIN,
+                  RATE_LIMITED,
+                  INTERNAL_ERROR,
+                ]
             message:
               type: string
             details:
@@ -255,6 +528,56 @@ components:
             error:
               code: FORBIDDEN
               message: Sem permissão para acessar este recurso
+    UserValidationError:
+      description: Corpo inválido, com a mensagem de cada campo em `details`
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          example:
+            error:
+              code: VALIDATION_ERROR
+              message: Dados inválidos
+              details:
+                - field: perfil
+                  message: deve ser ADMIN, CONDOMINO ou VISITANTE
+                - field: senha
+                  message: deve ter no mínimo 8 caracteres
+    UserConflict:
+      description: >-
+        `EMAIL_JA_CADASTRADO` (e-mail já em uso, mesmo com outra caixa), `AUTO_DESATIVACAO`
+        (o administrador mexendo na própria conta) ou `ULTIMO_ADMIN` (ficaria sem administrador
+        ativo).
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          examples:
+            emailJaCadastrado:
+              value:
+                error:
+                  code: EMAIL_JA_CADASTRADO
+                  message: Já existe um usuário com este e-mail
+            autoDesativacao:
+              value:
+                error:
+                  code: AUTO_DESATIVACAO
+                  message: Você não pode desativar a si mesmo nem alterar o seu próprio perfil
+            ultimoAdmin:
+              value:
+                error:
+                  code: ULTIMO_ADMIN
+                  message: O sistema precisa de ao menos um administrador ativo
+    UserNotFound:
+      description: Usuário inexistente
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          example:
+            error:
+              code: NOT_FOUND
+              message: Usuário não encontrado
     RateLimited:
       description: Limite de tentativas por minuto excedido
       headers:
