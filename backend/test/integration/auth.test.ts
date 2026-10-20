@@ -134,6 +134,9 @@ describe('POST /api/v1/auth/login', () => {
 
     expect(rightPassword.status).toBe(403);
     expect(rightPassword.body.error.code).toBe('USUARIO_INATIVO');
+    expect(rightPassword.body.error.message).toBe(
+      'Seu cadastro está inativo. Procure a administração.',
+    );
     expect(wrongPassword.status).toBe(401);
     expect(wrongPassword.body.error.code).toBe('CREDENCIAIS_INVALIDAS');
   });

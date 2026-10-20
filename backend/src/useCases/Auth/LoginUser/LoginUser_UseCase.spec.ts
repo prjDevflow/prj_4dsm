@@ -103,6 +103,8 @@ describe('LoginUser', () => {
 
     expect(error.code).toBe('USUARIO_INATIVO');
     expect(error.status).toBe(403);
+    // Text fixed by the contract (doc 03, section 4.4): the app shows it to the person.
+    expect(error.message).toBe('Seu cadastro está inativo. Procure a administração.');
   });
 
   it('deve continuar lançando CREDENCIAIS_INVALIDAS (401) quando a conta está inativa e a senha está errada', async () => {
