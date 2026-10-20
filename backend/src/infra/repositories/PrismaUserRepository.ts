@@ -1,6 +1,10 @@
 import type { User } from '../../entities/User';
 import type { PrismaClient } from '../../generated/prisma/client';
-import type { IUserRepository } from '../../repositories/IUserRepository';
+import type {
+  IUserRepository,
+  UserListFilter,
+  UserListResult,
+} from '../../repositories/IUserRepository';
 
 type UserRow = Awaited<ReturnType<PrismaClient['user']['findUniqueOrThrow']>>;
 
@@ -27,5 +31,22 @@ export class PrismaUserRepository implements IUserRepository {
   async findByEmail(email: string) {
     const row = await this.prisma.user.findUnique({ where: { email } });
     return row ? toEntity(row) : null;
+  }
+
+  // Placeholders until the repository integration tests of B06 drive the real queries.
+  async existsByEmail(_email: string): Promise<boolean> {
+    throw new Error('not implemented');
+  }
+
+  async save(_user: User): Promise<void> {
+    throw new Error('not implemented');
+  }
+
+  async list(_filter: UserListFilter): Promise<UserListResult> {
+    throw new Error('not implemented');
+  }
+
+  async countActiveAdmins(): Promise<number> {
+    throw new Error('not implemented');
   }
 }
