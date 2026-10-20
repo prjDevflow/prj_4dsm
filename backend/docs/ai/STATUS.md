@@ -2,7 +2,7 @@
 
 Atualize este arquivo no fim de cada sessão de trabalho. A IA lê aqui qual é a etapa atual antes de começar.
 
-**Etapa atual:** B05 (autenticação em desenvolvimento, todos os testes verdes; falta `/close-step`). B02 aguarda o banco em nuvem e o teste do README por Pedro e Lucas; B03 aguarda o print do merge bloqueado
+**Etapa atual:** B05 (autenticação pronta e verificada; PR #7 aguarda revisão de outra pessoa). B02 aguarda o banco em nuvem e o teste do README por Pedro e Lucas; B03 aguarda o print do merge bloqueado
 **Branch:** `feature/B05-authentication` (a partir de `develop`; B01 a B04 já estão integradas)
 **Último teste vermelho/verde:** 2026-10-20 · B05: `LoginUser`, `AuthenticateUser`, `GetCurrentUser`, `parseEnv`, providers (unitário) e `/auth/*`, `authenticate`/`authorize`, `/docs` e repositório (integração), todos verdes; 130 unitários e 104 de integração
 
@@ -16,7 +16,7 @@ Legenda: ⬜ pendente · 🟨 em andamento · ✅ pronta (critérios e DoD marca
 | B02 | Docker, PostgreSQL e Prisma | B01 | 04 | ✅ integrada em `develop`; falta banco em nuvem | #2 |
 | B03 | Pipeline de CI | B01, B02 | 04 | ✅ integrada em `develop`, ruleset ativo; falta o print do merge bloqueado e avisar Lucas e Pedro | #3 |
 | B04 | Modelo de dados e seed | B02 | 04 | ✅ integrada em `develop`; | #6 |
-| B05 | Autenticação | B04 | 04 | 🟨 testes verdes; falta `/close-step` (revisão, PR) e avisar Lucas ★ | |
+| B05 | Autenticação | B04 | 04 | 🟨 PR aberto, revisado pelo `reviewer` sem bloqueantes; falta revisão de outra pessoa, o "Authorize" do Swagger no navegador e avisar Lucas ★ | #7 |
 | B06 | Usuários | B05 | 05 | ⬜ | |
 | B07 | Locais e terminais | B05 | 05 | ⬜ | |
 | B08 | Criar autorização | B06, B07 | 05 | ⬜ | |
