@@ -152,6 +152,10 @@ describe('POST /api/v1/auth/login', () => {
     expect(firstFive).toEqual([401, 401, 401, 401, 401]);
     expect(sixth.status).toBe(429);
     expect(sixth.body.error.code).toBe('RATE_LIMITED');
+    // The contract (openapi.yaml) promises how many seconds until the next try, within the 60 s window.
+    const retryAfter = Number(sixth.headers['retry-after']);
+    expect(retryAfter).toBeGreaterThanOrEqual(1);
+    expect(retryAfter).toBeLessThanOrEqual(60);
   });
 
   it('o limite de um e-mail não afeta outro e-mail', async () => {
