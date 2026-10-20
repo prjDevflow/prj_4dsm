@@ -13,7 +13,9 @@ const makeSut = async () => {
   const users = new InMemoryUserRepository();
   const hash = new FakeHashProvider();
   const clock = new FakeClock(new Date('2026-10-21T10:00:00Z'));
-  await users.save(makeUser({ id: ADMIN_ID, nome: 'Admin Um', email: 'a1@t.local', perfil: 'ADMIN' }));
+  await users.save(
+    makeUser({ id: ADMIN_ID, nome: 'Admin Um', email: 'a1@t.local', perfil: 'ADMIN' }),
+  );
   await users.save(
     makeUser({
       id: TARGET_ID,
@@ -43,13 +45,100 @@ describe('UpdateUser', () => {
     expect(saved?.atualizadoEm).toEqual(clock.now());
   });
 
-  it.todo('deve guardar a nova senha como hash e manter o resto');
-  it.todo('deve reativar um usuário inativo');
-  it.todo('deve devolver o usuário sem o senhaHash');
-  it.todo('deve lançar NotFoundError quando o usuário não existe, antes de qualquer regra de conflito');
-  it.todo('deve negar AUTO_DESATIVACAO quando o administrador se desativa');
-  it.todo('deve negar AUTO_DESATIVACAO quando o administrador rebaixa o próprio perfil');
-  it.todo('deve permitir ao administrador alterar o próprio nome e a própria senha');
-  it.todo('deve permitir desativar ou rebaixar outro administrador quando sobra um ativo');
-  it.todo('deve negar ULTIMO_ADMIN ao desativar ou rebaixar o único administrador ativo');
+  it('deve guardar a nova senha como hash e manter o resto', async () => {
+    const { sut, users, hash } = await makeSut();
+
+    await sut.execute(TARGET_ID, { senha: 'Senha-Nova-123' }, ADMIN_ID);
+
+    const saved = await users.findById(TARGET_ID);
+    expect(saved?.senhaHash).toBe(await hash.hash('Senha-Nova-123'));
+    expect(saved).toMatchObject({ nome: 'Maria Souza', perfil: 'VISITANTE', ativo: true });
+  });
+
+  it('deve reativar um usuário inativo', async () => {
+    const { sut, users } = await makeSut();
+    await users.save(makeUser({ id: OTHER_ADMIN_ID, email: 'x@t.local', ativo: false }));
+
+    const result = await sut.execute(OTHER_ADMIN_ID, { ativo: true }, ADMIN_ID);
+
+    expect(result.ativo).toBe(true);
+    expect((await users.findById(OTHER_ADMIN_ID))?.ativo).toBe(true);
+  });
+
+  it('deve devolver o usuário sem o senhaHash', async () => {
+    const { sut } = await makeSut();
+
+    const result = await sut.execute(TARGET_ID, { nome: 'Outro Nome' }, ADMIN_ID);
+
+    expect(result).not.toHaveProperty('senhaHash');
+  });
+
+  it('deve lançar NotFoundError quando o usuário não existe, antes de qualquer regra de conflito', async () => {
+    const { sut } = await makeSut();
+    const missing = '00000000-0000-4000-8000-0000000000ff';
+
+    const error = await sut.execute(missing, { ativo: false }, missing).catch((e) => e);
+
+    expect(error).toMatchObject({ code: 'NOT_FOUND', status: 404 });
+  });
+
+  it('deve negar AUTO_DESATIVACAO quando o administrador se desativa', async () => {
+    const { sut, users } = await makeSut();
+
+    const error = await sut.execute(ADMIN_ID, { ativo: false }, ADMIN_ID).catch((e) => e);
+
+    expect(error).toMatchObject({ code: 'AUTO_DESATIVACAO', status: 409 });
+    expect((await users.findById(ADMIN_ID))?.ativo).toBe(true);
+  });
+
+  it('deve negar AUTO_DESATIVACAO quando o administrador rebaixa o próprio perfil', async () => {
+    const { sut, users } = await makeSut();
+    await users.save(makeUser({ id: OTHER_ADMIN_ID, email: 'a2@t.local', perfil: 'ADMIN' }));
+
+    const error = await sut.execute(ADMIN_ID, { perfil: 'CONDOMINO' }, ADMIN_ID).catch((e) => e);
+
+    expect(error).toMatchObject({ code: 'AUTO_DESATIVACAO', status: 409 });
+    expect((await users.findById(ADMIN_ID))?.perfil).toBe('ADMIN');
+  });
+
+  it('deve permitir ao administrador alterar o próprio nome e a própria senha', async () => {
+    const { sut, users, hash } = await makeSut();
+
+    await sut.execute(
+      ADMIN_ID,
+      { nome: 'Admin Renomeado', senha: 'Senha-Nova-123', perfil: 'ADMIN', ativo: true },
+      ADMIN_ID,
+    );
+
+    const saved = await users.findById(ADMIN_ID);
+    expect(saved).toMatchObject({ nome: 'Admin Renomeado', perfil: 'ADMIN', ativo: true });
+    expect(saved?.senhaHash).toBe(await hash.hash('Senha-Nova-123'));
+  });
+
+  it('deve permitir desativar ou rebaixar outro administrador quando sobra um ativo', async () => {
+    const { sut, users } = await makeSut();
+    await users.save(makeUser({ id: OTHER_ADMIN_ID, email: 'a2@t.local', perfil: 'ADMIN' }));
+
+    await sut.execute(OTHER_ADMIN_ID, { ativo: false }, ADMIN_ID);
+    await sut.execute(OTHER_ADMIN_ID, { ativo: true, perfil: 'CONDOMINO' }, ADMIN_ID);
+
+    expect(await users.findById(OTHER_ADMIN_ID)).toMatchObject({
+      ativo: true,
+      perfil: 'CONDOMINO',
+    });
+  });
+
+  it('deve negar ULTIMO_ADMIN ao desativar ou rebaixar o único administrador ativo', async () => {
+    const { sut, users } = await makeSut();
+    const outsider = '00000000-0000-4000-8000-0000000000ee';
+
+    const deactivate = await sut.execute(ADMIN_ID, { ativo: false }, outsider).catch((e) => e);
+    const demote = await sut.execute(ADMIN_ID, { perfil: 'VISITANTE' }, outsider).catch((e) => e);
+    const rename = await sut.execute(ADMIN_ID, { nome: 'Novo Nome' }, outsider);
+
+    expect(deactivate).toMatchObject({ code: 'ULTIMO_ADMIN', status: 409 });
+    expect(demote).toMatchObject({ code: 'ULTIMO_ADMIN', status: 409 });
+    expect(rename.nome).toBe('Novo Nome');
+    expect(await users.countActiveAdmins()).toBe(1);
+  });
 });
