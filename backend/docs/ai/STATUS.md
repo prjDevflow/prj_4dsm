@@ -12,10 +12,10 @@ Legenda: ⬜ pendente · 🟨 em andamento · ✅ pronta (critérios e DoD marca
 
 | Etapa | Nome | Depende de | Arquivo | Status | PR |
 |---|---|---|---|---|---|
-| B01 | Setup do projeto | G01 | 04 | 🟨 integrada em `develop`; falta alguém de fora testar o README | #1 |
-| B02 | Docker, PostgreSQL e Prisma | B01 | 04 | 🟨 integrada em `develop`; falta banco em nuvem e o teste do README | #2 |
-| B03 | Pipeline de CI | B01, B02 | 04 | 🟨 integrada em `develop`, ruleset ativo; falta o print do merge bloqueado e avisar Lucas e Pedro | #3 |
-| B04 | Modelo de dados e seed | B02 | 04 | 🟨 pronta, PR aberto; falta o login dos usuários do seed (B05) | |
+| B01 | Setup do projeto | G01 | 04 | ✅ integrada em `develop`;| #1 |
+| B02 | Docker, PostgreSQL e Prisma | B01 | 04 | ✅ integrada em `develop`; falta banco em nuvem | #2 |
+| B03 | Pipeline de CI | B01, B02 | 04 | ✅ integrada em `develop`, ruleset ativo; falta o print do merge bloqueado e avisar Lucas e Pedro | #3 |
+| B04 | Modelo de dados e seed | B02 | 04 | ✅ integrada em `develop`; | #6 |
 | B05 | Autenticação | B04 | 04 | ⬜ | |
 | B06 | Usuários | B05 | 05 | ⬜ | |
 | B07 | Locais e terminais | B05 | 05 | ⬜ | |
