@@ -52,7 +52,7 @@ Do not load all step files at once. Load the one that contains the current step.
 |---|---|
 | `npm run dev` | Start the API with reload |
 | `npm run build` | Compile to `dist/` |
-| `npm start` | Run `dist/server.js` |
+| `npm start` | Run `dist/main/server.js` |
 | `npm run lint` | ESLint |
 | `npm run typecheck` | `tsc --noEmit` |
 | `npm test` | Unit tests (no database), fast |
