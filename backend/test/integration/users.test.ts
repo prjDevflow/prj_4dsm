@@ -115,6 +115,18 @@ describe('rotas /api/v1/users', () => {
       expect(res.body.error.details).toEqual([expect.objectContaining({ field: 'senha' })]);
     });
 
+    it('422 quando o nome tem byte NUL, que o PostgreSQL não aceita', async () => {
+      const admin = await asAdmin();
+
+      const res = await request(app)
+        .post('/api/v1/users')
+        .set('Authorization', bearer(admin))
+        .send({ ...validBody, nome: 'Nome\u0000Estranho' });
+
+      expect(res.status).toBe(422);
+      expect(res.body.error.details).toEqual([expect.objectContaining({ field: 'nome' })]);
+    });
+
     it('422 para nome curto, e-mail inválido e campos ausentes', async () => {
       const admin = await asAdmin();
 
@@ -198,6 +210,17 @@ describe('rotas /api/v1/users', () => {
       expect(names(search)).toEqual(['Bruno Morador']);
       expect(page2.body).toMatchObject({ page: 2, pageSize: 3, total: 4 });
       expect(names(page2)).toEqual(['Davi Morador']);
+    });
+
+    it('422 quando q tem byte NUL', async () => {
+      const admin = await asAdmin();
+
+      const res = await request(app)
+        .get('/api/v1/users?q=a%00b')
+        .set('Authorization', bearer(admin));
+
+      expect(res.status).toBe(422);
+      expect(res.body.error.details).toEqual([expect.objectContaining({ field: 'q' })]);
     });
 
     it('422 para pageSize acima de 100, page zero e filtros inválidos', async () => {
@@ -299,6 +322,32 @@ describe('rotas /api/v1/users', () => {
       expect((await prisma.user.findUniqueOrThrow({ where: { id: target.id } })).email).toBe(
         target.email,
       );
+    });
+
+    it('422 quando o nome tem byte NUL', async () => {
+      const admin = await asAdmin();
+      const target = await insertUser();
+
+      const res = await request(app)
+        .patch(`/api/v1/users/${target.id}`)
+        .set('Authorization', bearer(admin))
+        .send({ nome: 'Nome\u0000Estranho' });
+
+      expect(res.status).toBe(422);
+      expect(res.body.error.details).toEqual([expect.objectContaining({ field: 'nome' })]);
+    });
+
+    it('422 de corpo vazio aponta o campo "corpo"', async () => {
+      const admin = await asAdmin();
+      const target = await insertUser();
+
+      const res = await request(app)
+        .patch(`/api/v1/users/${target.id}`)
+        .set('Authorization', bearer(admin))
+        .send({});
+
+      expect(res.status).toBe(422);
+      expect(res.body.error.details).toEqual([expect.objectContaining({ field: 'corpo' })]);
     });
 
     it('404 para usuário inexistente', async () => {
