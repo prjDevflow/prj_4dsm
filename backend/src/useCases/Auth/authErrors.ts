@@ -9,7 +9,7 @@ export class InvalidCredentialsError extends AppError {
 
 export class InactiveUserError extends AppError {
   constructor() {
-    super('USUARIO_INATIVO', 'Usuário inativo', 403);
+    super('USUARIO_INATIVO', 'Seu cadastro está inativo. Procure a administração.', 403);
   }
 }
 

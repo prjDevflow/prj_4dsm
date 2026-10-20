@@ -92,7 +92,7 @@ paths:
               example:
                 error:
                   code: USUARIO_INATIVO
-                  message: Usuário inativo
+                  message: Seu cadastro está inativo. Procure a administração.
         '422':
           $ref: '#/components/responses/ValidationError'
         '429':
