@@ -1,13 +1,19 @@
+import bcrypt from 'bcryptjs';
 import type { IHashProvider } from '../../providers/IHashProvider';
 
 export class BcryptHashProvider implements IHashProvider {
   constructor(private cost: number) {}
 
-  async hash(_plain: string): Promise<string> {
-    throw new Error('não implementado');
+  hash(plain: string) {
+    return bcrypt.hash(plain, this.cost);
   }
 
-  async compare(_plain: string, _hash: string): Promise<boolean> {
-    throw new Error('não implementado');
+  async compare(plain: string, hash: string) {
+    try {
+      return await bcrypt.compare(plain, hash);
+    } catch {
+      // A malformed stored hash must read as "does not match", not as a server error.
+      return false;
+    }
   }
 }
