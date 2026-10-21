@@ -214,35 +214,35 @@ Como ler cada etapa:
 
 **Lista de testes**
 
-- [ ] U `LoginUser`: credenciais certas devolvem token e usuário sem `senhaHash`.
-- [ ] U `LoginUser`: e-mail é normalizado para minúsculas antes da busca.
-- [ ] U `LoginUser`: senha errada e e-mail inexistente lançam o mesmo `code` e a mesma mensagem.
-- [ ] U `LoginUser`: e-mail inexistente ainda chama `compare` (hash falso), para igualar o tempo.
-- [ ] U `LoginUser`: conta inativa com senha certa lança 403 `USUARIO_INATIVO`; com senha errada continua 401.
-- [ ] U `AuthenticateUser`: token válido devolve o usuário recarregado do repositório.
-- [ ] U `AuthenticateUser`: token expirado, adulterado ou malformado lança 401.
-- [ ] U `AuthenticateUser`: usuário desativado depois da emissão do token é recusado.
-- [ ] U `AuthenticateUser` com `allowInactive`: usuário inativo passa.
-- [ ] U `GetCurrentUser`: devolve id, nome, e-mail e perfil.
-- [ ] I `POST /auth/login`: 200, e a resposta não contém hash.
-- [ ] I `POST /auth/login`: corpo inválido → 422 com `details` por campo.
-- [ ] I rota protegida sem token → 401; com perfil errado → 403.
-- [ ] I a sexta tentativa em um minuto → 429.
-- [ ] I `GET /auth/me` com token válido → 200.
-- [ ] I `/docs` responde e lista `login` e `me`.
+- [x] U `LoginUser`: credenciais certas devolvem token e usuário sem `senhaHash`.
+- [x] U `LoginUser`: e-mail é normalizado para minúsculas antes da busca.
+- [x] U `LoginUser`: senha errada e e-mail inexistente lançam o mesmo `code` e a mesma mensagem.
+- [x] U `LoginUser`: e-mail inexistente ainda chama `compare` (hash falso), para igualar o tempo.
+- [x] U `LoginUser`: conta inativa com senha certa lança 403 `USUARIO_INATIVO`; com senha errada continua 401.
+- [x] U `AuthenticateUser`: token válido devolve o usuário recarregado do repositório.
+- [x] U `AuthenticateUser`: token expirado, adulterado ou malformado lança 401.
+- [x] U `AuthenticateUser`: usuário desativado depois da emissão do token é recusado.
+- [x] U `AuthenticateUser` com `allowInactive`: usuário inativo passa.
+- [x] U `GetCurrentUser`: devolve id, nome, e-mail e perfil.
+- [x] I `POST /auth/login`: 200, e a resposta não contém hash.
+- [x] I `POST /auth/login`: corpo inválido → 422 com `details` por campo.
+- [x] I rota protegida sem token → 401; com perfil errado → 403.
+- [x] I a sexta tentativa em um minuto → 429.
+- [x] I `GET /auth/me` com token válido → 200.
+- [x] I `/docs` responde e lista `login` e `me`.
 
 **Critérios de aceitação**
 
-- [ ] Credenciais corretas → 200 com token válido e dados do usuário, **sem** o hash da senha.
-- [ ] Senha errada e e-mail inexistente → mesma resposta 401 e mesma mensagem.
-- [ ] Usuário inativo com senha certa → 403 `USUARIO_INATIVO`.
-- [ ] Token expirado, adulterado ou ausente → 401.
-- [ ] Perfil sem permissão numa rota protegida → 403.
-- [ ] A sexta tentativa em um minuto → 429.
-- [ ] Desativar um usuário faz o token dele parar de funcionar na hora (porque `authenticate` consulta o banco).
+- [x] Credenciais corretas → 200 com token válido e dados do usuário, **sem** o hash da senha.
+- [x] Senha errada e e-mail inexistente → mesma resposta 401 e mesma mensagem.
+- [x] Usuário inativo com senha certa → 403 `USUARIO_INATIVO`.
+- [x] Token expirado, adulterado ou ausente → 401.
+- [x] Perfil sem permissão numa rota protegida → 403.
+- [x] A sexta tentativa em um minuto → 429.
+- [x] Desativar um usuário faz o token dele parar de funcionar na hora (porque `authenticate` consulta o banco).
 - [ ] O Swagger permite fazer login e usar o token no botão "Authorize".
 
 **Definição de pronto**
 
-- [ ] Testes: sucesso, senha errada, e-mail inexistente, inativo, token expirado, token malformado, perfil errado, limite de tentativas.
+- [x] Testes: sucesso, senha errada, e-mail inexistente, inativo, token expirado, token malformado, perfil errado, limite de tentativas.
 - [ ] Lucas avisado de que o contrato está publicado (★).

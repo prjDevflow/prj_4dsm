@@ -4,7 +4,11 @@ import { parseEnv, InvalidEnvError } from './parseEnv';
 const validSource = {
   CORS_ORIGINS: 'http://localhost:8081',
   DATABASE_URL: 'postgresql://user:pass@localhost:5432/db',
+  JWT_SECRET: 'segredo-de-teste-com-mais-de-32-caracteres',
 };
+
+const without = (key: keyof typeof validSource) =>
+  Object.fromEntries(Object.entries(validSource).filter(([name]) => name !== key));
 
 describe('parseEnv', () => {
   it('deve falhar com mensagem clara quando falta CORS_ORIGINS', () => {
@@ -51,9 +55,7 @@ describe('parseEnv', () => {
   });
 
   it('deve falhar com mensagem clara quando falta DATABASE_URL', () => {
-    expect(() => parseEnv({ CORS_ORIGINS: validSource.CORS_ORIGINS })).toThrow(
-      'DATABASE_URL: obrigatória',
-    );
+    expect(() => parseEnv(without('DATABASE_URL'))).toThrow('DATABASE_URL: obrigatória');
   });
 
   it('deve aceitar DATABASE_URL com postgresql:// ou postgres://', () => {
@@ -74,4 +76,65 @@ describe('parseEnv', () => {
 
     expect(() => parseEnv({ ...validSource, DATABASE_URL: secret })).not.toThrow(/segredo-123/);
   });
+
+  it('deve falhar com mensagem clara quando falta JWT_SECRET', () => {
+    expect(() => parseEnv(without('JWT_SECRET'))).toThrow('JWT_SECRET: obrigatória');
+  });
+
+  it('deve rejeitar JWT_SECRET com menos de 32 caracteres sem repetir o valor', () => {
+    const shortSecret = 'curto-demais-123';
+
+    expect(() => parseEnv({ ...validSource, JWT_SECRET: shortSecret })).toThrow(
+      'JWT_SECRET: deve ter no mínimo 32 caracteres',
+    );
+    expect(() => parseEnv({ ...validSource, JWT_SECRET: shortSecret })).not.toThrow(shortSecret);
+  });
+
+  it('deve aceitar JWT_SECRET com exatamente 32 caracteres', () => {
+    expect(() => parseEnv({ ...validSource, JWT_SECRET: 'a'.repeat(32) })).not.toThrow();
+  });
+
+  it('deve usar 12h como padrão de JWT_EXPIRES_IN e convertê-lo para segundos', () => {
+    expect(parseEnv(validSource).JWT_EXPIRES_IN).toBe(43200);
+  });
+
+  it.each([
+    ['30s', 30],
+    ['15m', 900],
+    ['2h', 7200],
+    ['7d', 604800],
+  ])('deve converter JWT_EXPIRES_IN %s para %i segundos', (value, seconds) => {
+    expect(parseEnv({ ...validSource, JWT_EXPIRES_IN: value }).JWT_EXPIRES_IN).toBe(seconds);
+  });
+
+  it.each(['12', 'abc', '0h', '-1h', '1.5h', '12 h'])(
+    'deve rejeitar JWT_EXPIRES_IN inválido (%s)',
+    (value) => {
+      expect(() => parseEnv({ ...validSource, JWT_EXPIRES_IN: value })).toThrow(/JWT_EXPIRES_IN/);
+    },
+  );
+
+  it('deve usar 10 como padrão de BCRYPT_COST e aceitar de 4 a 15', () => {
+    expect(parseEnv(validSource).BCRYPT_COST).toBe(10);
+    expect(parseEnv({ ...validSource, BCRYPT_COST: '4' }).BCRYPT_COST).toBe(4);
+    expect(parseEnv({ ...validSource, BCRYPT_COST: '15' }).BCRYPT_COST).toBe(15);
+  });
+
+  it.each(['3', '16', 'abc', '10.5'])('deve rejeitar BCRYPT_COST inválido (%s)', (value) => {
+    expect(() => parseEnv({ ...validSource, BCRYPT_COST: value })).toThrow(/BCRYPT_COST/);
+  });
+
+  it('deve usar 5 como padrão de LOGIN_MAX_PER_MINUTE e converter para número', () => {
+    expect(parseEnv(validSource).LOGIN_MAX_PER_MINUTE).toBe(5);
+    expect(parseEnv({ ...validSource, LOGIN_MAX_PER_MINUTE: '20' }).LOGIN_MAX_PER_MINUTE).toBe(20);
+  });
+
+  it.each(['0', '-1', 'abc', '2.5'])(
+    'deve rejeitar LOGIN_MAX_PER_MINUTE inválido (%s)',
+    (value) => {
+      expect(() => parseEnv({ ...validSource, LOGIN_MAX_PER_MINUTE: value })).toThrow(
+        /LOGIN_MAX_PER_MINUTE/,
+      );
+    },
+  );
 });

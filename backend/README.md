@@ -25,6 +25,10 @@ cp .env.example .env   # no PowerShell: Copy-Item .env.example .env (necessário
 npm ci                 # só para desenvolver e testar (precisa de Node)
 ```
 
+**Antes de subir a API, defina o `JWT_SECRET` no `.env`** (mínimo 32 caracteres; o valor do exemplo é curto de
+propósito e a API não sobe com ele). Gere um com `openssl rand -base64 48` (no PowerShell, qualquer texto
+aleatório com 32 caracteres ou mais serve para desenvolvimento).
+
 Variáveis do `.env`:
 
 | Variável                                            | Padrão                  | Uso                                                     |
@@ -36,7 +40,11 @@ Variáveis do `.env`:
 | `POSTGRES_USER`, `POSTGRES_PASSWORD`, `POSTGRES_DB` | `access`, —, `access`   | banco local do docker compose                           |
 | `DB_PORT`                                           | `5432`                  | porta do PostgreSQL no seu computador                   |
 | `DATABASE_URL`                                      | —                       | conexão dos comandos `npm` (dev, testes) fora do Docker |
-| `SEED_*`, `BCRYPT_COST`                             | ver `.env.example`      | credenciais e local do seed de desenvolvimento          |
+| `JWT_SECRET`                                        | — (obrigatória)         | segredo que assina os tokens, mínimo 32 caracteres      |
+| `JWT_EXPIRES_IN`                                    | `12h`                   | validade do token: inteiro + `s`, `m`, `h` ou `d`       |
+| `BCRYPT_COST`                                       | `10`                    | custo do bcrypt (4 a 15), na API e no seed              |
+| `LOGIN_MAX_PER_MINUTE`                              | `5`                     | tentativas de login por minuto por IP e e-mail          |
+| `SEED_*`                                            | ver `.env.example`      | credenciais e local do seed de desenvolvimento          |
 
 O `.env` nunca vai para o Git nem para a imagem Docker. Troque a senha do exemplo no seu `.env`.
 A senha e a porta da `DATABASE_URL` precisam ser as mesmas de `POSTGRES_PASSWORD` e `DB_PORT`. Se a
@@ -129,15 +137,33 @@ curl http://localhost:3000/api/v1/health
 # {"status":"ok","version":"0.1.0","time":"2026-10-16T12:00:00.000Z"}
 ```
 
-Se faltar uma variável obrigatória (hoje, `CORS_ORIGINS`), o servidor não sobe e mostra qual é:
+Se faltar uma variável obrigatória (`CORS_ORIGINS`, `DATABASE_URL`, `JWT_SECRET`), o servidor não sobe e mostra qual é:
 
 ```text
 Configuração inválida:
-- CORS_ORIGINS: obrigatória
+- JWT_SECRET: deve ter no mínimo 32 caracteres
 ```
 
 O contrato da API está em [openapi.yaml](openapi.yaml). Erros seguem sempre o formato
 `{ "error": { "code", "message", "details?" } }`.
+
+## Autenticação e Swagger
+
+O Swagger UI fica em **<http://localhost:3000/docs>** e lê o próprio `openapi.yaml`. Para testar uma rota protegida:
+faça `POST /auth/login` com um usuário do seed (ver [docs/ambiente-dev.md](docs/ambiente-dev.md)), copie o
+`accessToken`, clique em **Authorize** e cole só o token.
+
+```bash
+curl -X POST http://localhost:3000/api/v1/auth/login -H 'content-type: application/json' \
+  -d '{"email":"admin@dev.local","senha":"Admin-Dev-2026"}'
+# {"accessToken":"eyJ...","tokenType":"Bearer","expiresIn":43200,"usuario":{...}}
+curl http://localhost:3000/api/v1/auth/me -H "Authorization: Bearer <accessToken>"
+```
+
+- E-mail inexistente e senha errada dão o mesmo `401 CREDENCIAIS_INVALIDAS`. Conta inativa com a senha certa dá `403 USUARIO_INATIVO`.
+- Token ausente, expirado, adulterado ou de usuário desativado dá `401 UNAUTHORIZED`. A cada requisição o usuário é recarregado do banco, então desativar uma conta ou mudar o perfil vale na hora.
+- Mais de `LOGIN_MAX_PER_MINUTE` tentativas por minuto para o mesmo IP e e-mail dão `429 RATE_LIMITED`. O contador fica na memória do processo (um reinício o zera).
+- Rotas protegidas usam `authenticate()` e `authorize('ADMIN', ...)` de `src/main/middlewares.ts`.
 
 ## Estrutura
 
@@ -157,9 +183,9 @@ src/
 prisma/           schema.prisma, migrations/ (com os CHECK em SQL) e seed.ts
 scripts/          ferramentas de desenvolvimento (gerador do diagrama ER)
 test/
-  doubles/        fakes para testes unitários (FakeClock, FakeDatabaseProbe, ...)
-  factories/      makeAuthorization(), ...
-  integration/    supertest + PostgreSQL (schema, seed, health)
+  doubles/        fakes para testes unitários (FakeClock, InMemoryUserRepository, FakeHashProvider, ...)
+  factories/      makeUser(), makeAuthorization(), ...
+  integration/    supertest + PostgreSQL (schema, seed, health, auth)
 ```
 
 ## Testar

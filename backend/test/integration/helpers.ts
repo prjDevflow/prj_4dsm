@@ -1,5 +1,8 @@
 import { randomUUID } from 'node:crypto';
+import bcrypt from 'bcryptjs';
 import { expect } from 'vitest';
+import { FakeClock } from '../doubles/FakeClock';
+import { JwtTokenProvider } from '../../src/infra/providers/JwtTokenProvider';
 import { container } from '../../src/main/container';
 import type { Prisma } from '../../src/generated/prisma/client';
 
@@ -46,6 +49,29 @@ export function insertUser(overrides: Partial<Prisma.UserUncheckedCreateInput> =
       perfil: 'VISITANTE',
       ...overrides,
     },
+  });
+}
+
+export const PASSWORD = 'Senha-Valida-123';
+
+/** A user whose password is `PASSWORD`, for the login tests (cost 4 keeps it fast). */
+export async function insertUserWithPassword(
+  overrides: Partial<Prisma.UserUncheckedCreateInput> = {},
+) {
+  return insertUser({ senhaHash: await bcrypt.hash(PASSWORD, 4), ...overrides });
+}
+
+/** A valid token for `user`, signed like the API signs them. */
+export function tokenFor(user: { id: string; perfil: 'ADMIN' | 'CONDOMINO' | 'VISITANTE' }) {
+  return container.tokens.sign({ sub: user.id, perfil: user.perfil });
+}
+
+/** A correctly signed token that expired long ago. */
+export function expiredTokenFor(user: { id: string; perfil: 'ADMIN' | 'CONDOMINO' | 'VISITANTE' }) {
+  const past = new FakeClock(new Date('2020-01-01T00:00:00Z'));
+  return new JwtTokenProvider(container.env.JWT_SECRET, 60, past).sign({
+    sub: user.id,
+    perfil: user.perfil,
   });
 }
 

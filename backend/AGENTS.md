@@ -19,7 +19,7 @@ Owner of this part: Eduardo (backend). Frontend: Lucas. IoT: Pedro. The API cont
 7. **Exactly one event per access attempt**, approved or denied. Approval never happens without its event.
 8. **Security.** Never store or log passwords, tokens or terminal keys in clear text. Store hashes. No secrets in the repository. Errors never expose stack traces in production.
 9. **No `any` without a justification comment.** No `console.log` in `src` (use `ILogger`).
-10. **One step ID per branch and PR.** Branch `feature/B08-create-authorization`, commit `feat(B08): ...`, PR title `[B08] ...`.
+10. **One step ID per branch and PR.** Branch `feature/B08-create-authorization` (`feature/` + step ID + short kebab-case description), always created from an up-to-date `develop`, or from the previous step's branch when its PR is still open (stacked branch: `--base <branch>` in both commands, PR base = that branch). Small commits `test(B08): ...`, `feat(B08): ...`, `refactor(B08): ...`. PR title `[B08] ...`, base `develop`. Workflow commands: `/start-step` and `/close-step` (in `.claude/commands/`); independent review: `reviewer` subagent (in `.claude/agents/`).
 11. **Stay in scope.** Implement only the current step. Do not refactor unrelated code. Do not add dependencies without asking.
 12. **Do not invent requirements.** If a rule is ambiguous, check section "Decisions" in `03-domain-and-contract.md`; if still unclear, ask.
 

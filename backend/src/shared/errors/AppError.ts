@@ -18,6 +18,24 @@ export class ValidationError extends AppError {
   }
 }
 
+export class UnauthorizedError extends AppError {
+  constructor(message = 'Autenticação necessária') {
+    super('UNAUTHORIZED', message, 401);
+  }
+}
+
+export class ForbiddenError extends AppError {
+  constructor(message = 'Sem permissão para acessar este recurso') {
+    super('FORBIDDEN', message, 403);
+  }
+}
+
+export class RateLimitedError extends AppError {
+  constructor(message = 'Muitas tentativas. Aguarde um minuto e tente novamente') {
+    super('RATE_LIMITED', message, 429);
+  }
+}
+
 export class NotFoundError extends AppError {
   constructor(message = 'Recurso não encontrado') {
     super('NOT_FOUND', message, 404);
