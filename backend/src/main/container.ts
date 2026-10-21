@@ -7,9 +7,11 @@ import { JwtTokenProvider } from '../infra/providers/JwtTokenProvider';
 import { PrismaDatabaseProbe } from '../infra/providers/PrismaDatabaseProbe';
 import { createPino, PinoLogger } from '../infra/providers/PinoLogger';
 import { SystemClock } from '../infra/providers/SystemClock';
+import { UuidGenerator } from '../infra/providers/UuidGenerator';
 import type { IClock } from '../providers/IClock';
 import type { IDatabaseProbe } from '../providers/IDatabaseProbe';
 import type { IHashProvider } from '../providers/IHashProvider';
+import type { IIdGenerator } from '../providers/IIdGenerator';
 import type { ILogger } from '../providers/ILogger';
 import type { ITokenProvider } from '../providers/ITokenProvider';
 import type { IUserRepository } from '../repositories/IUserRepository';
@@ -26,6 +28,7 @@ export const container = {
   prisma,
   logger,
   clock,
+  ids: new UuidGenerator() as IIdGenerator,
   databaseProbe: new PrismaDatabaseProbe(prisma) as IDatabaseProbe,
   hash: new BcryptHashProvider(env.BCRYPT_COST) as IHashProvider,
   tokens: new JwtTokenProvider(env.JWT_SECRET, env.JWT_EXPIRES_IN, clock) as ITokenProvider,

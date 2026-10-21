@@ -34,33 +34,33 @@ Legenda: **U** = unitário (doubles, sem banco) · **I** = integração (superte
 
 **Lista de testes**
 
-- [ ] U `CreateUser`: grava e-mail em minúsculas e senha como hash (nunca o texto puro).
-- [ ] U `CreateUser`: e-mail repetido, inclusive variando maiúsculas, lança 409 `EMAIL_JA_CADASTRADO`.
-- [ ] U `UpdateUser`: atualiza nome, perfil, ativo e senha (nova senha vira hash).
-- [ ] U `UpdateUser`: administrador não desativa a si mesmo (`AUTO_DESATIVACAO`) nem rebaixa o próprio perfil.
-- [ ] U `UpdateUser`: bloqueia quando o resultado deixaria zero administradores ativos (`ULTIMO_ADMIN`).
-- [ ] U `GetUser`: usuário inexistente lança `NotFoundError`.
-- [ ] U `ListUsers`: cada filtro isolado e combinado devolve o conjunto certo; `q` busca em nome e e-mail.
-- [ ] I `POST /users`: perfil fora dos três valores → 422; senha de 7 caracteres → 422.
-- [ ] I condômino e visitante recebem 403 em **todas** as rotas.
-- [ ] I nenhuma resposta (criar, listar, obter, atualizar) contém `senhaHash`.
-- [ ] I desativar um usuário impede o login e invalida o token dele (usa B05).
-- [ ] I `PATCH` com campo `email` → 422.
+- [x] U `CreateUser`: grava e-mail em minúsculas e senha como hash (nunca o texto puro).
+- [x] U `CreateUser`: e-mail repetido, inclusive variando maiúsculas, lança 409 `EMAIL_JA_CADASTRADO`.
+- [x] U `UpdateUser`: atualiza nome, perfil, ativo e senha (nova senha vira hash).
+- [x] U `UpdateUser`: administrador não desativa a si mesmo (`AUTO_DESATIVACAO`) nem rebaixa o próprio perfil.
+- [x] U `UpdateUser`: bloqueia quando o resultado deixaria zero administradores ativos (`ULTIMO_ADMIN`).
+- [x] U `GetUser`: usuário inexistente lança `NotFoundError`.
+- [x] U `ListUsers`: cada filtro isolado e combinado devolve o conjunto certo; `q` busca em nome e e-mail.
+- [x] I `POST /users`: perfil fora dos três valores → 422; senha de 7 caracteres → 422.
+- [x] I condômino e visitante recebem 403 em **todas** as rotas.
+- [x] I nenhuma resposta (criar, listar, obter, atualizar) contém `senhaHash`.
+- [x] I desativar um usuário impede o login e invalida o token dele (usa B05).
+- [x] I `PATCH` com campo `email` → 422.
 
 **Critérios de aceitação**
 
-- [ ] Criar com e-mail repetido (inclusive variando maiúsculas) retorna 409.
-- [ ] Perfil fora dos três valores retorna 422.
-- [ ] Senha de 7 caracteres retorna 422.
-- [ ] Condômino e visitante recebem 403 em todas as rotas.
-- [ ] Desativar um usuário impede o login e invalida o token dele.
-- [ ] O admin não consegue desativar a si mesmo (409).
-- [ ] Nenhuma resposta traz `senhaHash`.
+- [x] Criar com e-mail repetido (inclusive variando maiúsculas) retorna 409.
+- [x] Perfil fora dos três valores retorna 422.
+- [x] Senha de 7 caracteres retorna 422.
+- [x] Condômino e visitante recebem 403 em todas as rotas.
+- [x] Desativar um usuário impede o login e invalida o token dele.
+- [x] O admin não consegue desativar a si mesmo (409).
+- [x] Nenhuma resposta traz `senhaHash`.
 
 **Definição de pronto**
 
-- [ ] Testes de cada critério acima.
-- [ ] Swagger com exemplos de requisição e das três respostas de erro.
+- [x] Testes de cada critério acima.
+- [x] Swagger com exemplos de requisição e das três respostas de erro.
 
 ---
 
