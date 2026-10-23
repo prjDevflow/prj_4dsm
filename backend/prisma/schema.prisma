@@ -1,0 +1,249 @@
+// Data model v1 (docs/ai/03-domain-and-contract.md, section 7).
+//
+// Conventions: tables are snake_case plurals (@@map); columns keep the names of the API contract;
+// ids are UUIDs (terminal_commands.id is an increasing integer); instants are timestamptz in UTC;
+// every foreign key is `Restrict` (rows are deactivated with `ativo`, never deleted).
+//
+// CHECK constraints cannot be written here. They live in the migration SQL, with explicit names
+// (<table>_<rule>_chk). Never regenerate the migrations with `db push`: it would drop them.
+
+generator client {
+  provider     = "prisma-client"
+  output       = "../src/generated/prisma"
+  moduleFormat = "cjs"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum Perfil {
+  ADMIN
+  CONDOMINO
+  VISITANTE
+
+  @@map("perfil")
+}
+
+enum AccessPointTipo {
+  PORTARIA
+  PORTA
+  CATRACA
+
+  @@map("access_point_tipo")
+}
+
+/// Stored status. EXPIRADA and ESGOTADA are computed on read (entities/rules/computeEffectiveStatus).
+enum AuthorizationSituacao {
+  ATIVA
+  CANCELADA
+
+  @@map("authorization_situacao")
+}
+
+enum CommandTipo {
+  ABRIR
+  NEGAR
+
+  @@map("command_tipo")
+}
+
+enum EventMetodo {
+  QR
+  NFC
+
+  @@map("event_metodo")
+}
+
+enum EventResultado {
+  AUTORIZADO
+  NEGADO
+
+  @@map("event_resultado")
+}
+
+model User {
+  id           String   @id @default(uuid()) @db.Uuid
+  nome         String   @db.VarChar(120)
+  email        String   @unique @db.VarChar(254)
+  /// bcrypt hash. Never the password.
+  senhaHash    String   @db.VarChar(100)
+  perfil       Perfil
+  ativo        Boolean  @default(true)
+  criadoEm     DateTime @default(now()) @db.Timestamptz(3)
+  atualizadoEm DateTime @updatedAt @db.Timestamptz(3)
+
+  authorizations         Authorization[] @relation("AuthorizationUsuario")
+  createdAuthorizations  Authorization[] @relation("AuthorizationCriadoPor")
+  canceledAuthorizations Authorization[] @relation("AuthorizationCanceladoPor")
+  nfcTags                NfcTag[]
+  enrollingTerminals     Terminal[]      @relation("TerminalModoCadastro")
+  consumedCredentials    QrCredential[]
+  accessEvents           AccessEvent[]
+
+  @@map("users")
+}
+
+model Building {
+  id        String  @id @default(uuid()) @db.Uuid
+  nome      String  @db.VarChar(120)
+  endereco  String  @db.VarChar(255)
+  latitude  Float
+  longitude Float
+  ativo     Boolean @default(true)
+
+  accessPoints AccessPoint[]
+
+  @@map("buildings")
+}
+
+model AccessPoint {
+  id            String          @id @default(uuid()) @db.Uuid
+  buildingId    String          @db.Uuid
+  tipo          AccessPointTipo
+  nome          String          @db.VarChar(120)
+  identificacao String          @db.VarChar(60)
+  latitude      Float
+  longitude     Float
+  ativo         Boolean         @default(true)
+
+  building       Building        @relation(fields: [buildingId], references: [id], onDelete: Restrict)
+  terminal       Terminal?
+  authorizations Authorization[]
+  accessEvents   AccessEvent[]
+
+  @@unique([buildingId, identificacao])
+  @@map("access_points")
+}
+
+model Terminal {
+  id                    String    @id @default(uuid()) @db.Uuid
+  accessPointId         String    @unique @db.Uuid
+  nome                  String    @db.VarChar(120)
+  /// SHA-256 (hex) of the terminal key. Never the key.
+  apiKeyHash            String    @db.VarChar(64)
+  ativo                 Boolean   @default(true)
+  ultimoContatoEm       DateTime? @db.Timestamptz(3)
+  ultimaLat             Float?
+  ultimaLon             Float?
+  gpsFix                Boolean   @default(false)
+  gpsSimulado           Boolean   @default(false)
+  firmware              String?   @db.VarChar(40)
+  rssi                  Int?
+  modoCadastroUsuarioId String?   @db.Uuid
+  modoCadastroAte       DateTime? @db.Timestamptz(3)
+
+  accessPoint         AccessPoint       @relation(fields: [accessPointId], references: [id], onDelete: Restrict)
+  modoCadastroUsuario User?             @relation("TerminalModoCadastro", fields: [modoCadastroUsuarioId], references: [id], onDelete: Restrict)
+  qrCredentials       QrCredential[]
+  commands            TerminalCommand[]
+  accessEvents        AccessEvent[]
+
+  @@map("terminals")
+}
+
+model Authorization {
+  id                 String                @id @default(uuid()) @db.Uuid
+  usuarioId          String                @db.Uuid
+  accessPointId      String                @db.Uuid
+  /// Calendar dates, evaluated in America/Sao_Paulo.
+  dataInicio         DateTime              @db.Date
+  dataFim            DateTime              @db.Date
+  /// HH:mm (24 h), evaluated in America/Sao_Paulo.
+  horaInicio         String                @db.VarChar(5)
+  horaFim            String                @db.VarChar(5)
+  usosPermitidos     Int
+  usosRealizados     Int                   @default(0)
+  situacao           AuthorizationSituacao @default(ATIVA)
+  criadoPorId        String                @db.Uuid
+  criadoEm           DateTime              @default(now()) @db.Timestamptz(3)
+  canceladoPorId     String?               @db.Uuid
+  canceladoEm        DateTime?             @db.Timestamptz(3)
+  motivoCancelamento String?               @db.VarChar(500)
+
+  usuario      User          @relation("AuthorizationUsuario", fields: [usuarioId], references: [id], onDelete: Restrict)
+  accessPoint  AccessPoint   @relation(fields: [accessPointId], references: [id], onDelete: Restrict)
+  criadoPor    User          @relation("AuthorizationCriadoPor", fields: [criadoPorId], references: [id], onDelete: Restrict)
+  canceladoPor User?         @relation("AuthorizationCanceladoPor", fields: [canceladoPorId], references: [id], onDelete: Restrict)
+  accessEvents AccessEvent[]
+
+  @@index([usuarioId])
+  @@index([accessPointId])
+  @@map("authorizations")
+}
+
+model NfcTag {
+  id        String   @id @default(uuid()) @db.Uuid
+  usuarioId String   @db.Uuid
+  /// Hexadecimal, uppercase, no separators, 8 to 20 characters.
+  uid       String   @unique @db.VarChar(20)
+  descricao String?  @db.VarChar(120)
+  ativa     Boolean  @default(true)
+  criadaEm  DateTime @default(now()) @db.Timestamptz(3)
+
+  usuario User @relation(fields: [usuarioId], references: [id], onDelete: Restrict)
+
+  @@index([usuarioId])
+  @@map("nfc_tags")
+}
+
+model QrCredential {
+  id             String    @id @default(uuid()) @db.Uuid
+  terminalId     String    @db.Uuid
+  /// SHA-256 (hex) of the QR token. Never the token.
+  tokenHash      String    @unique @db.VarChar(64)
+  emitidoEm      DateTime  @db.Timestamptz(3)
+  expiraEm       DateTime  @db.Timestamptz(3)
+  consumidoEm    DateTime? @db.Timestamptz(3)
+  consumidoPorId String?   @db.Uuid
+
+  terminal     Terminal @relation(fields: [terminalId], references: [id], onDelete: Restrict)
+  consumidoPor User?    @relation(fields: [consumidoPorId], references: [id], onDelete: Restrict)
+
+  @@index([expiraEm])
+  @@map("qr_credentials")
+}
+
+model TerminalCommand {
+  id          Int         @id @default(autoincrement())
+  terminalId  String      @db.Uuid
+  tipo        CommandTipo
+  motivo      String?     @db.VarChar(60)
+  aberturaMs  Int?
+  criadoEm    DateTime    @default(now()) @db.Timestamptz(3)
+  expiraEm    DateTime    @db.Timestamptz(3)
+  entregueEm  DateTime?   @db.Timestamptz(3)
+  executadoEm DateTime?   @db.Timestamptz(3)
+
+  terminal Terminal @relation(fields: [terminalId], references: [id], onDelete: Restrict)
+
+  @@index([terminalId, id])
+  @@map("terminal_commands")
+}
+
+/// One row per access attempt, approved or denied. Insert-only by convention.
+model AccessEvent {
+  id              String         @id @default(uuid()) @db.Uuid
+  ocorridoEm      DateTime       @default(now()) @db.Timestamptz(3)
+  terminalId      String?        @db.Uuid
+  accessPointId   String?        @db.Uuid
+  usuarioId       String?        @db.Uuid
+  authorizationId String?        @db.Uuid
+  metodo          EventMetodo
+  resultado       EventResultado
+  /// Denial reason code (doc 03, section 4.4). A string so new codes do not need a migration.
+  motivo          String?        @db.VarChar(60)
+  distanciaM      Float?
+  clientEventId   String?        @unique @db.VarChar(100)
+  detalhes        Json?
+
+  terminal      Terminal?      @relation(fields: [terminalId], references: [id], onDelete: Restrict)
+  accessPoint   AccessPoint?   @relation(fields: [accessPointId], references: [id], onDelete: Restrict)
+  usuario       User?          @relation(fields: [usuarioId], references: [id], onDelete: Restrict)
+  authorization Authorization? @relation(fields: [authorizationId], references: [id], onDelete: Restrict)
+
+  @@index([ocorridoEm])
+  @@index([usuarioId, ocorridoEm])
+  @@index([accessPointId, ocorridoEm])
+  @@map("access_events")
+}

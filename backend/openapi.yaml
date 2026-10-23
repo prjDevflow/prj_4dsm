@@ -1,0 +1,292 @@
+openapi: 3.1.0
+info:
+  title: API de Controle de Acesso
+  version: 0.1.0
+  description: Backend do sistema integrado de controle de acesso (ABP 2026-2).
+servers:
+  - url: http://localhost:3000/api/v1
+    description: Local
+# Padrão: toda rota exige o token. As rotas públicas (health, login) declaram `security: []`.
+security:
+  - bearerAuth: []
+tags:
+  - name: Health
+    description: Saúde da API
+  - name: Auth
+    description: Login e usuário autenticado
+paths:
+  /health:
+    get:
+      tags: [Health]
+      summary: Saúde da API
+      operationId: getHealth
+      security: []
+      responses:
+        '200':
+          description: API no ar
+          headers:
+            X-Request-Id:
+              $ref: '#/components/headers/XRequestId'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Health'
+              example:
+                status: ok
+                version: 0.1.0
+                time: '2026-10-16T12:00:00.000Z'
+                db: up
+        '500':
+          $ref: '#/components/responses/InternalError'
+  /auth/login:
+    post:
+      tags: [Auth]
+      summary: Entrar com e-mail e senha
+      description: >-
+        Devolve um token JWT (`Authorization: Bearer <accessToken>`). A senha é verificada antes
+        do estado da conta: e-mail inexistente e senha errada dão a mesma resposta 401.
+        No máximo 5 tentativas por minuto para cada combinação de IP e e-mail (`LOGIN_MAX_PER_MINUTE`).
+      operationId: login
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LoginRequest'
+            example:
+              email: admin@dev.local
+              senha: Admin-Dev-2026
+      responses:
+        '200':
+          description: Credenciais corretas
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LoginResponse'
+              example:
+                accessToken: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
+                tokenType: Bearer
+                expiresIn: 43200
+                usuario:
+                  id: 5eed0000-0000-4000-8000-000000000001
+                  nome: Administrador
+                  email: admin@dev.local
+                  perfil: ADMIN
+        '401':
+          description: E-mail inexistente ou senha errada (a mesma resposta nos dois casos)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                error:
+                  code: CREDENCIAIS_INVALIDAS
+                  message: E-mail ou senha inválidos
+        '403':
+          description: Senha certa, mas a conta está inativa
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                error:
+                  code: USUARIO_INATIVO
+                  message: Seu cadastro está inativo. Procure a administração.
+        '422':
+          $ref: '#/components/responses/ValidationError'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+        '500':
+          $ref: '#/components/responses/InternalError'
+  /auth/me:
+    get:
+      tags: [Auth]
+      summary: Usuário autenticado
+      description: >-
+        O usuário é recarregado do banco a cada chamada: desativar a conta ou mudar o perfil vale
+        na hora, sem esperar o token expirar.
+      operationId: getMe
+      responses:
+        '200':
+          description: Dados do usuário do token
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Usuario'
+              example:
+                id: 5eed0000-0000-4000-8000-000000000001
+                nome: Administrador
+                email: admin@dev.local
+                perfil: ADMIN
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '500':
+          $ref: '#/components/responses/InternalError'
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: Token devolvido por `POST /auth/login`. Cole só o token, sem a palavra Bearer.
+  headers:
+    XRequestId:
+      description: Identificador da requisição. Reaproveitado se enviado pelo cliente e válido.
+      schema:
+        type: string
+        pattern: '^[\w-]{1,100}$'
+  schemas:
+    Health:
+      type: object
+      required: [status, version, time, db]
+      properties:
+        status:
+          type: string
+          enum: [ok]
+        version:
+          type: string
+        time:
+          type: string
+          format: date-time
+        db:
+          type: string
+          enum: [up, down]
+          description: >-
+            Estado do PostgreSQL. A API responde 200 mesmo com o banco fora do ar
+            (nesse caso `down`, em até cerca de 2 s).
+    LoginRequest:
+      type: object
+      required: [email, senha]
+      properties:
+        email:
+          type: string
+          format: email
+          maxLength: 254
+        senha:
+          type: string
+          minLength: 1
+          maxLength: 72
+    Usuario:
+      type: object
+      required: [id, nome, email, perfil]
+      properties:
+        id:
+          type: string
+          format: uuid
+        nome:
+          type: string
+        email:
+          type: string
+          format: email
+        perfil:
+          type: string
+          enum: [ADMIN, CONDOMINO, VISITANTE]
+    LoginResponse:
+      type: object
+      required: [accessToken, tokenType, expiresIn, usuario]
+      properties:
+        accessToken:
+          type: string
+        tokenType:
+          type: string
+          enum: [Bearer]
+        expiresIn:
+          type: integer
+          description: Validade do token em segundos (`JWT_EXPIRES_IN`, padrão 12 h = 43200).
+        usuario:
+          $ref: '#/components/schemas/Usuario'
+    Error:
+      type: object
+      required: [error]
+      properties:
+        error:
+          type: object
+          required: [code, message]
+          properties:
+            code:
+              type: string
+              examples:
+                [VALIDATION_ERROR, UNAUTHORIZED, FORBIDDEN, NOT_FOUND, RATE_LIMITED, INTERNAL_ERROR]
+            message:
+              type: string
+            details:
+              type: array
+              description: Presente só em erros de validação.
+              items:
+                type: object
+                required: [field, message]
+                properties:
+                  field:
+                    type: string
+                  message:
+                    type: string
+  responses:
+    ValidationError:
+      description: Corpo inválido ou JSON malformado
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          example:
+            error:
+              code: VALIDATION_ERROR
+              message: Dados inválidos
+              details:
+                - field: email
+                  message: E-mail inválido
+    Unauthorized:
+      description: Token ausente, adulterado, expirado ou de usuário desativado
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          example:
+            error:
+              code: UNAUTHORIZED
+              message: Token ausente, inválido ou expirado
+    Forbidden:
+      description: O perfil do usuário não tem permissão para esta rota
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          example:
+            error:
+              code: FORBIDDEN
+              message: Sem permissão para acessar este recurso
+    RateLimited:
+      description: Limite de tentativas por minuto excedido
+      headers:
+        Retry-After:
+          description: Segundos até poder tentar de novo.
+          schema:
+            type: integer
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          example:
+            error:
+              code: RATE_LIMITED
+              message: Muitas tentativas. Aguarde um minuto e tente novamente
+    NotFound:
+      description: Rota ou recurso inexistente
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          example:
+            error:
+              code: NOT_FOUND
+              message: Rota não encontrada
+    InternalError:
+      description: Erro interno (sem stack trace em produção)
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          example:
+            error:
+              code: INTERNAL_ERROR
+              message: Erro interno do servidor

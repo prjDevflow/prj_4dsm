@@ -1,0 +1,90 @@
+# Local environment: API + PostgreSQL. Values come from backend/.env (see .env.example).
+name: access-control
+
+services:
+  db:
+    image: postgres:17-alpine
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:?defina POSTGRES_USER no .env}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?defina POSTGRES_PASSWORD no .env}
+      POSTGRES_DB: ${POSTGRES_DB:?defina POSTGRES_DB no .env}
+    ports:
+      - '${DB_PORT:-5432}:5432'
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+      # Runs only when the volume is empty (first start or after `down -v`).
+      - ./docker/postgres/init:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      # Over TCP on purpose: on the first start Postgres runs a temporary server that listens only on
+      # the Unix socket while the init scripts run, so a socket check reports "healthy" too early.
+      test: ['CMD-SHELL', 'pg_isready -h 127.0.0.1 -U "$${POSTGRES_USER}" -d "$${POSTGRES_DB}"']
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  # Applies the Prisma migrations. Not started by `up`; run it with `docker compose run --rm migrate`.
+  # To migrate the test database: `MIGRATE_DB=access_test docker compose run --rm migrate`.
+  migrate:
+    build:
+      context: .
+      target: migrate
+    image: access-control-migrate:local
+    # `run` reuses an existing image; rebuild every time so the migrations/seed are never stale.
+    pull_policy: build
+    profiles: ['tools']
+    environment:
+      DATABASE_URL: postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@db:5432/${MIGRATE_DB:-${POSTGRES_DB}}
+    depends_on:
+      db:
+        condition: service_healthy
+
+  # Development seed (admin, test users, building, access point, terminal, authorization). Idempotent.
+  # Run it after the migrations: `docker compose run --rm seed`. The values come from backend/.env;
+  # empty ones fall back to the defaults or fail with a clear message from the seed itself.
+  seed:
+    build:
+      context: .
+      target: seed
+    image: access-control-seed:local
+    # `run` reuses an existing image; rebuild every time so the migrations/seed are never stale.
+    pull_policy: build
+    profiles: ['tools']
+    environment:
+      DATABASE_URL: postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB}
+      SEED_ADMIN_EMAIL: ${SEED_ADMIN_EMAIL:-}
+      SEED_ADMIN_PASSWORD: ${SEED_ADMIN_PASSWORD:-}
+      SEED_USER_PASSWORD: ${SEED_USER_PASSWORD:-}
+      SEED_TERMINAL_KEY: ${SEED_TERMINAL_KEY:-}
+      SEED_LATITUDE: ${SEED_LATITUDE:-}
+      SEED_LONGITUDE: ${SEED_LONGITUDE:-}
+      BCRYPT_COST: ${BCRYPT_COST:-}
+    depends_on:
+      db:
+        condition: service_healthy
+
+  api:
+    build:
+      context: .
+      target: runtime
+    image: access-control-backend:local
+    # Forwards SIGTERM to Node so `docker compose stop` is immediate.
+    init: true
+    environment:
+      NODE_ENV: production
+      PORT: '3000'
+      CORS_ORIGINS: ${CORS_ORIGINS:?defina CORS_ORIGINS no .env}
+      LOG_LEVEL: ${LOG_LEVEL:-info}
+      DATABASE_URL: postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB}
+      JWT_SECRET: ${JWT_SECRET:?defina JWT_SECRET no .env (mínimo 32 caracteres)}
+      # Vazio = padrão do código (a API trata variável vazia como ausente).
+      JWT_EXPIRES_IN: ${JWT_EXPIRES_IN:-}
+      BCRYPT_COST: ${BCRYPT_COST:-}
+      LOGIN_MAX_PER_MINUTE: ${LOGIN_MAX_PER_MINUTE:-}
+    ports:
+      - '${PORT:-3000}:3000'
+    depends_on:
+      db:
+        condition: service_healthy
+
+volumes:
+  pgdata:

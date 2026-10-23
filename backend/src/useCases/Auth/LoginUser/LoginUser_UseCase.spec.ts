@@ -1,0 +1,121 @@
+import { describe, expect, it } from 'vitest';
+import { FakeHashProvider } from '../../../../test/doubles/FakeHashProvider';
+import { FakeTokenProvider } from '../../../../test/doubles/FakeTokenProvider';
+import { InMemoryUserRepository } from '../../../../test/doubles/InMemoryUserRepository';
+import { makeUser } from '../../../../test/factories/makeUser';
+import { LoginUserUseCase } from './LoginUser_UseCase';
+
+const SENHA = 'Senha-Valida-123';
+
+const makeSut = () => {
+  const users = new InMemoryUserRepository();
+  const hash = new FakeHashProvider();
+  const tokens = new FakeTokenProvider();
+  const sut = new LoginUserUseCase(users, hash, tokens, { expiresInSeconds: 43200 });
+  return { sut, users, hash, tokens };
+};
+
+describe('LoginUser', () => {
+  it('deve devolver token e usuário sem o hash da senha quando as credenciais estão certas', async () => {
+    const { sut, users, hash, tokens } = makeSut();
+    const user = makeUser({ email: 'a@b.com', senhaHash: await hash.hash(SENHA) });
+    await users.save(user);
+
+    const result = await sut.execute({ email: 'a@b.com', senha: SENHA });
+
+    expect(result.tokenType).toBe('Bearer');
+    expect(tokens.verify(result.accessToken)).toEqual({ sub: user.id, perfil: user.perfil });
+    expect(result.usuario).toEqual({
+      id: user.id,
+      nome: user.nome,
+      email: 'a@b.com',
+      perfil: user.perfil,
+    });
+    expect(result.usuario).not.toHaveProperty('senhaHash');
+  });
+
+  it('deve devolver expiresIn em segundos a partir da configuração', async () => {
+    const { sut, users, hash } = makeSut();
+    await users.save(makeUser({ email: 'a@b.com', senhaHash: await hash.hash(SENHA) }));
+
+    const result = await sut.execute({ email: 'a@b.com', senha: SENHA });
+
+    expect(result.expiresIn).toBe(43200);
+  });
+
+  it('deve normalizar o e-mail para minúsculas antes da busca', async () => {
+    const { sut, users, hash } = makeSut();
+    await users.save(makeUser({ email: 'maria@teste.com', senhaHash: await hash.hash(SENHA) }));
+
+    const result = await sut.execute({ email: 'Maria@Teste.COM', senha: SENHA });
+
+    expect(result.usuario.email).toBe('maria@teste.com');
+  });
+
+  it('deve lançar o mesmo code e a mesma mensagem para senha errada e e-mail inexistente', async () => {
+    const { sut, users, hash } = makeSut();
+    await users.save(makeUser({ email: 'a@b.com', senhaHash: await hash.hash(SENHA) }));
+
+    const wrongPassword = await sut
+      .execute({ email: 'a@b.com', senha: 'errada-123' })
+      .catch((e) => e);
+    const unknownEmail = await sut.execute({ email: 'x@b.com', senha: SENHA }).catch((e) => e);
+
+    expect(wrongPassword.code).toBe('CREDENCIAIS_INVALIDAS');
+    expect(wrongPassword.status).toBe(401);
+    expect(unknownEmail.code).toBe(wrongPassword.code);
+    expect(unknownEmail.status).toBe(wrongPassword.status);
+    expect(unknownEmail.message).toBe(wrongPassword.message);
+  });
+
+  it('deve comparar a senha com um hash falso quando o e-mail não existe', async () => {
+    const { sut, hash } = makeSut();
+
+    await sut.execute({ email: 'x@b.com', senha: SENHA }).catch(() => undefined);
+
+    expect(hash.compareCalls).toBe(1);
+  });
+
+  it('deve tentar gerar o hash falso de novo quando a primeira tentativa falha', async () => {
+    const { sut, hash } = makeSut();
+    const generate = hash.hash.bind(hash);
+    let calls = 0;
+    hash.hash = async (plain) => {
+      calls += 1;
+      if (calls === 1) throw new Error('falha ao gerar o hash');
+      return generate(plain);
+    };
+
+    const first = await sut.execute({ email: 'x@b.com', senha: SENHA }).catch((e) => e);
+    const second = await sut.execute({ email: 'x@b.com', senha: SENHA }).catch((e) => e);
+
+    expect(first.message).toBe('falha ao gerar o hash');
+    expect(second.code).toBe('CREDENCIAIS_INVALIDAS');
+  });
+
+  it('deve lançar USUARIO_INATIVO (403) quando a conta está inativa e a senha está certa', async () => {
+    const { sut, users, hash } = makeSut();
+    await users.save(
+      makeUser({ email: 'a@b.com', ativo: false, senhaHash: await hash.hash(SENHA) }),
+    );
+
+    const error = await sut.execute({ email: 'a@b.com', senha: SENHA }).catch((e) => e);
+
+    expect(error.code).toBe('USUARIO_INATIVO');
+    expect(error.status).toBe(403);
+    // Text fixed by the contract (doc 03, section 4.4): the app shows it to the person.
+    expect(error.message).toBe('Seu cadastro está inativo. Procure a administração.');
+  });
+
+  it('deve continuar lançando CREDENCIAIS_INVALIDAS (401) quando a conta está inativa e a senha está errada', async () => {
+    const { sut, users, hash } = makeSut();
+    await users.save(
+      makeUser({ email: 'a@b.com', ativo: false, senhaHash: await hash.hash(SENHA) }),
+    );
+
+    const error = await sut.execute({ email: 'a@b.com', senha: 'errada-123' }).catch((e) => e);
+
+    expect(error.code).toBe('CREDENCIAIS_INVALIDAS');
+    expect(error.status).toBe(401);
+  });
+});
