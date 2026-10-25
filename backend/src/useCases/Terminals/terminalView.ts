@@ -1,4 +1,5 @@
 import type { Terminal } from '../../entities/Terminal';
+import { isTerminalOnline } from '../../entities/rules/isTerminalOnline';
 
 /** The terminal as the API exposes it: never the key hash, and with `online` worked out from the clock. */
 export interface TerminalView {
@@ -22,9 +23,20 @@ export interface TerminalViewConfig {
 }
 
 export const toTerminalView = (
-  _terminal: Terminal,
-  _now: Date,
-  _config: TerminalViewConfig,
-): TerminalView => {
-  throw new Error('not implemented');
-};
+  terminal: Terminal,
+  now: Date,
+  config: TerminalViewConfig,
+): TerminalView => ({
+  id: terminal.id,
+  accessPointId: terminal.accessPointId,
+  nome: terminal.nome,
+  ativo: terminal.ativo,
+  online: isTerminalOnline(terminal.ultimoContatoEm, now, config.onlineWindowSeconds),
+  ultimoContatoEm: terminal.ultimoContatoEm,
+  ultimaLat: terminal.ultimaLat,
+  ultimaLon: terminal.ultimaLon,
+  gpsFix: terminal.gpsFix,
+  gpsSimulado: terminal.gpsSimulado,
+  firmware: terminal.firmware,
+  rssi: terminal.rssi,
+});
