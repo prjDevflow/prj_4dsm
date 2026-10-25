@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { parseIdParam } from './idParam';
+import { isValidId, parseIdParam } from './idParam';
 
 describe('parseIdParam', () => {
   it('deve devolver o id quando tem o formato 8-4-4-4-12, inclusive o dos ids do seed', () => {
@@ -24,5 +24,14 @@ describe('parseIdParam', () => {
     expect(() => parseIdParam('x', 'Usuário não encontrado')).toThrowError(
       'Usuário não encontrado',
     );
+  });
+});
+
+describe('isValidId', () => {
+  it('deve aceitar o formato 8-4-4-4-12 e recusar o resto sem lançar exceção', () => {
+    expect(isValidId('5eed0000-0000-4000-8000-000000000001')).toBe(true);
+    expect(isValidId('nao-e-uuid')).toBe(false);
+    expect(isValidId(undefined)).toBe(false);
+    expect(isValidId(['5eed0000-0000-4000-8000-000000000001'])).toBe(false);
   });
 });
