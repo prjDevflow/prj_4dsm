@@ -13,7 +13,7 @@ Legenda: ⬜ pendente · 🟨 em andamento · ✅ pronta (critérios e DoD marca
 | Etapa | Nome | Depende de | Arquivo | Status | PR |
 |---|---|---|---|---|---|
 | B01 | Setup do projeto | G01 | 04 | ✅ integrada em `develop`;| #1 |
-| B02 | Docker, PostgreSQL e Prisma | B01 | 04 | ✅ integrada em `develop`; banco em nuvem (Neon) com as migrações aplicadas | #2 |
+| B02 | Docker, PostgreSQL e Prisma | B01 | 04 | ✅ integrada em `develop`; 🟨 pendência do banco em nuvem (Neon) com as migrações aplicadas aguarda revisão e merge | #2, #12 |
 | B03 | Pipeline de CI | B01, B02 | 04 | ✅ integrada em `develop`, ruleset ativo; falta o print do merge bloqueado e avisar Lucas e Pedro | #3 |
 | B04 | Modelo de dados e seed | B02 | 04 | ✅ integrada em `develop`; | #6 |
 | B05 | Autenticação | B04 | 04 | 🟨 PR aberto, revisado pelo `reviewer` sem bloqueantes; falta revisão de outra pessoa, o "Authorize" do Swagger no navegador e avisar Lucas ★ | #7 |
