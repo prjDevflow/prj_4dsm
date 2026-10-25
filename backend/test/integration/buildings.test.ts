@@ -207,7 +207,11 @@ describe('rotas /api/v1/buildings', () => {
       const otherPoint = await insertAccessPoint({ buildingId: other.id });
       const terminal = await insertTerminal({ accessPointId: point.id });
       // Expired and cancelled permissions do not block.
-      await insertAuthorization({ accessPointId: point.id, dataFim: new Date('2020-01-01') });
+      await insertAuthorization({
+        accessPointId: point.id,
+        dataInicio: new Date('2019-01-01'),
+        dataFim: new Date('2020-01-01'),
+      });
       await insertAuthorization({
         accessPointId: point2.id,
         dataFim: new Date('2099-01-01'),

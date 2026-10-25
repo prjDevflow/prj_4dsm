@@ -261,7 +261,11 @@ describe('rotas /api/v1/access-points', () => {
     it('200 ao desativar com autorização expirada ou cancelada', async () => {
       const admin = await asAdmin();
       const point = await insertAccessPoint();
-      await insertAuthorization({ accessPointId: point.id, dataFim: new Date('2020-01-01') });
+      await insertAuthorization({
+        accessPointId: point.id,
+        dataInicio: new Date('2019-01-01'),
+        dataFim: new Date('2020-01-01'),
+      });
       await insertAuthorization({
         accessPointId: point.id,
         dataFim: new Date('2099-01-01'),
