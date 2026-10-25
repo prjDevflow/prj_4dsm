@@ -6,7 +6,8 @@ import type { IListAccessPointsDTO } from './ListAccessPoints_DTO';
 export class ListAccessPointsUseCase {
   constructor(private accessPoints: IAccessPointRepository) {}
 
-  async execute(_input: IListAccessPointsDTO): Promise<Page<AccessPoint>> {
-    throw new Error('not implemented');
+  async execute(input: IListAccessPointsDTO): Promise<Page<AccessPoint>> {
+    const { items, total } = await this.accessPoints.list(input);
+    return { data: items, page: input.page, pageSize: input.pageSize, total };
   }
 }
