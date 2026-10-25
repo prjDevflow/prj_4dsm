@@ -1,16 +1,18 @@
-import pino, { type Logger } from 'pino';
+import pino, { type DestinationStream, type Logger } from 'pino';
 import type { Env } from '../../config/parseEnv';
 import type { ILogger, LogMeta } from '../../providers/ILogger';
 
-export function createPino(level: Env['LOG_LEVEL']): Logger {
-  return pino({
+/** `destination` defaults to stdout; tests pass a stream to read what was logged. */
+export function createPino(level: Env['LOG_LEVEL'], destination?: DestinationStream): Logger {
+  const options = {
     level,
     // Credentials must never reach the logs.
     redact: {
       paths: ['req.headers.authorization', 'req.headers.cookie', 'req.headers["x-terminal-key"]'],
       censor: '[oculto]',
     },
-  });
+  };
+  return destination ? pino(options, destination) : pino(options);
 }
 
 export class PinoLogger implements ILogger {
