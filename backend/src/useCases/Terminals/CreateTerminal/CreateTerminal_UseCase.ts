@@ -8,7 +8,7 @@ import { NotFoundError, ValidationError } from '../../../shared/errors/AppError'
 import type { ICreateTerminalDTO } from './CreateTerminal_DTO';
 
 /** 32 random bytes, as the contract asks. */
-const KEY_BYTES = 32;
+export const TERMINAL_KEY_BYTES = 32;
 
 export interface CreatedTerminal {
   id: string;
@@ -34,7 +34,7 @@ export class CreateTerminalUseCase {
       ]);
     }
 
-    const apiKey = this.random.base64Url(KEY_BYTES);
+    const apiKey = this.random.base64Url(TERMINAL_KEY_BYTES);
     const terminal: Terminal = {
       id: this.ids.next(),
       accessPointId: input.accessPointId,
