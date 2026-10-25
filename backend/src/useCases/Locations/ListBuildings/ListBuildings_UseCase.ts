@@ -6,7 +6,8 @@ import type { IListBuildingsDTO } from './ListBuildings_DTO';
 export class ListBuildingsUseCase {
   constructor(private buildings: IBuildingRepository) {}
 
-  async execute(_input: IListBuildingsDTO): Promise<Page<Building>> {
-    throw new Error('not implemented');
+  async execute(input: IListBuildingsDTO): Promise<Page<Building>> {
+    const { items, total } = await this.buildings.list(input);
+    return { data: items, page: input.page, pageSize: input.pageSize, total };
   }
 }

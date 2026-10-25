@@ -9,7 +9,16 @@ export class CreateBuildingUseCase {
     private ids: IIdGenerator,
   ) {}
 
-  async execute(_input: ICreateBuildingDTO): Promise<Building> {
-    throw new Error('not implemented');
+  async execute(input: ICreateBuildingDTO): Promise<Building> {
+    const building: Building = {
+      id: this.ids.next(),
+      nome: input.nome,
+      endereco: input.endereco,
+      latitude: input.latitude,
+      longitude: input.longitude,
+      ativo: input.ativo ?? true,
+    };
+    await this.buildings.save(building);
+    return building;
   }
 }
