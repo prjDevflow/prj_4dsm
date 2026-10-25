@@ -44,7 +44,7 @@ describe('middleware authenticateTerminal', () => {
 
   it('401 UNAUTHORIZED com chave errada, id inexistente, id malformado ou cabeçalho ausente', async () => {
     const terminal = await insertTerminal({ apiKeyHash: sha256(KEY) });
-    const attempts = [
+    const attempts: Record<string, string>[] = [
       { 'X-Terminal-Id': terminal.id, 'X-Terminal-Key': 'outra-chave' },
       { 'X-Terminal-Id': '5eed0000-0000-4000-8000-0000000000ff', 'X-Terminal-Key': KEY },
       { 'X-Terminal-Id': 'nao-e-id', 'X-Terminal-Key': KEY },
