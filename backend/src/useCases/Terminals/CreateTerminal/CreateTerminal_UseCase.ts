@@ -4,6 +4,7 @@ import type { IIdGenerator } from '../../../providers/IIdGenerator';
 import type { ISecureRandom } from '../../../providers/ISecureRandom';
 import type { IAccessPointRepository } from '../../../repositories/IAccessPointRepository';
 import type { ITerminalRepository } from '../../../repositories/ITerminalRepository';
+import { NotFoundError, ValidationError } from '../../../shared/errors/AppError';
 import type { ICreateTerminalDTO } from './CreateTerminal_DTO';
 
 /** 32 random bytes, as the contract asks. */
@@ -25,6 +26,14 @@ export class CreateTerminalUseCase {
   ) {}
 
   async execute(input: ICreateTerminalDTO): Promise<CreatedTerminal> {
+    const accessPoint = await this.accessPoints.findById(input.accessPointId);
+    if (!accessPoint) throw new NotFoundError('Ponto de acesso não encontrado');
+    if (!accessPoint.ativo) {
+      throw new ValidationError('Dados inválidos', [
+        { field: 'accessPointId', message: 'Ponto de acesso inativo' },
+      ]);
+    }
+
     const apiKey = this.random.base64Url(KEY_BYTES);
     const terminal: Terminal = {
       id: this.ids.next(),
