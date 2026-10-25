@@ -1,6 +1,7 @@
 import type { IClock } from '../../../providers/IClock';
 import type { ITerminalRepository } from '../../../repositories/ITerminalRepository';
-import type { TerminalView, TerminalViewConfig } from '../terminalView';
+import { NotFoundError } from '../../../shared/errors/AppError';
+import { toTerminalView, type TerminalView, type TerminalViewConfig } from '../terminalView';
 
 export class GetTerminalUseCase {
   constructor(
@@ -9,7 +10,9 @@ export class GetTerminalUseCase {
     private config: TerminalViewConfig,
   ) {}
 
-  async execute(_id: string): Promise<TerminalView> {
-    throw new Error('not implemented');
+  async execute(id: string): Promise<TerminalView> {
+    const terminal = await this.terminals.findById(id);
+    if (!terminal) throw new NotFoundError('Terminal não encontrado');
+    return toTerminalView(terminal, this.clock.now(), this.config);
   }
 }
