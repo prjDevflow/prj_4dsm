@@ -4,6 +4,7 @@ const portMessage = 'deve ser um número inteiro entre 1 e 65535';
 const durationMessage = 'deve ser um número inteiro positivo seguido de s, m, h ou d (ex.: 12h)';
 const costMessage = 'deve ser um inteiro entre 4 e 15';
 const loginLimitMessage = 'deve ser um número inteiro maior que zero';
+const onlineWindowMessage = 'deve ser um número inteiro de segundos maior que zero';
 
 const SECONDS_PER_UNIT = { s: 1, m: 60, h: 3600, d: 86400 } as const;
 
@@ -59,6 +60,12 @@ const EnvSchema = z.object({
     .int(loginLimitMessage)
     .min(1, loginLimitMessage)
     .default(5),
+  // A terminal is online when its last contact is less than this many seconds old.
+  TERMINAL_ONLINE_WINDOW_S: z.coerce
+    .number({ error: onlineWindowMessage })
+    .int(onlineWindowMessage)
+    .min(1, onlineWindowMessage)
+    .default(30),
 });
 
 export type Env = z.infer<typeof EnvSchema>;
