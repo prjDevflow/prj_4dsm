@@ -48,6 +48,21 @@ Para o simulador e para o ESP32 de bancada (autenticação por cabeçalho, a par
 A chave vem de `SEED_TERMINAL_KEY`; o banco guarda só o SHA-256 dela, então ela não pode ser recuperada
 do banco.
 
+O middleware `authenticateTerminal` (B07) confere os dois cabeçalhos: chave errada, ausente ou id desconhecido dão
+`401 UNAUTHORIZED` (a mesma mensagem nos três casos); terminal inativo com a chave certa dá `403 FORBIDDEN`. As rotas
+`/terminal/*` que o usam chegam a partir da B11 (heartbeat); até lá, quem quer ver o terminal do seed pelo lado do
+administrador usa `GET /terminals` (campo `online`).
+
+Para o administrador cadastrar um terminal novo ou trocar a chave (a chave só aparece na resposta):
+
+```bash
+TOKEN=$(curl -s -X POST http://localhost:3000/api/v1/auth/login -H 'content-type: application/json' \
+  -d '{"email":"admin@dev.local","senha":"Admin-Dev-2026"}' | sed 's/.*"accessToken":"\([^"]*\)".*/\1/')
+curl -s http://localhost:3000/api/v1/terminals -H "Authorization: Bearer $TOKEN"
+curl -s -X POST http://localhost:3000/api/v1/terminals/5eed0000-0000-4000-8000-000000000006/rotate-key \
+  -H "Authorization: Bearer $TOKEN"   # a chave de dev deixa de valer: rode o seed de novo para restaurá-la
+```
+
 ## Local e autorização de teste
 
 | Item           | Valor                                                                                           |
