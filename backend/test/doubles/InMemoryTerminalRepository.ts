@@ -13,10 +13,6 @@ export class InMemoryTerminalRepository implements ITerminalRepository {
     return terminal ? { ...terminal } : null;
   }
 
-  async existsByAccessPointId(accessPointId: string) {
-    return [...this.items.values()].some((item) => item.accessPointId === accessPointId);
-  }
-
   async save(terminal: Terminal) {
     // The database has a unique index on the access point; the fake keeps the same promise.
     const taken = [...this.items.values()].some(
