@@ -120,6 +120,7 @@ O projeto segue TDD: todo código de produção nasce de um teste que falhou ant
 | Eduardo    | Backend         |
 | Lucas      | App mobile      |
 | Pedro      | Terminal (IoT)  |
+| Rafael     | Design do app   |
 
 ## Documentação
 
@@ -127,4 +128,5 @@ O projeto segue TDD: todo código de produção nasce de um teste que falhou ant
 - [Modelo de dados](backend/docs/modelo-de-dados.md): diagrama ER das tabelas.
 - [Domínio e contrato da API](backend/docs/ai/03-domain-and-contract.md): requisitos, regras de negócio, rotas e códigos.
 - [Etapas do app mobile](mobile/docs/ai/etapas-frontend.md): telas, textos e critérios de cada etapa.
+- [Design do app mobile](docs/app-mobile/design/README.md): telas no Figma, decisões de design e tokens.
 - [AGENTS.md do backend](backend/AGENTS.md) e [do mobile](mobile/AGENTS.md): regras para quem trabalha com assistentes de IA.
