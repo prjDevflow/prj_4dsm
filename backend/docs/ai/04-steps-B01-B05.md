@@ -91,7 +91,7 @@ Como ler cada etapa:
 **Definição de pronto**
 
 - [x] README explica como subir o ambiente e como resetar o banco.
-- [x] Pedro e Lucas conseguem rodar o backend local seguindo o README (peça para um deles testar).
+- [x] Pedro e Lucas conseguem rodar o backend local seguindo o README (peça para um deles testar). _(confirmação verbal de Eduardo, 2026-10-25)_
 
 ---
 
