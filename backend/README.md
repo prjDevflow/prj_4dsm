@@ -129,7 +129,7 @@ nunca a coloque em arquivo versionado, em issue, em PR ou em log. Quem precisa d
 
 O Neon entrega duas strings para o mesmo banco, e cada uma serve a um uso:
 
-- **Direta** (host sem `-pooler`): use para **migrar** (`db:deploy`). O Prisma Migrate usa travas de sessão que o pooler não repassa.
+- **Direta** (host sem `-pooler`): use para **migrar** (`db:deploy`). O Prisma Migrate usa travas de sessão que o pooler pode não repassar. (A primeira migração da B02 também passou pela URL _pooled_, mas a direta é a opção segura.)
 - **Pooled** (host com `-pooler`): use para a **API** rodando em homologação (B10), que abre várias conexões curtas.
 
 As duas terminam com `?sslmode=require`. Para aplicar as migrações na nuvem, passe a URL direta só para esse comando,
