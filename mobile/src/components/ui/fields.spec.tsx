@@ -1,6 +1,6 @@
 import { fireEvent, render, screen, within } from '@testing-library/react-native';
 import { createRef, useState } from 'react';
-import type { TextInput } from 'react-native';
+import type { TextInputInstance } from 'react-native';
 import { colors } from '@/theme';
 import { DateField, TimeField } from './DateField';
 import { NumberStepper } from './NumberStepper';
@@ -60,7 +60,9 @@ describe('TextField', () => {
 
     const alert = screen.getByRole('alert');
     expect(within(alert).getByText('Informe seu e-mail.')).toBeOnTheScreen();
-    expect(within(alert).getByTestId('field-error-icon')).toBeOnTheScreen();
+    expect(
+      within(alert).getByTestId('field-error-icon', { includeHiddenElements: true }),
+    ).toBeOnTheScreen();
     expect(screen.queryByText('Use o e-mail do cadastro.')).toBeNull();
     expect(screen.getByLabelText('E-mail').props.accessibilityHint).toBe('Informe seu e-mail.');
     expect(screen.getByTestId('field-box')).toHaveStyle({ borderColor: colors.erro });
@@ -82,7 +84,7 @@ describe('TextField', () => {
   });
 
   it('aceita ref, para o setFocus do react-hook-form', async () => {
-    const ref = createRef<TextInput>();
+    const ref = createRef<TextInputInstance>();
     await render(<TextField ref={ref} label="E-mail" value="" onChangeText={jest.fn()} />);
 
     expect(typeof ref.current?.focus).toBe('function');

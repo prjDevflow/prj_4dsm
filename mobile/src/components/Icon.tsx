@@ -83,6 +83,7 @@ type IconProps = {
   /** Only for an icon that stands alone; next to a text the icon is decorative. */
   accessibilityLabel?: string;
   style?: StyleProp<TextStyle>;
+  testID?: string;
 };
 
 export const Icon = ({
@@ -91,12 +92,14 @@ export const Icon = ({
   color = colors.texto,
   accessibilityLabel,
   style,
+  testID,
 }: IconProps) => (
   <MaterialIcons
     name={toMaterialIconName(name)}
     size={size}
     color={color}
     style={style}
+    testID={testID}
     allowFontScaling={false}
     accessible={!!accessibilityLabel}
     accessibilityRole={accessibilityLabel ? 'image' : undefined}
