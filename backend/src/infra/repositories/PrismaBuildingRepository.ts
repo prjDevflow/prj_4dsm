@@ -1,5 +1,5 @@
 import type { Building } from '../../entities/Building';
-import type { PrismaClient } from '../../generated/prisma/client';
+import type { Prisma, PrismaClient } from '../../generated/prisma/client';
 import type {
   BuildingListFilter,
   BuildingListResult,
@@ -26,7 +26,8 @@ const toData = (building: Building) => ({
 });
 
 export class PrismaBuildingRepository implements IBuildingRepository {
-  constructor(private prisma: PrismaClient) {}
+  // A transaction client too: inside a unit of work the same code runs on the transaction.
+  constructor(private prisma: Prisma.TransactionClient) {}
 
   async findById(id: string) {
     const row = await this.prisma.building.findUnique({ where: { id } });
@@ -41,33 +42,27 @@ export class PrismaBuildingRepository implements IBuildingRepository {
     });
   }
 
-  async saveAndDeactivateAccessPoints(building: Building) {
-    // One transaction: the points are switched off first, so a failure saving the building undoes them.
-    await this.prisma.$transaction([
-      this.prisma.accessPoint.updateMany({
-        where: { buildingId: building.id },
-        data: { ativo: false },
-      }),
-      this.prisma.building.upsert({
-        where: { id: building.id },
-        create: { id: building.id, ...toData(building) },
-        update: toData(building),
-      }),
-    ]);
+  async findByIdForUpdate(id: string) {
+    // Only meaningful inside a transaction: the lock lasts until it ends.
+    await this.prisma.$queryRaw`SELECT id FROM buildings WHERE id = ${id}::uuid FOR UPDATE`;
+    return this.findById(id);
+  }
+
+  async findByIdForShare(id: string) {
+    await this.prisma.$queryRaw`SELECT id FROM buildings WHERE id = ${id}::uuid FOR SHARE`;
+    return this.findById(id);
   }
 
   async list(filter: BuildingListFilter): Promise<BuildingListResult> {
     const where = filter.ativo === undefined ? {} : { ativo: filter.ativo };
-    const [rows, total] = await this.prisma.$transaction([
-      this.prisma.building.findMany({
-        where,
-        // `id` breaks ties, so a page never repeats or skips a building.
-        orderBy: [{ nome: 'asc' }, { id: 'asc' }],
-        skip: (filter.page - 1) * filter.pageSize,
-        take: filter.pageSize,
-      }),
-      this.prisma.building.count({ where }),
-    ]);
+    const rows = await this.prisma.building.findMany({
+      where,
+      // `id` breaks ties, so a page never repeats or skips a building.
+      orderBy: [{ nome: 'asc' }, { id: 'asc' }],
+      skip: (filter.page - 1) * filter.pageSize,
+      take: filter.pageSize,
+    });
+    const total = await this.prisma.building.count({ where });
     return { items: rows.map(toEntity), total };
   }
 }

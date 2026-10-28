@@ -26,11 +26,27 @@ const isIdentificationTaken = (error: unknown) =>
   JSON.stringify((error as { meta?: unknown }).meta ?? '').includes('identificacao');
 
 export class PrismaAccessPointRepository implements IAccessPointRepository {
-  constructor(private prisma: PrismaClient) {}
+  // A transaction client too: inside a unit of work the same code runs on the transaction.
+  constructor(private prisma: Prisma.TransactionClient) {}
 
   async findById(id: string) {
     const row = await this.prisma.accessPoint.findUnique({ where: { id } });
     return row ? toEntity(row) : null;
+  }
+
+  async findByIdForUpdate(id: string) {
+    // Only meaningful inside a transaction: the lock lasts until it ends.
+    await this.prisma.$queryRaw`SELECT id FROM access_points WHERE id = ${id}::uuid FOR UPDATE`;
+    return this.findById(id);
+  }
+
+  async lockByBuilding(buildingId: string) {
+    await this.prisma
+      .$queryRaw`SELECT id FROM access_points WHERE "buildingId" = ${buildingId}::uuid FOR UPDATE`;
+  }
+
+  async deactivateByBuilding(buildingId: string) {
+    await this.prisma.accessPoint.updateMany({ where: { buildingId }, data: { ativo: false } });
   }
 
   async existsByIdentificacao(buildingId: string, identificacao: string, exceptId?: string) {
@@ -78,15 +94,13 @@ export class PrismaAccessPointRepository implements IAccessPointRepository {
       ...(filter.tipo !== undefined && { tipo: filter.tipo }),
       ...(filter.ativo !== undefined && { ativo: filter.ativo }),
     };
-    const [rows, total] = await this.prisma.$transaction([
-      this.prisma.accessPoint.findMany({
-        where,
-        orderBy: [{ nome: 'asc' }, { id: 'asc' }],
-        skip: (filter.page - 1) * filter.pageSize,
-        take: filter.pageSize,
-      }),
-      this.prisma.accessPoint.count({ where }),
-    ]);
+    const rows = await this.prisma.accessPoint.findMany({
+      where,
+      orderBy: [{ nome: 'asc' }, { id: 'asc' }],
+      skip: (filter.page - 1) * filter.pageSize,
+      take: filter.pageSize,
+    });
+    const total = await this.prisma.accessPoint.count({ where });
     return { items: rows.map(toEntity), total };
   }
 }

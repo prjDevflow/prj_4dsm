@@ -1,8 +1,9 @@
-import type { PrismaClient } from '../../generated/prisma/client';
+import type { Prisma } from '../../generated/prisma/client';
 import type { IAuthorizationRepository } from '../../repositories/IAuthorizationRepository';
 
 export class PrismaAuthorizationRepository implements IAuthorizationRepository {
-  constructor(private prisma: PrismaClient) {}
+  // A transaction client too: inside a unit of work the same code runs on the transaction.
+  constructor(private prisma: Prisma.TransactionClient) {}
 
   async hasActiveNonExpiredForAccessPoint(accessPointId: string, today: string) {
     return this.hasActiveNonExpired({ accessPointId }, today);
