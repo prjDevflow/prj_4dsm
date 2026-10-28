@@ -1,9 +1,21 @@
+import type { Authorization } from '../../entities/Authorization';
 import type { Prisma } from '../../generated/prisma/client';
-import type { IAuthorizationRepository } from '../../repositories/IAuthorizationRepository';
+import type {
+  AuthorizationDetails,
+  IAuthorizationRepository,
+} from '../../repositories/IAuthorizationRepository';
 
 export class PrismaAuthorizationRepository implements IAuthorizationRepository {
   // A transaction client too: inside a unit of work the same code runs on the transaction.
   constructor(private prisma: Prisma.TransactionClient) {}
+
+  async save(_authorization: Authorization): Promise<void> {
+    throw new Error('B08: ainda não implementado');
+  }
+
+  async findViewById(_id: string): Promise<AuthorizationDetails | null> {
+    throw new Error('B08: ainda não implementado');
+  }
 
   async hasActiveNonExpiredForAccessPoint(accessPointId: string, today: string) {
     return this.hasActiveNonExpired({ accessPointId }, today);

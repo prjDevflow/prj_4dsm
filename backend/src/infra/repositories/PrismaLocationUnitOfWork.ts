@@ -6,6 +6,7 @@ import type {
 import { PrismaAccessPointRepository } from './PrismaAccessPointRepository';
 import { PrismaAuthorizationRepository } from './PrismaAuthorizationRepository';
 import { PrismaBuildingRepository } from './PrismaBuildingRepository';
+import { PrismaUserRepository } from './PrismaUserRepository';
 
 export class PrismaLocationUnitOfWork implements ILocationUnitOfWork {
   constructor(private prisma: PrismaClient) {}
@@ -17,6 +18,7 @@ export class PrismaLocationUnitOfWork implements ILocationUnitOfWork {
         buildings: new PrismaBuildingRepository(tx),
         accessPoints: new PrismaAccessPointRepository(tx),
         authorizations: new PrismaAuthorizationRepository(tx),
+        users: new PrismaUserRepository(tx),
       }),
     );
   }

@@ -21,6 +21,11 @@ export class InMemoryAccessPointRepository implements IAccessPointRepository {
     return this.findById(id);
   }
 
+  async findByIdForShare(id: string) {
+    this.locks.push(`point:share:${id}`);
+    return this.findById(id);
+  }
+
   async lockByBuilding(buildingId: string) {
     this.locks.push(`points:building:${buildingId}`);
   }

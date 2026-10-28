@@ -38,6 +38,10 @@ export class PrismaUserRepository implements IUserRepository {
     return row ? toEntity(row) : null;
   }
 
+  async findByIdForShare(_id: string): Promise<User | null> {
+    throw new Error('B08: ainda não implementado');
+  }
+
   async findByEmail(email: string) {
     const row = await this.prisma.user.findUnique({ where: { email } });
     return row ? toEntity(row) : null;

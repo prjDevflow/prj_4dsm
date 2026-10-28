@@ -40,6 +40,10 @@ export class PrismaAccessPointRepository implements IAccessPointRepository {
     return this.findById(id);
   }
 
+  async findByIdForShare(_id: string): Promise<AccessPoint | null> {
+    throw new Error('B08: ainda não implementado');
+  }
+
   async lockByBuilding(buildingId: string) {
     await this.prisma
       .$queryRaw`SELECT id FROM access_points WHERE "buildingId" = ${buildingId}::uuid FOR UPDATE`;
