@@ -4,11 +4,7 @@ import { todayInSaoPaulo } from '../../../entities/rules/todayInSaoPaulo';
 import type { IClock } from '../../../providers/IClock';
 import type { IIdGenerator } from '../../../providers/IIdGenerator';
 import type { ILocationUnitOfWork } from '../../../repositories/ILocationUnitOfWork';
-import {
-  NotFoundError,
-  ValidationError,
-  type ErrorDetails,
-} from '../../../shared/errors/AppError';
+import { NotFoundError, ValidationError, type ErrorDetails } from '../../../shared/errors/AppError';
 import { toAuthorizationView, type AuthorizationView } from '../authorizationView';
 import type { ICreateAuthorizationDTO } from './CreateAuthorization_DTO';
 

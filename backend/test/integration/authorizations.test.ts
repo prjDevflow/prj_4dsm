@@ -219,9 +219,7 @@ describe('rotas /api/v1/authorizations', () => {
       const place = await post(admin, bodyFor(visitor.id, inactivePoint.id));
 
       expect(user.status).toBe(422);
-      expect(user.body.error.details).toEqual([
-        { field: 'usuarioId', message: 'Usuário inativo' },
-      ]);
+      expect(user.body.error.details).toEqual([{ field: 'usuarioId', message: 'Usuário inativo' }]);
       expect(place.status).toBe(422);
       expect(place.body.error.details).toEqual([
         { field: 'accessPointId', message: 'Ponto de acesso inativo' },
