@@ -14,12 +14,33 @@ export class InMemoryTerminalRepository implements ITerminalRepository {
   }
 
   async save(terminal: Terminal) {
+    // Insert only, like the real repository: changes go through updateDetails and replaceKeyHash.
+    if (this.items.has(terminal.id)) throw new Error(`terminal ${terminal.id} já existe`);
     // The database has a unique index on the access point; the fake keeps the same promise.
     const taken = [...this.items.values()].some(
-      (item) => item.accessPointId === terminal.accessPointId && item.id !== terminal.id,
+      (item) => item.accessPointId === terminal.accessPointId,
     );
     if (taken) throw new ConflictError('CONFLICT', 'Este ponto de acesso já tem um terminal');
     this.items.set(terminal.id, { ...terminal });
+  }
+
+  async updateDetails(id: string, changes: { nome?: string; ativo?: boolean }) {
+    const terminal = this.items.get(id);
+    if (!terminal) return null;
+    const updated = {
+      ...terminal,
+      nome: changes.nome ?? terminal.nome,
+      ativo: changes.ativo ?? terminal.ativo,
+    };
+    this.items.set(id, updated);
+    return { ...updated };
+  }
+
+  async replaceKeyHash(id: string, apiKeyHash: string) {
+    const terminal = this.items.get(id);
+    if (!terminal) return false;
+    this.items.set(id, { ...terminal, apiKeyHash });
+    return true;
   }
 
   async list(filter: TerminalListFilter) {
