@@ -128,7 +128,7 @@ Legenda: **U** = unitário (doubles, sem banco) · **I** = integração (superte
 
 **Regras de validação**
 
-- Nota (B07): ponto de acesso inativo já cobre o edifício inativo, porque desativar o edifício desativa os pontos dele; a B08 só olha o ponto.
+- Nota (B07): ponto de acesso inativo já cobre o edifício inativo, porque desativar o edifício desativa os pontos dele; a B08 só olha o ponto. **Concorrência (protocolo de travas da B07):** a B08 grava a autorização dentro de `ILocationUnitOfWork` (ou outra unidade de trabalho), trava o ponto com `FOR SHARE` (`findByIdForShare` no `IAccessPointRepository`, a criar) e só então confere `ativo`; sem isso, uma autorização criada no instante da desativação do local pode ficar num ponto inativo. Teste de integração com PostgreSQL real, como em `locationConcurrency.test.ts`.
 - Usuário existe (senão 404) e está ativo (senão 422 com `details` no campo `usuarioId`). Ponto de acesso existe (404) e está ativo (422).
 - `dataFim` maior ou igual a `dataInicio`; `dataFim` **não** pode estar no passado (hoje no fuso de São Paulo); `horaFim` maior que `horaInicio` (sem virada de meia-noite); `usosPermitidos` inteiro de 1 a 1000.
 - Grava `criadoPorId` (do token), `criadoEm` (relógio), `situacao = ATIVA`, `usosRealizados = 0`.
