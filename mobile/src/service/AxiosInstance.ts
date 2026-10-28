@@ -1,4 +1,4 @@
-import axios, { AxiosError } from 'axios';
+import { AxiosError, create, isAxiosError } from 'axios';
 import { useSessionStore } from '@/context/SessionStore';
 import { env } from '@/lib/env';
 import { ApiError, type FieldError } from './ApiError';
@@ -11,7 +11,7 @@ type AxiosInstanceOptions = {
 };
 
 const toApiError = (error: unknown): ApiError => {
-  if (!axios.isAxiosError<ErrorBody>(error)) {
+  if (!isAxiosError<ErrorBody>(error)) {
     return new ApiError(null, 'NETWORK', 'Sem conexão');
   }
   if (error.code === AxiosError.ECONNABORTED || error.code === AxiosError.ETIMEDOUT) {
@@ -31,7 +31,7 @@ const toApiError = (error: unknown): ApiError => {
 };
 
 export const createAxiosInstance = ({ baseURL, timeout = 10_000 }: AxiosInstanceOptions) => {
-  const instance = axios.create({ baseURL, timeout });
+  const instance = create({ baseURL, timeout });
 
   instance.interceptors.request.use((config) => {
     const token = useSessionStore.getState().token;
