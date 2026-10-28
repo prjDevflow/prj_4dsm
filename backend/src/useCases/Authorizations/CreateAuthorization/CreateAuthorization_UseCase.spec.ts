@@ -107,10 +107,72 @@ describe('CreateAuthorization', () => {
     });
   });
 
-  it.todo('deve lançar NotFoundError quando o usuário não existe');
-  it.todo('deve lançar NotFoundError quando o ponto de acesso não existe');
-  it.todo('deve rejeitar usuário inativo com erro de validação no campo usuarioId');
-  it.todo('deve rejeitar ponto de acesso inativo com erro de validação no campo accessPointId');
+  it('deve lançar NotFoundError quando o usuário não existe', async () => {
+    const { sut, authorizations } = await makeSut();
+
+    const error = await sut.execute(validInput({ usuarioId: idOf(99) }), ADMIN.id).catch((e) => e);
+
+    expect(error).toMatchObject({ code: 'NOT_FOUND', status: 404 });
+    expect(authorizations.all()).toEqual([]);
+  });
+
+  it('deve lançar NotFoundError quando o ponto de acesso não existe', async () => {
+    const { sut, authorizations } = await makeSut();
+
+    const error = await sut
+      .execute(validInput({ accessPointId: idOf(99) }), ADMIN.id)
+      .catch((e) => e);
+
+    expect(error).toMatchObject({ code: 'NOT_FOUND', status: 404 });
+    expect(authorizations.all()).toEqual([]);
+  });
+
+  it('deve rejeitar usuário inativo com erro de validação no campo usuarioId', async () => {
+    const { sut, users, authorizations } = await makeSut();
+    await users.save({ ...VISITOR, ativo: false });
+
+    const error = await sut.execute(validInput(), ADMIN.id).catch((e) => e);
+
+    expect(error).toMatchObject({
+      code: 'VALIDATION_ERROR',
+      status: 422,
+      details: [{ field: 'usuarioId', message: 'Usuário inativo' }],
+    });
+    expect(authorizations.all()).toEqual([]);
+  });
+
+  it('deve rejeitar ponto de acesso inativo com erro de validação no campo accessPointId', async () => {
+    const { sut, accessPoints, authorizations } = await makeSut();
+    await accessPoints.save({ ...POINT, ativo: false });
+
+    const error = await sut.execute(validInput(), ADMIN.id).catch((e) => e);
+
+    expect(error).toMatchObject({
+      code: 'VALIDATION_ERROR',
+      status: 422,
+      details: [{ field: 'accessPointId', message: 'Ponto de acesso inativo' }],
+    });
+    expect(authorizations.all()).toEqual([]);
+  });
+
+  it('deve travar o usuário e depois o ponto (FOR SHARE) antes de conferir ativo', async () => {
+    const { sut, locks } = await makeSut();
+
+    await sut.execute(validInput(), ADMIN.id);
+
+    expect(locks).toEqual([`user:share:${VISITOR.id}`, `point:share:${POINT.id}`]);
+  });
+
+  it('deve travar o ponto mesmo quando o usuário inativo já basta para recusar', async () => {
+    const { sut, users, locks } = await makeSut();
+    await users.save({ ...VISITOR, ativo: false });
+
+    await sut.execute(validInput(), ADMIN.id).catch(() => undefined);
+
+    // Both problems are reported together, so both rows are read under their locks.
+    expect(locks).toEqual([`user:share:${VISITOR.id}`, `point:share:${POINT.id}`]);
+  });
+
   it.todo('deve rejeitar dataFim anterior a dataInicio no campo dataFim e aceitar igual');
   it.todo('deve rejeitar dataFim no passado em São Paulo e aceitar hoje');
   it.todo('deve tratar a virada do dia pelo horário de São Paulo, não pelo UTC');
@@ -118,5 +180,4 @@ describe('CreateAuthorization', () => {
   it.todo('deve aceitar horaFim um minuto depois de horaInicio');
   it.todo('deve devolver um erro com um details por campo quando vários campos são inválidos');
   it.todo('deve não gravar nada quando alguma regra falha');
-  it.todo('deve travar o usuário e depois o ponto (FOR SHARE) antes de conferir ativo');
 });
