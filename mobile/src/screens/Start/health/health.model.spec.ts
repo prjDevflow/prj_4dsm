@@ -7,8 +7,11 @@ import { useHealthModel } from './health.model';
 
 const API_URL = 'http://192.168.0.15:3000/api/v1';
 
-const renderModel = (service: FakeGetHealthService) =>
-  renderHook(() => useHealthModel({ getHealthService: service, apiUrl: API_URL }), {
+const mockPush = jest.fn();
+jest.mock('expo-router', () => ({ useRouter: () => ({ push: mockPush }) }));
+
+const renderModel = (service: FakeGetHealthService, showCatalog = false) =>
+  renderHook(() => useHealthModel({ getHealthService: service, apiUrl: API_URL, showCatalog }), {
     wrapper: createWrapper(),
   });
 
@@ -75,5 +78,21 @@ describe('useHealthModel', () => {
 
     await waitFor(() => expect(result.current.title).toBe('API: ok'));
     expect(service.calls).toBe(2);
+  });
+
+  it('em desenvolvimento, abre o catálogo de componentes', async () => {
+    const { result } = await renderModel(new FakeGetHealthService(), true);
+
+    expect(result.current.showCatalog).toBe(true);
+    act(() => result.current.onOpenCatalog());
+
+    expect(mockPush).toHaveBeenCalledWith('/catalog');
+  });
+
+  it('fora do desenvolvimento, não oferece o catálogo', async () => {
+    const { result } = await renderModel(new FakeGetHealthService());
+
+    expect(result.current.showCatalog).toBe(false);
+    await waitFor(() => expect(result.current.status).toBe('ok'));
   });
 });

@@ -10,6 +10,8 @@ const baseProps: Props = {
   detail: 'Versão 0.1.0 · banco de dados conectado',
   isRetrying: false,
   onRetry: jest.fn(),
+  showCatalog: false,
+  onOpenCatalog: jest.fn(),
 };
 
 describe('HealthView', () => {
@@ -49,5 +51,20 @@ describe('HealthView', () => {
 
     expect(button).toBeBusy();
     expect(onRetry).not.toHaveBeenCalled();
+  });
+
+  it('em desenvolvimento, mostra o atalho para o catálogo de componentes', async () => {
+    const onOpenCatalog = jest.fn();
+    await render(<HealthView {...baseProps} showCatalog onOpenCatalog={onOpenCatalog} />);
+
+    await fireEvent.press(screen.getByRole('button', { name: 'Abrir catálogo de componentes' }));
+
+    expect(onOpenCatalog).toHaveBeenCalledTimes(1);
+  });
+
+  it('fora do desenvolvimento, não mostra o atalho do catálogo', async () => {
+    await render(<HealthView {...baseProps} />);
+
+    expect(screen.queryByRole('button', { name: 'Abrir catálogo de componentes' })).toBeNull();
   });
 });
