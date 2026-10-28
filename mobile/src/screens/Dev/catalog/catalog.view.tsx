@@ -105,22 +105,22 @@ export const CatalogView = ({
       />
 
       <Section title="Cores">
-        <View style={styles.swatches}>
-          {(Object.keys(colors) as ColorName[]).map((name) => (
-            <View key={name} style={styles.swatch}>
-              <View
-                style={[
-                  styles.swatchColor,
-                  { backgroundColor: colors[name], borderColor: colors.contornoSuave },
-                ]}
-              />
-              <Text variant="adminLegenda">{name}</Text>
-              <Text variant="adminLegenda" color="textoApoio">
+        {(Object.keys(colors) as ColorName[]).map((name) => (
+          <View key={name} style={styles.swatch}>
+            <View
+              style={[
+                styles.swatchColor,
+                { backgroundColor: colors[name], borderColor: colors.contornoSuave },
+              ]}
+            />
+            <View style={styles.swatchTexts}>
+              <Text variant="adminItem">{name}</Text>
+              <Text variant="adminApoio" color="textoApoio">
                 {colors[name]}
               </Text>
             </View>
-          ))}
-        </View>
+          </View>
+        ))}
       </Section>
 
       <Section title="Tipografia">
@@ -318,9 +318,9 @@ export const CatalogView = ({
 const styles = StyleSheet.create({
   section: { gap: 16, paddingTop: 16 },
   row: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: 8 },
-  swatches: { flexDirection: 'row', flexWrap: 'wrap', gap: 12 },
-  swatch: { width: 104, gap: 4 },
-  swatchColor: { height: 48, borderRadius: 12, borderWidth: 1 },
+  swatch: { flexDirection: 'row', alignItems: 'center', gap: 12 },
+  swatchColor: { width: 48, height: 48, borderRadius: 12, borderWidth: 1 },
+  swatchTexts: { flex: 1 },
   icons: { flexDirection: 'row', flexWrap: 'wrap', gap: 12 },
   icon: { width: 104, alignItems: 'center', gap: 4 },
 });

@@ -1,5 +1,5 @@
 import type { ReactNode } from 'react';
-import { Pressable, StyleSheet, View } from 'react-native';
+import { Pressable, StyleSheet, useWindowDimensions, View } from 'react-native';
 import { Icon } from '@/components/Icon';
 import { useTheme } from '@/theme';
 import { StatusBadge, badgeLabel, type StatusBadgeProps } from './StatusBadge';
@@ -16,6 +16,8 @@ type ListItemProps = {
   divider?: boolean;
 };
 
+const STACK_FONT_SCALE = 1.3;
+
 /** List row: the screen reader reads title, subtitle and badge as one item. */
 export const ListItem = ({
   title,
@@ -26,6 +28,8 @@ export const ListItem = ({
   divider = true,
 }: ListItemProps) => {
   const theme = useTheme();
+  // With a large system font the badge goes below the texts instead of squeezing them.
+  const stacked = useWindowDimensions().fontScale >= STACK_FONT_SCALE;
   const label = [title, subtitle, badge && badgeLabel(badge)].filter(Boolean).join(', ');
 
   const content = (
@@ -37,18 +41,22 @@ export const ListItem = ({
           divider && { borderBottomWidth: 1, borderBottomColor: theme.colors.contornoSuave },
         ]}
       >
-        <View style={styles.texts}>
-          <Text variant={theme.scale === 'admin' ? 'adminItem' : 'pessoaCorpoForte'}>{title}</Text>
-          {subtitle ? (
-            <Text
-              variant={theme.scale === 'admin' ? 'adminCorpo' : 'pessoaApoio'}
-              color="textoApoio"
-            >
-              {subtitle}
+        <View style={stacked ? styles.mainStacked : styles.main}>
+          <View style={[styles.texts, !stacked && styles.fill]}>
+            <Text variant={theme.scale === 'admin' ? 'adminItem' : 'pessoaCorpoForte'}>
+              {title}
             </Text>
-          ) : null}
+            {subtitle ? (
+              <Text
+                variant={theme.scale === 'admin' ? 'adminCorpo' : 'pessoaApoio'}
+                color="textoApoio"
+              >
+                {subtitle}
+              </Text>
+            ) : null}
+          </View>
+          {badge ? <StatusBadge {...badge} /> : null}
         </View>
-        {badge ? <StatusBadge {...badge} /> : null}
         {onPress ? <Icon name="chevron_right" color={theme.colors.textoApoio} /> : null}
       </View>
     </>
@@ -84,6 +92,9 @@ const styles = StyleSheet.create({
     alignSelf: 'stretch',
     paddingVertical: 12,
   },
-  texts: { flex: 1, gap: 2 },
+  main: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: 12 },
+  mainStacked: { flex: 1, alignItems: 'flex-start', gap: 6 },
+  texts: { gap: 2 },
+  fill: { flex: 1 },
   pressed: { opacity: 0.7 },
 });
