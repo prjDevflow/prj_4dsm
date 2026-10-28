@@ -1,4 +1,6 @@
 import { Authorization } from '../../../entities/Authorization';
+import { checkAuthorizationPeriod } from '../../../entities/rules/checkAuthorizationPeriod';
+import { todayInSaoPaulo } from '../../../entities/rules/todayInSaoPaulo';
 import type { IClock } from '../../../providers/IClock';
 import type { IIdGenerator } from '../../../providers/IIdGenerator';
 import type { ILocationUnitOfWork } from '../../../repositories/ILocationUnitOfWork';
@@ -33,6 +35,7 @@ export class CreateAuthorizationUseCase {
       if (!accessPoint.ativo) {
         problems.push({ field: 'accessPointId', message: 'Ponto de acesso inativo' });
       }
+      problems.push(...checkAuthorizationPeriod(input, todayInSaoPaulo(now)));
       if (problems.length > 0) throw new ValidationError('Dados inválidos', problems);
 
       const authorization = Authorization.create({
