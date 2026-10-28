@@ -23,7 +23,12 @@ export const longitudeField = z
 const isRealDate = (value: string) => {
   const date = new Date(`${value}T00:00:00Z`);
   // `2099-02-30` passes the shape but rolls over to March, so the round trip tells it apart.
-  return !Number.isNaN(date.getTime()) && date.toISOString().slice(0, 10) === value;
+  // Year 0000 survives the round trip in JavaScript, but PostgreSQL has no year 0 in a `date`.
+  return (
+    !Number.isNaN(date.getTime()) &&
+    date.toISOString().slice(0, 10) === value &&
+    date.getUTCFullYear() >= 1
+  );
 };
 
 /** A calendar date as YYYY-MM-DD that exists (no 30 February). */
