@@ -8,9 +8,21 @@ import { ConflictError } from '../../src/shared/errors/AppError';
 export class InMemoryAccessPointRepository implements IAccessPointRepository {
   private items = new Map<string, AccessPoint>();
 
+  /** `locks` is shared with the other fakes of a unit of work, so a test sees the order of the locks. */
+  constructor(private locks: string[] = []) {}
+
   async findById(id: string) {
     const point = this.items.get(id);
     return point ? { ...point } : null;
+  }
+
+  async findByIdForUpdate(id: string) {
+    this.locks.push(`point:update:${id}`);
+    return this.findById(id);
+  }
+
+  async lockByBuilding(buildingId: string) {
+    this.locks.push(`points:building:${buildingId}`);
   }
 
   async existsByIdentificacao(buildingId: string, identificacao: string, exceptId?: string) {
@@ -46,8 +58,7 @@ export class InMemoryAccessPointRepository implements IAccessPointRepository {
     };
   }
 
-  /** Not part of the port: the in-memory building repository uses it to mimic the single transaction. */
-  deactivateByBuilding(buildingId: string) {
+  async deactivateByBuilding(buildingId: string) {
     for (const [id, point] of this.items) {
       if (point.buildingId === buildingId) this.items.set(id, { ...point, ativo: false });
     }

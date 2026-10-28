@@ -1,5 +1,4 @@
 import { describe, expect, it } from 'vitest';
-import { InMemoryAccessPointRepository } from '../../../../test/doubles/InMemoryAccessPointRepository';
 import { InMemoryBuildingRepository } from '../../../../test/doubles/InMemoryBuildingRepository';
 import { makeBuilding } from '../../../../test/factories/makeBuilding';
 import { ListBuildingsUseCase } from './ListBuildings_UseCase';
@@ -7,7 +6,7 @@ import { ListBuildingsUseCase } from './ListBuildings_UseCase';
 const idOf = (n: number) => `00000000-0000-4000-8000-${String(n).padStart(12, '0')}`;
 
 const makeSut = async () => {
-  const buildings = new InMemoryBuildingRepository(new InMemoryAccessPointRepository());
+  const buildings = new InMemoryBuildingRepository();
   await buildings.save(makeBuilding({ id: idOf(1), nome: 'Carlos', ativo: true }));
   await buildings.save(makeBuilding({ id: idOf(2), nome: 'Ana', ativo: false }));
   await buildings.save(makeBuilding({ id: idOf(3), nome: 'Bruno', ativo: true }));

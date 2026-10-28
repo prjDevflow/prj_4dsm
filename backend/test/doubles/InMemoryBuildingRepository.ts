@@ -3,25 +3,30 @@ import type {
   BuildingListFilter,
   IBuildingRepository,
 } from '../../src/repositories/IBuildingRepository';
-import type { InMemoryAccessPointRepository } from './InMemoryAccessPointRepository';
 
 export class InMemoryBuildingRepository implements IBuildingRepository {
   private items = new Map<string, Building>();
 
-  constructor(private accessPoints: InMemoryAccessPointRepository) {}
+  /** `locks` is shared with the other fakes of a unit of work, so a test sees the order of the locks. */
+  constructor(private locks: string[] = []) {}
 
   async findById(id: string) {
     const building = this.items.get(id);
     return building ? { ...building } : null;
   }
 
-  async save(building: Building) {
-    this.items.set(building.id, { ...building });
+  async findByIdForUpdate(id: string) {
+    this.locks.push(`building:update:${id}`);
+    return this.findById(id);
   }
 
-  async saveAndDeactivateAccessPoints(building: Building) {
+  async findByIdForShare(id: string) {
+    this.locks.push(`building:share:${id}`);
+    return this.findById(id);
+  }
+
+  async save(building: Building) {
     this.items.set(building.id, { ...building });
-    this.accessPoints.deactivateByBuilding(building.id);
   }
 
   async list(filter: BuildingListFilter) {

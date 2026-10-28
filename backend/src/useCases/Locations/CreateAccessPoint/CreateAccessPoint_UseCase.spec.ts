@@ -1,6 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { InMemoryAccessPointRepository } from '../../../../test/doubles/InMemoryAccessPointRepository';
-import { InMemoryBuildingRepository } from '../../../../test/doubles/InMemoryBuildingRepository';
+import { makeLocationDoubles } from '../../../../test/doubles/InMemoryLocationUnitOfWork';
 import { SequentialIdGenerator } from '../../../../test/doubles/SequentialIdGenerator';
 import { makeBuilding } from '../../../../test/factories/makeBuilding';
 import { CreateAccessPointUseCase } from './CreateAccessPoint_UseCase';
@@ -14,11 +13,10 @@ const CLOSED = makeBuilding({
 });
 
 const makeSut = async () => {
-  const accessPoints = new InMemoryAccessPointRepository();
-  const buildings = new InMemoryBuildingRepository(accessPoints);
+  const { uow, buildings, accessPoints, locks } = makeLocationDoubles();
   for (const building of [CENTRAL, ANEXO, CLOSED]) await buildings.save(building);
-  const sut = new CreateAccessPointUseCase(buildings, accessPoints, new SequentialIdGenerator());
-  return { sut, accessPoints };
+  const sut = new CreateAccessPointUseCase(uow, new SequentialIdGenerator());
+  return { sut, accessPoints, locks };
 };
 
 const input = {
@@ -78,5 +76,13 @@ describe('CreateAccessPoint', () => {
     const other = await sut.execute({ ...input, buildingId: ANEXO.id });
 
     expect(other.identificacao).toBe('CAT-01');
+  });
+
+  it('deve travar o edifício contra a desativação antes de criar o ponto', async () => {
+    const { sut, locks } = await makeSut();
+
+    await sut.execute(input);
+
+    expect(locks).toEqual([`building:share:${CENTRAL.id}`]);
   });
 });

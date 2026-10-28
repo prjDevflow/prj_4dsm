@@ -1,11 +1,10 @@
 import { describe, expect, it } from 'vitest';
-import { InMemoryAccessPointRepository } from '../../../../test/doubles/InMemoryAccessPointRepository';
 import { InMemoryBuildingRepository } from '../../../../test/doubles/InMemoryBuildingRepository';
 import { SequentialIdGenerator } from '../../../../test/doubles/SequentialIdGenerator';
 import { CreateBuildingUseCase } from './CreateBuilding_UseCase';
 
 const makeSut = () => {
-  const buildings = new InMemoryBuildingRepository(new InMemoryAccessPointRepository());
+  const buildings = new InMemoryBuildingRepository();
   const sut = new CreateBuildingUseCase(buildings, new SequentialIdGenerator());
   return { sut, buildings };
 };

@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it } from 'vitest';
 import { PrismaAccessPointRepository } from '../../src/infra/repositories/PrismaAccessPointRepository';
 import { PrismaAuthorizationRepository } from '../../src/infra/repositories/PrismaAuthorizationRepository';
-import { PrismaBuildingRepository } from '../../src/infra/repositories/PrismaBuildingRepository';
+import { PrismaLocationUnitOfWork } from '../../src/infra/repositories/PrismaLocationUnitOfWork';
 import {
   insertAccessPoint,
   insertAuthorization,
@@ -12,8 +12,8 @@ import {
 
 const TODAY = '2026-10-20';
 const authorizations = new PrismaAuthorizationRepository(prisma);
-const buildings = new PrismaBuildingRepository(prisma);
 const accessPoints = new PrismaAccessPointRepository(prisma);
+const uow = new PrismaLocationUnitOfWork(prisma);
 
 describe('PrismaAuthorizationRepository (B07)', () => {
   beforeEach(resetDatabase);
@@ -88,35 +88,60 @@ describe('PrismaAuthorizationRepository (B07)', () => {
   });
 });
 
-describe('PrismaBuildingRepository.saveAndDeactivateAccessPoints', () => {
+describe('PrismaLocationUnitOfWork', () => {
   beforeEach(resetDatabase);
 
-  it('é tudo ou nada: se gravar o edifício falha, os pontos continuam ativos', async () => {
+  it('é tudo ou nada: se o trabalho falha depois de desativar os pontos, os pontos continuam ativos', async () => {
     const building = await insertBuilding();
     const point = await insertAccessPoint({ buildingId: building.id });
 
-    // 200 characters do not fit the 120-character column, so the building write fails.
-    const broken = { ...building, nome: 'x'.repeat(200), ativo: false };
-    await expect(buildings.saveAndDeactivateAccessPoints(broken)).rejects.toThrow();
+    await expect(
+      uow.run(async ({ buildings, accessPoints }) => {
+        await buildings.findByIdForUpdate(building.id);
+        await accessPoints.lockByBuilding(building.id);
+        await accessPoints.deactivateByBuilding(building.id);
+        throw new Error('falha no meio do trabalho');
+      }),
+    ).rejects.toThrow('falha no meio do trabalho');
 
     expect((await prisma.accessPoint.findUniqueOrThrow({ where: { id: point.id } })).ativo).toBe(
       true,
     );
-    expect((await prisma.building.findUniqueOrThrow({ where: { id: building.id } })).ativo).toBe(
-      true,
-    );
   });
 
-  it('grava o edifício inativo e desativa só os pontos dele', async () => {
+  it('confirma as escritas quando o trabalho termina, e devolve o que o trabalho devolveu', async () => {
     const building = await insertBuilding();
     const other = await insertBuilding({ nome: 'Outro' });
     const point = await insertAccessPoint({ buildingId: building.id });
     const otherPoint = await insertAccessPoint({ buildingId: other.id });
 
-    await buildings.saveAndDeactivateAccessPoints({ ...building, ativo: false });
+    const found = await uow.run(async ({ buildings, accessPoints }) => {
+      const locked = await buildings.findByIdForUpdate(building.id);
+      await accessPoints.lockByBuilding(building.id);
+      await accessPoints.deactivateByBuilding(building.id);
+      return locked;
+    });
 
-    expect((await buildings.findById(building.id))?.ativo).toBe(false);
+    expect(found).toMatchObject({ id: building.id, ativo: true });
     expect((await accessPoints.findById(point.id))?.ativo).toBe(false);
     expect((await accessPoints.findById(otherPoint.id))?.ativo).toBe(true);
+  });
+
+  it('as travas devolvem os dados e valem para registro inexistente (null)', async () => {
+    const building = await insertBuilding();
+    const point = await insertAccessPoint({ buildingId: building.id });
+    const missing = '5eed0000-0000-4000-8000-0000000000ff';
+
+    const result = await uow.run(async (repos) => ({
+      building: await repos.buildings.findByIdForShare(building.id),
+      point: await repos.accessPoints.findByIdForUpdate(point.id),
+      noBuilding: await repos.buildings.findByIdForUpdate(missing),
+      noPoint: await repos.accessPoints.findByIdForUpdate(missing),
+    }));
+
+    expect(result.building).toMatchObject({ id: building.id });
+    expect(result.point).toMatchObject({ id: point.id });
+    expect(result.noBuilding).toBeNull();
+    expect(result.noPoint).toBeNull();
   });
 });

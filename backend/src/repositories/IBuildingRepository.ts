@@ -17,8 +17,16 @@ export interface IBuildingRepository {
   findById(id: string): Promise<Building | null>;
   /** Inserts a new building or updates the one with the same id. */
   save(building: Building): Promise<void>;
-  /** Saves the (now inactive) building and deactivates all of its access points, all or nothing. */
-  saveAndDeactivateAccessPoints(building: Building): Promise<void>;
+  /**
+   * Same as `findById`, but inside a unit of work it locks the row (`FOR UPDATE`) until the transaction
+   * ends: nobody else changes, deactivates or adds a point to the building meanwhile.
+   */
+  findByIdForUpdate(id: string): Promise<Building | null>;
+  /**
+   * Same as `findById`, but locks the row against deactivation (`FOR SHARE`) while still letting other
+   * readers in. Used before putting a point inside the building.
+   */
+  findByIdForShare(id: string): Promise<Building | null>;
   /** Ordered by name. */
   list(filter: BuildingListFilter): Promise<BuildingListResult>;
 }

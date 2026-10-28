@@ -1,8 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { FakeClock } from '../../../../test/doubles/FakeClock';
-import { InMemoryAccessPointRepository } from '../../../../test/doubles/InMemoryAccessPointRepository';
-import { InMemoryAuthorizationRepository } from '../../../../test/doubles/InMemoryAuthorizationRepository';
-import { InMemoryBuildingRepository } from '../../../../test/doubles/InMemoryBuildingRepository';
+import { makeLocationDoubles } from '../../../../test/doubles/InMemoryLocationUnitOfWork';
 import { makeAccessPoint } from '../../../../test/factories/makeAccessPoint';
 import { makeAuthorization } from '../../../../test/factories/makeAuthorization';
 import { makeBuilding } from '../../../../test/factories/makeBuilding';
@@ -20,17 +18,16 @@ const POINT_OTHER = makeAccessPoint({
 });
 
 const makeSut = async () => {
-  const accessPoints = new InMemoryAccessPointRepository();
-  const buildings = new InMemoryBuildingRepository(accessPoints);
-  const authorizations = new InMemoryAuthorizationRepository(accessPoints);
+  const { uow, buildings, accessPoints, authorizations, locks } = makeLocationDoubles();
   const clock = new FakeClock(); // 2026-10-20 11:00 in São Paulo
   for (const building of [CENTRAL, ANEXO]) await buildings.save(building);
   for (const point of [POINT_A, POINT_B, POINT_OTHER]) await accessPoints.save(point);
-  const sut = new UpdateBuildingUseCase(buildings, authorizations, clock);
-  return { sut, buildings, accessPoints, authorizations, clock };
+  locks.length = 0; // the setup above takes no locks, but start the log clean
+  const sut = new UpdateBuildingUseCase(uow, clock);
+  return { sut, buildings, accessPoints, authorizations, clock, locks };
 };
 
-const activeStates = async (accessPoints: InMemoryAccessPointRepository) =>
+const activeStates = async (accessPoints: ReturnType<typeof makeLocationDoubles>['accessPoints']) =>
   Object.fromEntries(accessPoints.all().map((p) => [p.id, p.ativo]));
 
 describe('UpdateBuilding', () => {
@@ -120,5 +117,21 @@ describe('UpdateBuilding', () => {
     await sut.execute(CENTRAL.id, { ativo: false, nome: 'Renomeado' });
 
     expect((await activeStates(accessPoints))[POINT_A.id]).toBe(true);
+  });
+
+  it('deve travar o edifício e depois os pontos dele ao desativar, na ordem do protocolo de travas', async () => {
+    const { sut, locks } = await makeSut();
+
+    await sut.execute(CENTRAL.id, { ativo: false });
+
+    expect(locks).toEqual([`building:update:${CENTRAL.id}`, `points:building:${CENTRAL.id}`]);
+  });
+
+  it('deve travar só o edifício quando a alteração não o desativa', async () => {
+    const { sut, locks } = await makeSut();
+
+    await sut.execute(CENTRAL.id, { nome: 'Só o nome' });
+
+    expect(locks).toEqual([`building:update:${CENTRAL.id}`]);
   });
 });

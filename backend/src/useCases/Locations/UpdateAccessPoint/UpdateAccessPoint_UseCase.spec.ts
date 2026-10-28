@@ -1,8 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { FakeClock } from '../../../../test/doubles/FakeClock';
-import { InMemoryAccessPointRepository } from '../../../../test/doubles/InMemoryAccessPointRepository';
-import { InMemoryAuthorizationRepository } from '../../../../test/doubles/InMemoryAuthorizationRepository';
-import { InMemoryBuildingRepository } from '../../../../test/doubles/InMemoryBuildingRepository';
+import { makeLocationDoubles } from '../../../../test/doubles/InMemoryLocationUnitOfWork';
 import { makeAccessPoint } from '../../../../test/factories/makeAccessPoint';
 import { makeAuthorization } from '../../../../test/factories/makeAuthorization';
 import { makeBuilding } from '../../../../test/factories/makeBuilding';
@@ -21,14 +19,12 @@ const IN_CLOSED = makeAccessPoint({
 });
 
 const makeSut = async () => {
-  const accessPoints = new InMemoryAccessPointRepository();
-  const buildings = new InMemoryBuildingRepository(accessPoints);
-  const authorizations = new InMemoryAuthorizationRepository(accessPoints);
+  const { uow, buildings, accessPoints, authorizations, locks } = makeLocationDoubles();
   const clock = new FakeClock(); // 2026-10-20 11:00 in São Paulo
   for (const building of [CENTRAL, CLOSED]) await buildings.save(building);
   for (const point of [POINT, SIBLING, IN_CLOSED]) await accessPoints.save(point);
-  const sut = new UpdateAccessPointUseCase(buildings, accessPoints, authorizations, clock);
-  return { sut, accessPoints, authorizations, clock };
+  const sut = new UpdateAccessPointUseCase(uow, clock);
+  return { sut, accessPoints, authorizations, clock, locks };
 };
 
 describe('UpdateAccessPoint', () => {
@@ -118,5 +114,24 @@ describe('UpdateAccessPoint', () => {
     const updated = await sut.execute(IN_CLOSED.id, { nome: 'Só o nome' });
 
     expect(updated).toMatchObject({ nome: 'Só o nome', ativo: false });
+  });
+
+  it('deve travar só o ponto ao editar ou desativar', async () => {
+    const { sut, locks } = await makeSut();
+
+    await sut.execute(POINT.id, { nome: 'Só o nome' });
+    await sut.execute(POINT.id, { ativo: false });
+
+    expect(locks).toEqual([`point:update:${POINT.id}`, `point:update:${POINT.id}`]);
+  });
+
+  it('deve travar o edifício antes do ponto ao reativar, na ordem do protocolo de travas', async () => {
+    const { sut, locks } = await makeSut();
+    await sut.execute(POINT.id, { ativo: false });
+    locks.length = 0;
+
+    await sut.execute(POINT.id, { ativo: true });
+
+    expect(locks).toEqual([`building:share:${CENTRAL.id}`, `point:update:${POINT.id}`]);
   });
 });
