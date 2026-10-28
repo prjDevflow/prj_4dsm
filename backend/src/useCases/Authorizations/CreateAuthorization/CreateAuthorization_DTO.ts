@@ -1,12 +1,7 @@
 import { z } from 'zod';
+import { dateField, timeField } from '../../../shared/fields';
 
-// Format only; the order between the dates and between the times is a business rule of the use case.
-const dateField = z
-  .string({ error: 'obrigatório' })
-  .regex(/^\d{4}-\d{2}-\d{2}$/, 'deve estar no formato AAAA-MM-DD');
-const timeField = z
-  .string({ error: 'obrigatório' })
-  .regex(/^([01]\d|2[0-3]):[0-5]\d$/, 'deve estar no formato HH:mm');
+// Only the shape is checked here; the order between the dates and between the times is a rule of the use case.
 
 export const CreateAuthorizationSchema = z.object({
   usuarioId: z.guid({ error: 'deve ser um id válido' }),

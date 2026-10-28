@@ -38,8 +38,11 @@ export class PrismaUserRepository implements IUserRepository {
     return row ? toEntity(row) : null;
   }
 
-  async findByIdForShare(_id: string): Promise<User | null> {
-    throw new Error('B08: ainda não implementado');
+  async findByIdForShare(id: string) {
+    // Only meaningful inside a transaction: the lock lasts until it ends. If a change to the row
+    // is still uncommitted, this waits for it and the read below sees the committed result.
+    await this.prisma.$queryRaw`SELECT id FROM users WHERE id = ${id}::uuid FOR SHARE`;
+    return this.findById(id);
   }
 
   async findByEmail(email: string) {
