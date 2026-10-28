@@ -4,7 +4,7 @@ Atualize este arquivo no fim de cada sessão de trabalho e ao abrir ou integrar 
 
 **Etapa atual:** F02 (PR aberto, empilhado na F01, em revisão) → próxima: F03
 **Branch:** `feature/F02-theme-components` (criada da `F01-Setup-do-app`, porque o PR #14 ainda não foi integrado)
-**Último teste vermelho/verde:** `SelectField` busca na descrição (green), 161 testes passando
+**Último teste vermelho/verde:** anúncio no iOS e rodapé em linha (green), 175 testes passando
 
 Legenda: ⬜ pendente · 🟨 em andamento · ✅ pronta (critérios e DoD marcados, PR integrado em `develop`) · 🔴 essencial · 🟡 importante · 🟢 pode ser cortada · ❓ pergunta em aberto (lista no fim deste arquivo).
 
@@ -111,6 +111,7 @@ Formato: data · decisão · motivo.
 | 2026-10-28 | — | Documentos do app criados (00 a 08, STATUS, AGENTS) | F01 |
 | 2026-10-28 | F01 | App Expo SDK 58 com Expo Router; env, ApiError, AxiosInstance, SessionStore, tokenStorage, container, GetHealthService e tela provisória "API: ok"/"API: fora do ar" (32 testes); mock do openapi; jobs `mobile` e `mobile-ci` no CI; README do app. Conferido no emulador Android com o mock | Testar no celular com o backend do Docker e anexar o print ao PR; aval do Eduardo no CI; F02 |
 | 2026-10-28 | F02 | Tema do `tokens.md` (cores conferidas pelo teste contra o próprio `tokens.md`, contraste WCAG), fonte Atkinson com a splash, formas, `Icon` e 25 componentes em `components/ui`; catálogo em `/catalog` só em `__DEV__`; teste que percorre o catálogo e exige papel e rótulo em todo elemento interativo. Conferido no emulador a 100% e a 200% (161 testes) | Testar o catálogo no celular; revisão do Rafael e do Eduardo; F03 |
+| 2026-10-28 | F01, F02 | Revisão: no celular do Pedro (Expo Go), "API: ok" com o mock e "API: fora do ar" sem ele, sem fechar o app. Corrigidos na F02: anúncio do erro de campo, dos avisos e dos estados no iOS (`useAnnounce`), aviso curto lido uma vez, rodapé em linha com fragmento, "Voltar" do catálogo aberto por link; o teste de contraste cobre as partes que não são texto (175 testes) | F01: celular com o Docker e revisor no #14; F02: catálogo no celular e revisão do Eduardo |
 
 ---
 
