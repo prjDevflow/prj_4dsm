@@ -170,6 +170,22 @@ describe('SelectField', () => {
     expect(screen.getByRole('radio', { name: 'Condômino' })).toBeOnTheScreen();
     expect(screen.queryByRole('radio', { name: 'Visitante' })).toBeNull();
   });
+
+  it('a busca também procura na descrição (o edifício do local)', async () => {
+    const locais = [
+      { value: 'social', label: 'Catraca Social', description: 'Edifício Central' },
+      { value: 'portaria', label: 'Portaria', description: 'Edifício Norte' },
+    ];
+    await render(
+      <SelectField label="Local" options={locais} value={null} onChange={jest.fn()} searchable />,
+    );
+
+    await fireEvent.press(screen.getByRole('button', { name: 'Local' }));
+    await fireEvent.changeText(screen.getByLabelText('Buscar'), 'norte');
+
+    expect(screen.getByRole('radio', { name: 'Portaria' })).toBeOnTheScreen();
+    expect(screen.queryByRole('radio', { name: 'Catraca Social' })).toBeNull();
+  });
 });
 
 describe('DateField e TimeField', () => {
