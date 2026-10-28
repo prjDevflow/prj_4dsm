@@ -148,6 +148,7 @@ describe('rotas /api/v1/authorizations', () => {
 
     it.each([
       ['dataInicio', '2099-02-30'],
+      ['dataInicio', '0000-01-01'],
       ['dataFim', '20/01/2099'],
       ['dataFim', '2099-13-01'],
       ['horaInicio', '8:00'],
