@@ -199,6 +199,20 @@ Só `ADMIN` (rotas em `/buildings`, `/access-points` e `/terminals`; contrato no
 - `POST /terminals` e `POST /terminals/{id}/rotate-key` devolvem a `apiKey` **uma única vez**; o banco guarda só o SHA-256. `rotate-key` invalida a chave antiga na hora.
 - O terminal se identifica com os cabeçalhos `X-Terminal-Id` e `X-Terminal-Key` (middleware `authenticateTerminal`, em `src/main/middlewares.ts`): chave errada ou ausente dá `401`, terminal inativo dá `403`. O log oculta a chave. Teste com o terminal do seed em [docs/ambiente-dev.md](docs/ambiente-dev.md).
 
+## Autorizações
+
+Só `ADMIN` (`POST /authorizations` e `GET /authorizations/{id}`; contrato no Swagger). Consulta, cancelamento e "minhas autorizações" chegam na B09.
+
+```bash
+curl -X POST http://localhost:3000/api/v1/authorizations \
+  -H "Authorization: Bearer <accessToken do admin>" -H 'content-type: application/json' \
+  -d '{"usuarioId":"<id do visitante>","accessPointId":"<id do ponto>","dataInicio":"2026-10-20","dataFim":"2026-10-25","horaInicio":"08:00","horaFim":"18:00","usosPermitidos":3}'
+```
+
+- Usuário ou ponto inexistente dá `404`; inativo dá `422` no campo `usuarioId` ou `accessPointId`. `dataFim` não pode ser anterior a `dataInicio` nem ao dia de hoje em São Paulo, e `horaFim` tem de ser depois de `horaInicio` (sem virada de meia-noite).
+- A resposta traz `usosRestantes` e `situacaoEfetiva` (`ATIVA`, `CANCELADA`, `EXPIRADA` ou `ESGOTADA`), calculadas na hora.
+- A criação trava o usuário e o ponto (`FOR SHARE`) até gravar: desativar qualquer um dos dois ao mesmo tempo espera, ou já foi confirmado e a criação é recusada.
+
 ## Estrutura
 
 Clean Architecture, um use case por pasta. Detalhes e regra de dependência em
