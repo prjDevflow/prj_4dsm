@@ -1,4 +1,4 @@
-import { fireEvent, render, screen } from '@testing-library/react-native';
+import { act, fireEvent, render, screen } from '@testing-library/react-native';
 import { colors, ThemeProvider } from '@/theme';
 import { Button, type ButtonVariant } from './Button';
 
@@ -40,7 +40,7 @@ describe('Button', () => {
     await fireEvent.press(button);
     expect(onPress).toHaveBeenCalledTimes(1);
 
-    finish();
+    await act(async () => finish());
     await fireEvent.press(button);
     expect(onPress).toHaveBeenCalledTimes(2);
   });

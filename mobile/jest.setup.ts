@@ -23,6 +23,14 @@ jest.mock('expo-secure-store', () => {
   };
 });
 
+// Fonts (Atkinson and the icon font) count as loaded: there are no font files under Jest.
+jest.mock('expo-font', () => ({
+  ...jest.requireActual('expo-font'),
+  loadAsync: jest.fn(async () => {}),
+  isLoaded: jest.fn(() => true),
+  useFonts: jest.fn(() => [true, null]),
+}));
+
 beforeAll(() => server.listen({ onUnhandledFrame: 'error' }));
 afterEach(() => server.resetHandlers());
 afterAll(() => server.close());
