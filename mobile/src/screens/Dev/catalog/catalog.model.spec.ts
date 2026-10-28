@@ -6,7 +6,7 @@ describe('useCatalogModel', () => {
     const { result } = await renderHook(() => useCatalogModel());
 
     expect(result.current.scale).toBe('pessoa');
-    act(() => result.current.onToggleAdmin(true));
+    await act(() => result.current.onToggleAdmin(true));
 
     expect(result.current.scale).toBe('admin');
   });
@@ -15,7 +15,7 @@ describe('useCatalogModel', () => {
     jest.useFakeTimers();
     const { result } = await renderHook(() => useCatalogModel());
 
-    act(() => {
+    await act(() => {
       result.current.onSave();
     });
     expect(result.current.saving).toBe(true);
@@ -29,7 +29,7 @@ describe('useCatalogModel', () => {
     const { result } = await renderHook(() => useCatalogModel());
 
     expect(result.current.entradas).toMatchObject({ value: 3, min: 1, max: 10 });
-    act(() => result.current.entradas.onChange(4));
+    await act(() => result.current.entradas.onChange(4));
 
     expect(result.current.entradas.value).toBe(4);
   });
@@ -37,17 +37,17 @@ describe('useCatalogModel', () => {
   it('abre o diálogo e fecha ao confirmar ou voltar', async () => {
     const { result } = await renderHook(() => useCatalogModel());
 
-    act(() => result.current.dialog.onOpen());
+    await act(() => result.current.dialog.onOpen());
     expect(result.current.dialog.visible).toBe(true);
 
-    act(() => result.current.dialog.onCancel());
+    await act(() => result.current.dialog.onCancel());
     expect(result.current.dialog.visible).toBe(false);
   });
 
   it('o campo de nome mostra o erro de tamanho mínimo, como na T31', async () => {
     const { result } = await renderHook(() => useCatalogModel());
 
-    act(() => result.current.nome.onChangeText('Ma'));
+    await act(() => result.current.nome.onChangeText('Ma'));
 
     expect(result.current.nome.error).toBe('Informe o nome completo (mínimo 3 letras).');
   });

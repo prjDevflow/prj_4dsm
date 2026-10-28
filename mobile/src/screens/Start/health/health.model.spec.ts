@@ -84,7 +84,7 @@ describe('useHealthModel', () => {
     const { result } = await renderModel(new FakeGetHealthService(), true);
 
     expect(result.current.showCatalog).toBe(true);
-    act(() => result.current.onOpenCatalog());
+    await act(() => result.current.onOpenCatalog());
 
     expect(mockPush).toHaveBeenCalledWith('/catalog');
   });

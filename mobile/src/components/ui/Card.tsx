@@ -19,6 +19,8 @@ type CardProps = {
   onPress?: () => void;
   accessibilityLabel?: string;
   accessibilityHint?: string;
+  /** "polite": the screen reader reads the card again when its content changes. */
+  accessibilityLiveRegion?: 'none' | 'polite' | 'assertive';
   style?: StyleProp<ViewStyle>;
   testID?: string;
 };
@@ -29,6 +31,7 @@ export const Card = ({
   onPress,
   accessibilityLabel,
   accessibilityHint,
+  accessibilityLiveRegion,
   style,
   testID,
 }: CardProps) => {
@@ -44,7 +47,7 @@ export const Card = ({
 
   if (!onPress) {
     return (
-      <View testID={testID} style={cardStyle}>
+      <View testID={testID} accessibilityLiveRegion={accessibilityLiveRegion} style={cardStyle}>
         {children}
       </View>
     );
@@ -56,6 +59,7 @@ export const Card = ({
       accessibilityRole="button"
       accessibilityLabel={accessibilityLabel}
       accessibilityHint={accessibilityHint}
+      accessibilityLiveRegion={accessibilityLiveRegion}
       onPress={onPress}
       style={({ pressed }) => [cardStyle, pressed && styles.pressed]}
     >
