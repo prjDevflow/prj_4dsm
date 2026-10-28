@@ -173,11 +173,137 @@ describe('CreateAuthorization', () => {
     expect(locks).toEqual([`user:share:${VISITOR.id}`, `point:share:${POINT.id}`]);
   });
 
-  it.todo('deve rejeitar dataFim anterior a dataInicio no campo dataFim e aceitar igual');
-  it.todo('deve rejeitar dataFim no passado em São Paulo e aceitar hoje');
-  it.todo('deve tratar a virada do dia pelo horário de São Paulo, não pelo UTC');
-  it.todo('deve rejeitar horaFim igual ou anterior a horaInicio no campo horaFim');
-  it.todo('deve aceitar horaFim um minuto depois de horaInicio');
-  it.todo('deve devolver um erro com um details por campo quando vários campos são inválidos');
-  it.todo('deve não gravar nada quando alguma regra falha');
+  it('deve rejeitar dataFim anterior a dataInicio no campo dataFim', async () => {
+    const { sut, authorizations } = await makeSut();
+
+    const error = await sut
+      .execute(validInput({ dataInicio: '2026-10-22', dataFim: '2026-10-21' }), ADMIN.id)
+      .catch((e) => e);
+
+    expect(error).toMatchObject({
+      code: 'VALIDATION_ERROR',
+      status: 422,
+      details: [{ field: 'dataFim', message: 'Deve ser igual ou posterior à data de início' }],
+    });
+    expect(authorizations.all()).toEqual([]);
+  });
+
+  it('deve aceitar dataFim igual a dataInicio', async () => {
+    const { sut } = await makeSut();
+
+    const created = await sut.execute(
+      validInput({ dataInicio: '2026-10-22', dataFim: '2026-10-22' }),
+      ADMIN.id,
+    );
+
+    expect(created).toMatchObject({ dataInicio: '2026-10-22', dataFim: '2026-10-22' });
+  });
+
+  it('deve rejeitar dataFim no passado em São Paulo', async () => {
+    const { sut, authorizations } = await makeSut();
+
+    const error = await sut
+      .execute(validInput({ dataInicio: '2026-10-18', dataFim: '2026-10-19' }), ADMIN.id)
+      .catch((e) => e);
+
+    expect(error).toMatchObject({
+      code: 'VALIDATION_ERROR',
+      status: 422,
+      details: [{ field: 'dataFim', message: 'Não pode estar no passado' }],
+    });
+    expect(authorizations.all()).toEqual([]);
+  });
+
+  it('deve aceitar dataFim igual a hoje em São Paulo, mesmo com dataInicio no passado', async () => {
+    const { sut } = await makeSut();
+
+    const created = await sut.execute(
+      validInput({ dataInicio: '2026-10-01', dataFim: '2026-10-20' }),
+      ADMIN.id,
+    );
+
+    expect(created).toMatchObject({ dataInicio: '2026-10-01', dataFim: '2026-10-20' });
+  });
+
+  it('deve usar o dia de São Paulo, não o de UTC, na virada: 23:59 ainda é hoje e 00:00 já é amanhã', async () => {
+    const { sut, clock } = await makeSut();
+
+    // 2026-10-21T02:59Z is still 20/10 at 23:59 in São Paulo (UTC-3), though UTC is already the 21st.
+    clock.set(new Date('2026-10-21T02:59:00Z'));
+    const stillToday = await sut.execute(
+      validInput({ dataInicio: '2026-10-20', dataFim: '2026-10-20' }),
+      ADMIN.id,
+    );
+    clock.set(new Date('2026-10-21T03:00:00Z'));
+    const error = await sut
+      .execute(validInput({ dataInicio: '2026-10-20', dataFim: '2026-10-20' }), ADMIN.id)
+      .catch((e) => e);
+
+    expect(stillToday.dataFim).toBe('2026-10-20');
+    expect(error).toMatchObject({
+      status: 422,
+      details: [{ field: 'dataFim', message: 'Não pode estar no passado' }],
+    });
+  });
+
+  it('deve rejeitar horaFim igual a horaInicio no campo horaFim', async () => {
+    const { sut, authorizations } = await makeSut();
+
+    const error = await sut
+      .execute(validInput({ horaInicio: '08:00', horaFim: '08:00' }), ADMIN.id)
+      .catch((e) => e);
+
+    expect(error).toMatchObject({
+      code: 'VALIDATION_ERROR',
+      status: 422,
+      details: [{ field: 'horaFim', message: 'Deve ser depois da hora de início' }],
+    });
+    expect(authorizations.all()).toEqual([]);
+  });
+
+  it('deve rejeitar horaFim anterior a horaInicio, sem virada de meia-noite', async () => {
+    const { sut } = await makeSut();
+
+    const error = await sut
+      .execute(validInput({ horaInicio: '22:00', horaFim: '06:00' }), ADMIN.id)
+      .catch((e) => e);
+
+    expect(error).toMatchObject({ status: 422, details: [{ field: 'horaFim' }] });
+  });
+
+  it('deve aceitar horaFim um minuto depois de horaInicio', async () => {
+    const { sut } = await makeSut();
+
+    const created = await sut.execute(
+      validInput({ horaInicio: '08:00', horaFim: '08:01' }),
+      ADMIN.id,
+    );
+
+    expect(created).toMatchObject({ horaInicio: '08:00', horaFim: '08:01' });
+  });
+
+  it('deve devolver um erro com um details por campo quando vários campos são inválidos', async () => {
+    const { sut, users, accessPoints } = await makeSut();
+    await users.save({ ...VISITOR, ativo: false });
+    await accessPoints.save({ ...POINT, ativo: false });
+
+    const error = await sut
+      .execute(
+        validInput({
+          dataInicio: '2026-10-22',
+          dataFim: '2026-10-19',
+          horaInicio: '18:00',
+          horaFim: '08:00',
+        }),
+        ADMIN.id,
+      )
+      .catch((e) => e);
+
+    expect(error.details.map((d: { field: string }) => d.field)).toEqual([
+      'usuarioId',
+      'accessPointId',
+      'dataFim',
+      'horaFim',
+    ]);
+  });
 });
