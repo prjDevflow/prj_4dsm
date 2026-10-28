@@ -169,4 +169,39 @@ describe('criar autorização contra desativações simultâneas', () => {
       );
     }
   });
+
+  it('criar autorização no instante em que o edifício é desativado nunca deixa autorização vigente em ponto inativo', async () => {
+    const admin = await insertUser({ perfil: 'ADMIN' });
+    const visitor = await insertUser();
+
+    for (let round = 0; round < 12; round += 1) {
+      const building = await insertBuilding({ nome: `Edifício ${round}` });
+      const point = await insertAccessPoint({ buildingId: building.id });
+      const send = {
+        create: () =>
+          request(app)
+            .post('/api/v1/authorizations')
+            .set('Authorization', bearer(admin))
+            .send(bodyFor(visitor.id, point.id)),
+        deactivate: () =>
+          request(app)
+            .patch(`/api/v1/buildings/${building.id}`)
+            .set('Authorization', bearer(admin))
+            .send({ ativo: false }),
+      };
+      const [created, deactivated] =
+        round % 2 === 0
+          ? await Promise.all([send.create(), send.deactivate()])
+          : await Promise.all([send.deactivate(), send.create()]).then(([d, c]) => [c, d] as const);
+
+      // The deactivation of the building also deactivates its points, so it follows the point's rule.
+      const outcome = `${created.status}/${deactivated.status}`;
+      expect(['201/409', '422/200'], `rodada ${round}: ${outcome}`).toContain(outcome);
+      const stored = await prisma.authorization.count({ where: { accessPointId: point.id } });
+      const pointNow = await prisma.accessPoint.findUniqueOrThrow({ where: { id: point.id } });
+      expect(stored > 0 && !pointNow.ativo, `rodada ${round}: autorização em ponto inativo`).toBe(
+        false,
+      );
+    }
+  });
 });
