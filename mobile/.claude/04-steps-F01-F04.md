@@ -32,26 +32,26 @@ Legenda: 📄 exigência do documento oficial do desafio · 💡 decisão ou sug
 
 **Lista de testes**
 
-- [ ] U `env`: falha com mensagem clara sem `EXPO_PUBLIC_API_URL`; lê a lista de falsos separada por vírgula (vazia = nenhum).
-- [ ] U `AxiosInstance`: envia `Authorization: Bearer <token>` quando há sessão e não envia quando não há (MSW).
-- [ ] U `AxiosInstance`: corpo `{ error: { code, message, details } }` vira `ApiError` com os mesmos campos (MSW).
-- [ ] U `AxiosInstance`: sem resposta vira `ApiError` `NETWORK`; tempo esgotado vira `TIMEOUT`.
-- [ ] U `AxiosInstance`: 401 com sessão aberta chama `expireSession`; 401 sem sessão (login) não chama.
-- [ ] U `SessionStore`: `signIn` salva o token no armazenamento seguro; `signOut` apaga; `expireSession` marca `expired`.
-- [ ] U `GetHealthService`: chama `GET /health` e devolve `status` e `db`.
+- [x] U `env`: falha com mensagem clara sem `EXPO_PUBLIC_API_URL`; lê a lista de falsos separada por vírgula (vazia = nenhum).
+- [x] U `AxiosInstance`: envia `Authorization: Bearer <token>` quando há sessão e não envia quando não há (MSW).
+- [x] U `AxiosInstance`: corpo `{ error: { code, message, details } }` vira `ApiError` com os mesmos campos (MSW).
+- [x] U `AxiosInstance`: sem resposta vira `ApiError` `NETWORK`; tempo esgotado vira `TIMEOUT`.
+- [x] U `AxiosInstance`: 401 com sessão aberta chama `expireSession`; 401 sem sessão (login) não chama.
+- [x] U `SessionStore`: `signIn` salva o token no armazenamento seguro; `signOut` apaga; `expireSession` marca `expired`.
+- [x] U `GetHealthService`: chama `GET /health` e devolve `status` e `db`.
 
 **Critérios de aceitação**
 
-- [ ] O app abre no seu celular pelo Expo Go e mostra "API: ok" com o backend do Docker rodando.
-- [ ] Desligar o backend mostra "API: fora do ar" sem fechar o app.
-- [ ] Trocar `EXPO_PUBLIC_API_URL` (local ou outra máquina) não exige mudar código.
-- [ ] `npm test`, `npm run lint`, `npm run typecheck` e `npm run format:check` passam no seu computador e no CI.
+- [ ] O app abre no seu celular pelo Expo Go e mostra "API: ok" com o backend do Docker rodando. (conferido no emulador Android com o Expo Go e o mock; falta no celular com o backend do Docker)
+- [x] Desligar o backend mostra "API: fora do ar" sem fechar o app. (emulador: mock desligado e "Tentar novamente")
+- [x] Trocar `EXPO_PUBLIC_API_URL` (local ou outra máquina) não exige mudar código.
+- [ ] `npm test`, `npm run lint`, `npm run typecheck` e `npm run format:check` passam no seu computador e no CI. (no computador: sim; no CI: conferir no PR)
 
 **Definição de pronto**
 
-- [ ] README do app permite que o Eduardo rode o app no celular dele em 10 minutos.
-- [ ] Job de CI do app rodando no PR (ou, se o Eduardo ainda não aprovou, o PR explica e o CI fica para um PR dele).
-- [ ] Print do app no celular anexado ao PR.
+- [x] README do app permite que o Eduardo rode o app no celular dele em 10 minutos.
+- [ ] Job de CI do app rodando no PR (ou, se o Eduardo ainda não aprovou, o PR explica e o CI fica para um PR dele). (jobs `mobile` e `mobile-ci` no PR, aguardando o aval do Eduardo)
+- [ ] Print do app no celular anexado ao PR. (prints do emulador anexados; falta o do celular)
 
 ---
 

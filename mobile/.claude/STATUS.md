@@ -2,9 +2,9 @@
 
 Atualize este arquivo no fim de cada sessão de trabalho e ao abrir ou integrar um PR. A IA lê aqui qual é a etapa atual antes de começar.
 
-**Etapa atual:** F01 (não iniciada)
-**Branch:** —
-**Último teste vermelho/verde:** —
+**Etapa atual:** F01 (PR aberto para `develop`, em revisão) → próxima: F02
+**Branch:** `F01-Setup-do-app`
+**Último teste vermelho/verde:** `HealthView` (green), 32 testes passando
 
 Legenda: ⬜ pendente · 🟨 em andamento · ✅ pronta (critérios e DoD marcados, PR integrado em `develop`) · 🔴 essencial · 🟡 importante · 🟢 pode ser cortada · ❓ pergunta em aberto (lista no fim deste arquivo).
 
@@ -16,7 +16,7 @@ Hoje é 28/10 e o app começa do zero. 💡 Por isso a ordem muda em relação a
 
 | ID | Etapa | Telas | Depende de (app) | Depende de (backend) | Prazo 💡 | Prioridade | Status | PR |
 |---|---|---|---|---|---|---|---|---|
-| F01 | Setup do app | — | — | B01 ✅ | 30/10 | 🔴 | ⬜ | |
+| F01 | Setup do app | — | — | B01 ✅ | 30/10 | 🔴 | 🟨 | a abrir |
 | F02 | Tema e componentes base | Fundamentos, componentes, T31 | F01 | — | 01/11 | 🔴 | ⬜ | |
 | F03 | Login | T02 | F02 | B05 ✅ | 03/11 | 🔴 | ⬜ | |
 | F04 | Abertura, navegação por perfil, início e sessão | T01, T03, T13, T14 | F03 | B05 ✅ | 04/11 | 🔴 | ⬜ | |
@@ -94,12 +94,17 @@ Formato: data · decisão · motivo.
 - 2026-10-28 · Expo Go, sem *development build* · o Pedro testa no próprio celular; só bibliotecas que já vêm no Expo Go.
 - 2026-10-28 · Ordem: fluxo da pessoa (F01–F04, F10, F11, F09) antes dos cadastros (F05–F08) · app começa do zero em 28/10 e a Review 2 cobra o M4; cadastros pelo Swagger na Review 2 (💡 a confirmar com o Eduardo).
 - 2026-10-28 · Serviços falsos por serviço (`EXPO_PUBLIC_FAKE_SERVICES`) · as rotas da B07 em diante ainda não existem.
+- 2026-10-28 · Expo SDK 58 (não o 57 citado no README) · o Expo Go da loja só roda o SDK mais recente, que é o 58 desde 29/09.
+- 2026-10-28 · Documentos do app em `mobile/.claude/` (e não em `mobile/docs/ai/`) · pedido do Pedro; o `mobile/CLAUDE.md` carrega o `AGENTS.md`. Os documentos ainda citam o caminho antigo `docs/ai/`.
+- 2026-10-28 · MSW 3 no Jest com um ambiente próprio (`test/environment.js`) que devolve o `fetch` do Node · o Expo troca o `fetch` global por uma versão nativa que no Jest é um stub, e o MSW 3 só vem em ESM (o Babel transforma).
+- 2026-10-28 · `npm run mock` com um proxy (`scripts/mock.mjs`) na frente do Prism · o Prism ignora o `/api/v1` de `servers`; assim o mock e a API real usam a mesma URL, mudando só a porta.
 
 ## Registro de sessões
 
 | Data | Etapa | O que foi feito | Próximo passo |
 |---|---|---|---|
 | 2026-10-28 | — | Documentos do app criados (00 a 08, STATUS, AGENTS) | F01 |
+| 2026-10-28 | F01 | App Expo SDK 58 com Expo Router; env, ApiError, AxiosInstance, SessionStore, tokenStorage, container, GetHealthService e tela provisória "API: ok"/"API: fora do ar" (32 testes); mock do openapi; jobs `mobile` e `mobile-ci` no CI; README do app. Conferido no emulador Android com o mock | Testar no celular com o backend do Docker e anexar o print ao PR; aval do Eduardo no CI; F02 |
 
 ---
 
