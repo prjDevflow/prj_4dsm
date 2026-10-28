@@ -1,16 +1,2 @@
-import { Text, View } from 'react-native';
-
-export default function Index() {
-  return (
-    <View
-      style={{
-        flex: 1,
-        alignItems: 'center',
-        justifyContent: 'center',
-        backgroundColor: '#121318',
-      }}
-    >
-      <Text style={{ color: '#E3E1E9', fontSize: 18 }}>Passe</Text>
-    </View>
-  );
-}
+// Provisional start screen (F01); F04 replaces it with the home of each profile.
+export { HealthPage as default } from '@/screens/Start/health/page';
