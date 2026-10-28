@@ -4,6 +4,7 @@ import type {
 } from '../../entities/Authorization';
 import type { AccessPointType } from '../../entities/AccessPoint';
 import type { UserProfile } from '../../entities/User';
+import { computeEffectiveStatus } from '../../entities/rules/computeEffectiveStatus';
 import type { AuthorizationDetails } from '../../repositories/IAuthorizationRepository';
 
 /** The authorization as the API exposes it, with the computed fields. */
@@ -32,6 +33,25 @@ export interface AuthorizationView {
   motivoCancelamento: string | null;
 }
 
-export function toAuthorizationView(_details: AuthorizationDetails, _now: Date): AuthorizationView {
-  throw new Error('B08: ainda não implementado');
+export function toAuthorizationView(details: AuthorizationDetails, now: Date): AuthorizationView {
+  const { authorization: a } = details;
+  return {
+    id: a.id,
+    usuario: details.usuario,
+    local: details.local,
+    dataInicio: a.dataInicio,
+    dataFim: a.dataFim,
+    horaInicio: a.horaInicio,
+    horaFim: a.horaFim,
+    usosPermitidos: a.usosPermitidos,
+    usosRealizados: a.usosRealizados,
+    usosRestantes: Math.max(0, a.usosPermitidos - a.usosRealizados),
+    situacao: a.situacao,
+    situacaoEfetiva: computeEffectiveStatus(a, now),
+    criadoPor: details.criadoPor,
+    criadoEm: a.criadoEm,
+    canceladoPor: details.canceladoPor,
+    canceladoEm: a.canceladoEm,
+    motivoCancelamento: a.motivoCancelamento,
+  };
 }
