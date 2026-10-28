@@ -124,7 +124,7 @@ Legenda: **U** = unitário (doubles, sem banco) · **I** = integração (superte
 - **Prazo:** Sprint 1 (iniciar) → Sprint 2 semana 1 (fechar) · **Prioridade:** 🔴
 - **Objetivo:** o administrador cria uma autorização com os oito campos exigidos 📄.
 
-**Use cases** (`src/useCases/Authorizations/`): `CreateAuthorization`, `GetAuthorization` (reutilizado na B09). Entidade `Authorization` com fábrica `Authorization.create(...)`. Port `IAuthorizationRepository` ganha `save`, `findById`, `findViewById` (read model com `usuario`, `local` e `edificio` resolvidos). Providers: `IClock`, `IIdGenerator`.
+**Use cases** (`src/useCases/Authorizations/`): `CreateAuthorization`, `GetAuthorization` (reutilizado na B09). Entidade `Authorization` com fábrica `Authorization.create(...)`. Port `IAuthorizationRepository` ganha `save` e `findViewById` (read model com `usuario`, `local` e `edificio` resolvidos); o `findById` entra na B09, que cancela. A criação também trava o usuário (`IUserRepository.findByIdForShare`), antes do ponto. Providers: `IClock`, `IIdGenerator`.
 
 **Regras de validação**
 
