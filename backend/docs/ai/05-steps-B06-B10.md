@@ -161,30 +161,30 @@ Resposta 201 (reutilizada em B09 e consumida por F07, F08 e F09):
 
 **Lista de testes**
 
-- [ ] U `CreateAuthorization`: grava os oito campos e devolve `situacao: ATIVA`, `usosRealizados: 0`.
-- [ ] U `CreateAuthorization`: `criadoPorId` vem do administrador e `criadoEm` do relógio injetado.
-- [ ] U `CreateAuthorization`: usuário inexistente → `NotFoundError`; local inexistente → `NotFoundError`.
-- [ ] U `CreateAuthorization`: usuário inativo e local inativo → erro de validação com mensagem por campo.
-- [ ] U `CreateAuthorization`: `dataFim` anterior a `dataInicio` rejeita; igual aceita.
-- [ ] U `CreateAuthorization`: `dataFim` no passado em São Paulo rejeita; hoje aceita (limite com `FakeClock` perto da meia-noite UTC).
-- [ ] U `CreateAuthorization`: `horaFim` igual a `horaInicio` rejeita; `horaFim` maior aceita.
-- [ ] I `POST /authorizations`: `usosPermitidos` 0 e 1001 → 422 com mensagem por campo.
-- [ ] I só `ADMIN` cria (403 para os demais).
-- [ ] I a resposta traz `usosRestantes`, `situacaoEfetiva`, `criadoPor` e `criadoEm`.
-- [ ] I `GET /authorizations/:id` devolve o mesmo objeto.
+- [x] U `CreateAuthorization`: grava os oito campos e devolve `situacao: ATIVA`, `usosRealizados: 0`.
+- [x] U `CreateAuthorization`: `criadoPorId` vem do administrador e `criadoEm` do relógio injetado.
+- [x] U `CreateAuthorization`: usuário inexistente → `NotFoundError`; local inexistente → `NotFoundError`.
+- [x] U `CreateAuthorization`: usuário inativo e local inativo → erro de validação com mensagem por campo.
+- [x] U `CreateAuthorization`: `dataFim` anterior a `dataInicio` rejeita; igual aceita.
+- [x] U `CreateAuthorization`: `dataFim` no passado em São Paulo rejeita; hoje aceita (limite com `FakeClock` perto da meia-noite UTC).
+- [x] U `CreateAuthorization`: `horaFim` igual a `horaInicio` rejeita; `horaFim` maior aceita.
+- [x] I `POST /authorizations`: `usosPermitidos` 0 e 1001 → 422 com mensagem por campo.
+- [x] I só `ADMIN` cria (403 para os demais).
+- [x] I a resposta traz `usosRestantes`, `situacaoEfetiva`, `criadoPor` e `criadoEm`.
+- [x] I `GET /authorizations/:id` devolve o mesmo objeto. (nesta etapa só `ADMIN`; a B09 abre ao dono)
 
 **Critérios de aceitação**
 
-- [ ] Os oito campos obrigatórios são gravados e devolvidos.
-- [ ] Cada validação acima tem um teste que falha com 422 e mensagem por campo.
-- [ ] Usuário ou local inexistente → 404; inativo → 422 com mensagem clara.
-- [ ] Só `ADMIN` cria.
-- [ ] `criadoPor` e `criadoEm` ficam registrados.
+- [x] Os oito campos obrigatórios são gravados e devolvidos.
+- [x] Cada validação acima tem um teste que falha com 422 e mensagem por campo.
+- [x] Usuário ou local inexistente → 404; inativo → 422 com mensagem clara.
+- [x] Só `ADMIN` cria.
+- [x] `criadoPor` e `criadoEm` ficam registrados.
 
 **Definição de pronto**
 
-- [ ] Testes de datas e horas nos limites (mesmo dia, `horaFim == horaInicio` rejeitado).
-- [ ] Swagger com o objeto completo e todos os erros.
+- [x] Testes de datas e horas nos limites (mesmo dia, `horaFim == horaInicio` rejeitado).
+- [x] Swagger com o objeto completo e todos os erros.
 
 ---
 

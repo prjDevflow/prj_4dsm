@@ -239,7 +239,7 @@ The Prisma implementation runs conditional updates inside `$transaction` and che
 | `ITokenProvider` | providers | `sign(payload)`, `verify(token)` | `JwtTokenProvider` | `FakeTokenProvider` |
 | `ILogger` | providers | `info`, `warn`, `error` | `PinoLogger` | `SpyLogger` |
 | `IUserRepository` | repositories | `findById`, `findByEmail`, `existsByEmail`, `save`, `list`, `countActiveAdmins` | Prisma | InMemory |
-| `ILocationUnitOfWork` | repositories | `run(work)`: one transaction over `buildings`, `accessPoints`, `authorizations`, with row locks (`findByIdForUpdate`, `lockByBuilding`...). Lock order: building, then points | `PrismaLocationUnitOfWork` | `InMemoryLocationUnitOfWork` (records the locks taken) |
+| `ILocationUnitOfWork` | repositories | `run(work)`: one transaction over `buildings`, `accessPoints`, `authorizations`, `users`, with row locks (`findByIdForUpdate`, `findByIdForShare`, `lockByBuilding`...). Lock order: building, then points; `CreateAuthorization` takes the user, then the point | `PrismaLocationUnitOfWork` | `InMemoryLocationUnitOfWork` (records the locks taken) |
 | other repositories | repositories | created by the step that needs them (`IBuildingRepository`, `IAccessPointRepository`, `ITerminalRepository`, `IAuthorizationRepository`, `INfcTagRepository`, `IQrCredentialRepository`, `ITerminalCommandRepository`, `IAccessEventRepository`, `IAccessGrantRepository`) | Prisma | InMemory |
 
 Create a port only when a step needs it. Do not create empty folders or speculative interfaces.
