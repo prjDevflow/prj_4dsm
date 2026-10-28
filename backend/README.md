@@ -123,6 +123,31 @@ estão em [docs/ambiente-dev.md](docs/ambiente-dev.md) e são **só para desenvo
 recusa a rodar com `NODE_ENV=production`. O modelo de dados (9 tabelas) está em
 [docs/modelo-de-dados.md](docs/modelo-de-dados.md).
 
+### Banco em nuvem (Neon)
+
+O banco de homologação é um PostgreSQL gerenciado no [Neon](https://neon.tech). A string de conexão é **segredo**:
+nunca a coloque em arquivo versionado, em issue, em PR ou em log. Quem precisa dela pede ao responsável pelo backend.
+
+O Neon entrega duas strings para o mesmo banco, e cada uma serve a um uso:
+
+- **Direta** (host sem `-pooler`): use para **migrar** (`db:deploy`). O Prisma Migrate usa travas de sessão que o pooler pode não repassar.
+- **Pooled** (host com `-pooler`): use para a **API** rodando em homologação (B10), que abre várias conexões curtas.
+
+As duas incluem `sslmode=require`. Para aplicar as migrações na nuvem, passe a URL direta só para esse comando,
+sem gravá-la no `.env` (o `read -s` não mostra o que você digita nem guarda no histórico; é do bash, e no zsh e no PowerShell o comando muda):
+
+```bash
+read -rs -p "DATABASE_URL direta do Neon: " NEON_URL; echo
+DATABASE_URL="$NEON_URL" npm run db:deploy
+DATABASE_URL="$NEON_URL" npx prisma migrate status   # deve dizer "Database schema is up to date!"
+unset NEON_URL
+```
+
+**Não rode `db:seed`, `db:reset` nem `db:migrate` contra a nuvem.** O seed usa credenciais públicas e só se recusa a rodar com
+`NODE_ENV=production`; sem essa variável a trava não protege e ele roda contra a URL que estiver na sessão. Além disso, `reset` e `migrate dev` apagam ou alteram dados. Para a nuvem existe só `db:deploy`.
+
+O plano gratuito do Neon suspende o banco quando fica ocioso; a primeira conexão depois disso demora mais.
+
 ## Rodar sem Docker
 
 ```bash
