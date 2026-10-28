@@ -2,9 +2,9 @@
 
 Atualize este arquivo no fim de cada sessão de trabalho e ao abrir ou integrar um PR. A IA lê aqui qual é a etapa atual antes de começar.
 
-**Etapa atual:** F01 (PR aberto para `develop`, em revisão) → próxima: F02
-**Branch:** `F01-Setup-do-app`
-**Último teste vermelho/verde:** `HealthView` (green), 32 testes passando
+**Etapa atual:** F02 (PR aberto, empilhado na F01, em revisão) → próxima: F03
+**Branch:** `feature/F02-theme-components` (criada da `F01-Setup-do-app`, porque o PR #14 ainda não foi integrado)
+**Último teste vermelho/verde:** `SelectField` busca na descrição (green), 161 testes passando
 
 Legenda: ⬜ pendente · 🟨 em andamento · ✅ pronta (critérios e DoD marcados, PR integrado em `develop`) · 🔴 essencial · 🟡 importante · 🟢 pode ser cortada · ❓ pergunta em aberto (lista no fim deste arquivo).
 
@@ -16,8 +16,8 @@ Hoje é 28/10 e o app começa do zero. 💡 Por isso a ordem muda em relação a
 
 | ID | Etapa | Telas | Depende de (app) | Depende de (backend) | Prazo 💡 | Prioridade | Status | PR |
 |---|---|---|---|---|---|---|---|---|
-| F01 | Setup do app | — | — | B01 ✅ | 30/10 | 🔴 | 🟨 | a abrir |
-| F02 | Tema e componentes base | Fundamentos, componentes, T31 | F01 | — | 01/11 | 🔴 | ⬜ | |
+| F01 | Setup do app | — | — | B01 ✅ | 30/10 | 🔴 | 🟨 | [#14](https://github.com/prjDevflow/prj_4dsm/pull/14) |
+| F02 | Tema e componentes base | Fundamentos, componentes, T31 | F01 | — | 01/11 | 🔴 | 🟨 | a abrir |
 | F03 | Login | T02 | F02 | B05 ✅ | 03/11 | 🔴 | ⬜ | |
 | F04 | Abertura, navegação por perfil, início e sessão | T01, T03, T13, T14 | F03 | B05 ✅ | 04/11 | 🔴 | ⬜ | |
 | F10 | Leitor de QR Code | T06, T07 | F04 | (B12 para QR real) | 05/11 | 🔴 | ⬜ | |
@@ -97,6 +97,11 @@ Formato: data · decisão · motivo.
 - 2026-10-28 · Expo SDK 58 (não o 57 citado no README) · o Expo Go da loja só roda o SDK mais recente, que é o 58 desde 29/09.
 - 2026-10-28 · Documentos do app em `mobile/.claude/` (e não em `mobile/docs/ai/`) · pedido do Pedro; o `mobile/CLAUDE.md` carrega o `AGENTS.md`. Os documentos ainda citam o caminho antigo `docs/ai/`.
 - 2026-10-28 · MSW 3 no Jest com um ambiente próprio (`test/environment.js`) que devolve o `fetch` do Node · o Expo troca o `fetch` global por uma versão nativa que no Jest é um stub, e o MSW 3 só vem em ESM (o Babel transforma).
+- 2026-10-28 · Componentes próprios em `components/ui` e `Icon` com os `MaterialIcons` do `@expo/vector-icons` (❓ 4, sugestão seguida) · como o shadcn no estudos_dpi; trocar a fonte dos ícones depois muda só o `Icon.tsx`.
+- 2026-10-28 · `ThemeProvider` com a escala (`pessoa` ou `admin`) · os componentes escolhem a altura do botão e a tipografia pela escala; as telas do administrador envolvem o conteúdo em `<ThemeProvider scale="admin">`.
+- 2026-10-28 · `StatusBadge` segue o Figma: pílula com texto e cor, e cookie com check ou X só em Autorizado e Negado · o plano pedia ícone em todos os selos, mas o Figma (T31) não tem, e o Figma manda no visual.
+- 2026-10-28 · Visual conferido pelo PDF do Figma (`docs/app-mobile/design/passe-telas.pdf`) · a conta do Pedro não tem acesso de edição ao arquivo do Figma, e sem isso a integração não lê as telas.
+- 2026-10-28 · Com a fonte do sistema a partir de 130%, o selo do `ListItem` desce para baixo do título · no emulador a 200% o título e o e-mail ficavam espremidos ao lado do selo.
 - 2026-10-28 · `npm run mock` com um proxy (`scripts/mock.mjs`) na frente do Prism · o Prism ignora o `/api/v1` de `servers`; assim o mock e a API real usam a mesma URL, mudando só a porta.
 
 ## Registro de sessões
@@ -105,6 +110,7 @@ Formato: data · decisão · motivo.
 |---|---|---|---|
 | 2026-10-28 | — | Documentos do app criados (00 a 08, STATUS, AGENTS) | F01 |
 | 2026-10-28 | F01 | App Expo SDK 58 com Expo Router; env, ApiError, AxiosInstance, SessionStore, tokenStorage, container, GetHealthService e tela provisória "API: ok"/"API: fora do ar" (32 testes); mock do openapi; jobs `mobile` e `mobile-ci` no CI; README do app. Conferido no emulador Android com o mock | Testar no celular com o backend do Docker e anexar o print ao PR; aval do Eduardo no CI; F02 |
+| 2026-10-28 | F02 | Tema do `tokens.md` (cores conferidas pelo teste contra o próprio `tokens.md`, contraste WCAG), fonte Atkinson com a splash, formas, `Icon` e 25 componentes em `components/ui`; catálogo em `/catalog` só em `__DEV__`; teste que percorre o catálogo e exige papel e rótulo em todo elemento interativo. Conferido no emulador a 100% e a 200% (161 testes) | Testar o catálogo no celular; revisão do Rafael e do Eduardo; F03 |
 
 ---
 

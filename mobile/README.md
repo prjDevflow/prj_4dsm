@@ -70,6 +70,25 @@ EXPO_PUBLIC_FAKE_SERVICES=getHealth
 Os nomes aceitos são as chaves de `createServices` em [src/service/container.ts](src/service/container.ts).
 Hoje: `getHealth`.
 
+## Tema e componentes
+
+As telas só usam o que está em `@/components/ui` e `@/theme`, com os valores do
+[tokens.md](../docs/app-mobile/design/tokens.md) do Rafael:
+
+- **Tema:** `colors` (os tokens em camelCase: `superficieAlta`, `primariaSobre`…), `typography` (estilos
+  `pessoa*` e `admin*` do Figma), `spacing`, `radius` e `sizes`. A fonte é a Atkinson Hyperlegible Next, e
+  a splash só some quando ela carrega.
+- **Escalas:** a pessoa usa corpo 18 e botões de 60; o administrador, corpo 16 e botões de 48. As telas do
+  administrador envolvem o conteúdo em `<ThemeProvider scale="admin">`.
+- **Componentes:** `Button`, `TextField`, `PasswordField`, `SelectField`, `DateField`, `TimeField`,
+  `NumberStepper`, `SwitchField`, `FilterChip`, `StatusBadge`, `Card`, `ListItem`, `NavRow`, `ProgressBar`,
+  `Alert`, `Dialog`, `useToast`, `LoadingState`, `EmptyState`, `ErrorState`, `OfflineBanner`,
+  `ScreenContainer`, `Header` e `Fab`. Formas em `@/components/shapes` e ícones em `@/components/Icon`.
+
+Em desenvolvimento, a tela inicial tem o botão **"Abrir catálogo de componentes"** (rota `/catalog`), com
+todos os componentes e estados nas duas escalas. Use-o para revisar com o Rafael e para conferir a fonte do
+celular no máximo. Em produção, a rota volta para o início.
+
 ## Comandos
 
 | Comando                                   | Para quê                                                 |
@@ -90,6 +109,8 @@ em todo push e PR que mexe em `mobile/**`.
 ```text
 src/app/          rotas do Expo Router (arquivos de uma linha) e _layout.tsx
 src/screens/      uma pasta por tela: page.tsx, <tela>.model.ts, <tela>.view.tsx, testes
+src/components/   ui/ (componentes do Figma), shapes/ (formas do M3) e Icon.tsx
+src/theme/        cores, tipografia, espaçamento, cantos, ThemeProvider e contraste
 src/service/      AxiosInstance, ApiError, interfaces I*Service, implementations/, fakes/, container.ts
 src/context/      SessionStore (zustand) e tokenStorage (expo-secure-store)
 src/lib/          env.ts, tipos do contrato e funções puras
