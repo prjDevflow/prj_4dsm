@@ -64,9 +64,49 @@ describe('CreateAuthorization', () => {
     });
   });
 
-  it.todo('deve gravar a autorização no repositório');
-  it.todo('deve gravar criadoPorId do administrador e criadoEm do relógio injetado');
-  it.todo('deve devolver criadoPor com o nome do administrador e os campos de cancelamento nulos');
+  it('deve gravar a autorização no repositório com o mesmo id devolvido', async () => {
+    const { sut, authorizations } = await makeSut();
+
+    const created = await sut.execute(validInput(), ADMIN.id);
+
+    expect(authorizations.all()).toEqual([
+      expect.objectContaining({
+        id: created.id,
+        usuarioId: VISITOR.id,
+        accessPointId: POINT.id,
+        usosPermitidos: 3,
+        usosRealizados: 0,
+        situacao: 'ATIVA',
+      }),
+    ]);
+  });
+
+  it('deve gravar criadoPorId do administrador e criadoEm do relógio injetado', async () => {
+    const { sut, authorizations, clock } = await makeSut();
+    clock.set(new Date('2026-10-20T15:30:00Z'));
+
+    const created = await sut.execute(validInput(), ADMIN.id);
+
+    expect(authorizations.all()[0]).toMatchObject({
+      criadoPorId: ADMIN.id,
+      criadoEm: new Date('2026-10-20T15:30:00Z'),
+    });
+    expect(created.criadoEm).toEqual(new Date('2026-10-20T15:30:00Z'));
+  });
+
+  it('deve devolver criadoPor com o nome do administrador e os campos de cancelamento nulos', async () => {
+    const { sut } = await makeSut();
+
+    const created = await sut.execute(validInput(), ADMIN.id);
+
+    expect(created.criadoPor).toEqual({ id: ADMIN.id, nome: 'Admin' });
+    expect(created).toMatchObject({
+      canceladoPor: null,
+      canceladoEm: null,
+      motivoCancelamento: null,
+    });
+  });
+
   it.todo('deve lançar NotFoundError quando o usuário não existe');
   it.todo('deve lançar NotFoundError quando o ponto de acesso não existe');
   it.todo('deve rejeitar usuário inativo com erro de validação no campo usuarioId');
