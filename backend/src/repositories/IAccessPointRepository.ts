@@ -17,9 +17,12 @@ export interface AccessPointListResult {
 
 export interface IAccessPointRepository {
   findById(id: string): Promise<AccessPoint | null>;
-  /** Same as `findById`, but inside a unit of work it locks the row (`FOR UPDATE`) until the transaction ends. */
+  /**
+   * Same as `findById`, but inside a unit of work it locks the row (`FOR UPDATE`) until the transaction ends.
+   * The id must already be validated (a malformed id would make the database fail instead of returning null).
+   */
   findByIdForUpdate(id: string): Promise<AccessPoint | null>;
-  /** Locks every access point of the building (`FOR UPDATE`) until the transaction ends. */
+  /** Locks every access point of the building (`FOR UPDATE`) until the transaction ends. Ids must already be validated. */
   lockByBuilding(buildingId: string): Promise<void>;
   /** Sets `ativo = false` on every access point of the building. */
   deactivateByBuilding(buildingId: string): Promise<void>;

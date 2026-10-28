@@ -20,6 +20,7 @@ export interface IBuildingRepository {
   /**
    * Same as `findById`, but inside a unit of work it locks the row (`FOR UPDATE`) until the transaction
    * ends: nobody else changes, deactivates or adds a point to the building meanwhile.
+   * The id must already be validated (a malformed id would make the database fail instead of returning null).
    */
   findByIdForUpdate(id: string): Promise<Building | null>;
   /**
