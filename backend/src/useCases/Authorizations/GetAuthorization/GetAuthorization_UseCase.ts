@@ -1,6 +1,7 @@
 import type { IClock } from '../../../providers/IClock';
 import type { IAuthorizationRepository } from '../../../repositories/IAuthorizationRepository';
-import type { AuthorizationView } from '../authorizationView';
+import { NotFoundError } from '../../../shared/errors/AppError';
+import { toAuthorizationView, type AuthorizationView } from '../authorizationView';
 
 export class GetAuthorizationUseCase {
   constructor(
@@ -8,7 +9,9 @@ export class GetAuthorizationUseCase {
     private clock: IClock,
   ) {}
 
-  async execute(_id: string): Promise<AuthorizationView> {
-    throw new Error('B08: ainda não implementado');
+  async execute(id: string): Promise<AuthorizationView> {
+    const details = await this.authorizations.findViewById(id);
+    if (!details) throw new NotFoundError('Autorização não encontrada');
+    return toAuthorizationView(details, this.clock.now());
   }
 }
