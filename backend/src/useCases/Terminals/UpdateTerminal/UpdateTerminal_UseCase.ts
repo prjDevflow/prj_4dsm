@@ -12,15 +12,12 @@ export class UpdateTerminalUseCase {
   ) {}
 
   async execute(id: string, input: IUpdateTerminalDTO): Promise<TerminalView> {
-    const terminal = await this.terminals.findById(id);
-    if (!terminal) throw new NotFoundError('Terminal não encontrado');
-
-    const updated = {
-      ...terminal,
-      nome: input.nome ?? terminal.nome,
-      ativo: input.ativo ?? terminal.ativo,
-    };
-    await this.terminals.save(updated);
+    // Only these two columns are written, so a key rotated or a contact stored meanwhile is never undone.
+    const updated = await this.terminals.updateDetails(id, {
+      nome: input.nome,
+      ativo: input.ativo,
+    });
+    if (!updated) throw new NotFoundError('Terminal não encontrado');
     return toTerminalView(updated, this.clock.now(), this.config);
   }
 }

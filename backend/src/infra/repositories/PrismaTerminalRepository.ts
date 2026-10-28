@@ -31,6 +31,9 @@ const isAccessPointTaken = (error: unknown) =>
   (error as { code?: string } | null)?.code === 'P2002' &&
   JSON.stringify((error as { meta?: unknown }).meta ?? '').includes('accessPointId');
 
+// P2025 is Prisma's "record to update not found".
+const isRecordNotFound = (error: unknown) => (error as { code?: string } | null)?.code === 'P2025';
+
 export class PrismaTerminalRepository implements ITerminalRepository {
   constructor(private prisma: PrismaClient) {}
 
@@ -40,9 +43,8 @@ export class PrismaTerminalRepository implements ITerminalRepository {
   }
 
   async save(terminal: Terminal) {
-    const { id, ...data } = terminal;
     try {
-      await this.prisma.terminal.upsert({ where: { id }, create: { id, ...data }, update: data });
+      await this.prisma.terminal.create({ data: terminal });
     } catch (error) {
       // The unique index decides when two requests create a terminal for the same point at once.
       if (isAccessPointTaken(error)) {
@@ -50,6 +52,23 @@ export class PrismaTerminalRepository implements ITerminalRepository {
       }
       throw error;
     }
+  }
+
+  async updateDetails(id: string, changes: { nome?: string; ativo?: boolean }) {
+    try {
+      return toEntity(await this.prisma.terminal.update({ where: { id }, data: changes }));
+    } catch (error) {
+      if (isRecordNotFound(error)) return null;
+      throw error;
+    }
+  }
+
+  async replaceKeyHash(id: string, apiKeyHash: string) {
+    const { count } = await this.prisma.terminal.updateMany({
+      where: { id },
+      data: { apiKeyHash },
+    });
+    return count > 0;
   }
 
   async list(filter: TerminalListFilter): Promise<TerminalListResult> {

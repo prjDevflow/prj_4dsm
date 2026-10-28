@@ -12,11 +12,10 @@ export class RotateTerminalKeyUseCase {
   ) {}
 
   async execute(terminalId: string): Promise<CreatedTerminal> {
-    const terminal = await this.terminals.findById(terminalId);
-    if (!terminal) throw new NotFoundError('Terminal não encontrado');
-
     const apiKey = this.random.base64Url(TERMINAL_KEY_BYTES);
-    await this.terminals.save({ ...terminal, apiKeyHash: this.hash.sha256(apiKey) });
-    return { id: terminal.id, apiKey };
+    // Only the hash is written, so a rename or deactivation stored meanwhile is never undone.
+    const found = await this.terminals.replaceKeyHash(terminalId, this.hash.sha256(apiKey));
+    if (!found) throw new NotFoundError('Terminal não encontrado');
+    return { id: terminalId, apiKey };
   }
 }
