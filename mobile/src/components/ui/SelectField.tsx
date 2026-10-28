@@ -47,7 +47,11 @@ export const SelectField = <T extends string>({
 
   const visibleOptions = useMemo(() => {
     const search = normalize(query.trim());
-    return search ? options.filter((option) => normalize(option.label).includes(search)) : options;
+    return search
+      ? options.filter((option) =>
+          normalize(`${option.label} ${option.description ?? ''}`).includes(search),
+        )
+      : options;
   }, [options, query]);
 
   const close = () => {
