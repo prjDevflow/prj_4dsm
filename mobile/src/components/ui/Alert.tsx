@@ -2,6 +2,7 @@ import { StyleSheet, View } from 'react-native';
 import { Icon, type IconName } from '@/components/Icon';
 import { useTheme, type ColorName } from '@/theme';
 import { Text } from './Text';
+import { useAnnounce } from './useAnnounce';
 
 export type AlertTone = 'info' | 'aviso' | 'erro' | 'sucesso';
 
@@ -24,6 +25,7 @@ type AlertProps = {
 export const Alert = ({ tone, message, title, icon }: AlertProps) => {
   const theme = useTheme();
   const colors = tones[tone];
+  useAnnounce(message);
 
   return (
     <View

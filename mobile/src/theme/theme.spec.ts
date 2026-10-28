@@ -78,7 +78,26 @@ describe('tema', () => {
     ['resultado autorizado', colors.branco, colors.resultadoAutorizado],
     ['resultado negado', colors.branco, colors.resultadoNegado],
     ['resultado tente de novo', colors.acaoSobre, colors.resultadoTente],
+    ['texto de exemplo (placeholder) do campo', colors.contorno, colors.fundo],
+    ['"Voltar" do diálogo', colors.primaria, colors.superficieAlta],
+    [
+      'texto de apoio do cartão de destaque',
+      colors.primariaContainerApoio,
+      colors.primariaContainer,
+    ],
   ])('o par "%s" passa de 4,5:1 (WCAG AA)', (_, foreground, background) => {
     expect(contrastRatio(foreground, background)).toBeGreaterThanOrEqual(4.5);
+  });
+
+  it.each([
+    ['borda do campo', colors.contorno, colors.fundo],
+    ['borda do campo em foco', colors.primaria, colors.fundo],
+    ['borda do campo com erro', colors.erro, colors.fundo],
+    ['bolinha do interruptor desligado', colors.contorno, colors.superficieMaxima],
+    ['bolinha do interruptor ligado', colors.primariaSobre, colors.primaria],
+    ['ícone da linha de navegação', colors.primaria, colors.superficieAlta],
+    ['parte cheia da barra de progresso', colors.primaria, colors.superficieMaxima],
+  ])('o elemento "%s" passa de 3:1 (WCAG, partes que não são texto)', (_, part, background) => {
+    expect(contrastRatio(part, background)).toBeGreaterThanOrEqual(3);
   });
 });

@@ -2,6 +2,7 @@ import { StyleSheet, View, type ViewStyle } from 'react-native';
 import { Icon } from '@/components/Icon';
 import { useTheme, type Theme } from '@/theme';
 import { Text } from './Text';
+import { useAnnounce } from './useAnnounce';
 
 // Pieces shared by every field: label above, the box, and help or error below.
 
@@ -16,6 +17,7 @@ type FieldMessageProps = { help?: string; error?: string };
 export const FieldMessage = ({ help, error }: FieldMessageProps) => {
   const { scale, colors, fontFamily } = useTheme();
   const variant = scale === 'admin' ? 'adminApoio' : 'pessoaApoio';
+  useAnnounce(error);
 
   if (error) {
     return (

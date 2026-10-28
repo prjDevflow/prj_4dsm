@@ -1,4 +1,4 @@
-import { Children, type ReactNode } from 'react';
+import { Children, Fragment, isValidElement, type ReactNode } from 'react';
 import {
   KeyboardAvoidingView,
   Platform,
@@ -23,6 +23,12 @@ type ScreenContainerProps = {
   scroll?: boolean;
   contentStyle?: StyleProp<ViewStyle>;
 };
+
+/** Items of the footer, looking inside a fragment (`<><Button /><Button /></>`). */
+const footerItems = (footer: ReactNode) =>
+  isValidElement<{ children?: ReactNode }>(footer) && footer.type === Fragment
+    ? footer.props.children
+    : footer;
 
 // Safe area, side margin of 16 and a keyboard that never covers the focused field.
 export const ScreenContainer = ({
@@ -64,7 +70,11 @@ export const ScreenContainer = ({
             ]}
           >
             {footerDirection === 'row'
-              ? Children.map(footer, (item) => <View style={styles.fill}>{item}</View>)
+              ? Children.map(footerItems(footer), (item) => (
+                  <View testID="footer-item" style={styles.fill}>
+                    {item}
+                  </View>
+                ))
               : footer}
           </View>
         ) : null}

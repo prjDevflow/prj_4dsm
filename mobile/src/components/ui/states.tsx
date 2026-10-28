@@ -4,6 +4,7 @@ import { Cookie12, SpinningCookie } from '@/components/shapes';
 import { useTheme, type ColorName } from '@/theme';
 import { Button } from './Button';
 import { Text } from './Text';
+import { useAnnounce } from './useAnnounce';
 
 // Shared states of T31: loading, empty, error (and timeout or permission denied) and offline.
 
@@ -49,6 +50,7 @@ type StateLayoutProps = {
 
 const StateLayout = ({ icon, tone, title, message, action }: StateLayoutProps) => {
   const { colors } = useTheme();
+  useAnnounce(title);
   const toneColors = stateTones[tone];
 
   return (
@@ -122,6 +124,7 @@ type OfflineBannerProps = { onRetry?: () => void; message?: string };
 /** Fixed strip on screens that depend on the network. */
 export const OfflineBanner = ({ onRetry, message = 'Sem internet' }: OfflineBannerProps) => {
   const theme = useTheme();
+  useAnnounce(message);
 
   return (
     <View

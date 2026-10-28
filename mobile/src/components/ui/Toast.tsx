@@ -41,9 +41,10 @@ export const ToastProvider = ({ children }: { children: ReactNode }) => {
     <ToastContext.Provider value={api}>
       {children}
       {message ? (
+        // Announced once in show(): a live region here would make Android read it twice.
         <View
+          testID="toast"
           pointerEvents="none"
-          accessibilityLiveRegion="polite"
           style={[
             styles.toast,
             { backgroundColor: theme.colors.inverso, borderRadius: theme.radius.avisoCurto },
