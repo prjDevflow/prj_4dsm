@@ -30,7 +30,8 @@ const isEmailTaken = (error: unknown) =>
   JSON.stringify((error as { meta?: unknown }).meta ?? '').includes('email');
 
 export class PrismaUserRepository implements IUserRepository {
-  constructor(private prisma: PrismaClient) {}
+  // A transaction client too: inside a unit of work the same code runs on the transaction.
+  constructor(private prisma: Prisma.TransactionClient) {}
 
   async findById(id: string) {
     const row = await this.prisma.user.findUnique({ where: { id } });
@@ -82,16 +83,15 @@ export class PrismaUserRepository implements IUserRepository {
         ],
       }),
     };
-    const [rows, total] = await this.prisma.$transaction([
-      this.prisma.user.findMany({
-        where,
-        // `id` breaks ties, so a page never repeats or skips a user.
-        orderBy: [{ nome: 'asc' }, { id: 'asc' }],
-        skip: (filter.page - 1) * filter.pageSize,
-        take: filter.pageSize,
-      }),
-      this.prisma.user.count({ where }),
-    ]);
+    const rows = await this.prisma.user.findMany({
+      where,
+      // `id` breaks ties, so a page never repeats or skips a user.
+      orderBy: [{ nome: 'asc' }, { id: 'asc' }],
+      skip: (filter.page - 1) * filter.pageSize,
+      take: filter.pageSize,
+    });
+    // Two queries, not `$transaction([...])`: a transaction client has no `$transaction`.
+    const total = await this.prisma.user.count({ where });
     return { items: rows.map(toEntity), total };
   }
 
