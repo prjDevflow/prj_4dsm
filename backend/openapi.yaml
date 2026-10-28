@@ -20,6 +20,8 @@ tags:
     description: Edifícios e pontos de acesso (só ADMIN)
   - name: Terminals
     description: Terminais de acesso e as chaves deles (só ADMIN)
+  - name: Authorizations
+    description: Autorizações de acesso (só ADMIN nesta etapa)
 paths:
   /health:
     get:
@@ -795,6 +797,141 @@ paths:
           $ref: '#/components/responses/ResourceNotFound'
         '500':
           $ref: '#/components/responses/InternalError'
+  /authorizations:
+    post:
+      tags: [Authorizations]
+      summary: Criar autorização
+      description: >-
+        Só `ADMIN`. Os oito campos são obrigatórios. O usuário e o ponto de acesso têm de existir
+        (404) e estar ativos (422 no campo `usuarioId` ou `accessPointId`). Datas e horas valem no
+        fuso `America/Sao_Paulo`.
+
+
+        **Regras (422 com a mensagem no campo):** `dataFim` igual ou posterior a `dataInicio`;
+        `dataFim` não pode estar no passado (hoje vale); `horaFim` depois de `horaInicio` (sem
+        virada de meia-noite); `usosPermitidos` inteiro de 1 a 1000. Vários problemas voltam
+        juntos, um item de `details` por campo.
+
+
+        A autorização nasce `ATIVA`, com `usosRealizados` 0. `criadoPor` vem do token e `criadoEm`
+        do relógio do servidor; `situacao`, `criadoPorId` e `usosRealizados` enviados no corpo são
+        ignorados. A resposta traz os campos calculados `usosRestantes` e `situacaoEfetiva`.
+      operationId: createAuthorization
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CriarAutorizacao'
+            example:
+              usuarioId: 5eed0000-0000-4000-8000-000000000002
+              accessPointId: 5eed0000-0000-4000-8000-000000000005
+              dataInicio: '2026-10-20'
+              dataFim: '2026-10-25'
+              horaInicio: '08:00'
+              horaFim: '18:00'
+              usosPermitidos: 3
+      responses:
+        '201':
+          description: Autorização criada
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Autorizacao'
+              example:
+                id: 5eed0000-0000-4000-8000-000000000008
+                usuario:
+                  id: 5eed0000-0000-4000-8000-000000000002
+                  nome: Maria Souza
+                  perfil: VISITANTE
+                local:
+                  id: 5eed0000-0000-4000-8000-000000000005
+                  nome: Catraca Social
+                  tipo: CATRACA
+                  edificio:
+                    id: 5eed0000-0000-4000-8000-000000000004
+                    nome: Edifício Central
+                dataInicio: '2026-10-20'
+                dataFim: '2026-10-25'
+                horaInicio: '08:00'
+                horaFim: '18:00'
+                usosPermitidos: 3
+                usosRealizados: 0
+                usosRestantes: 3
+                situacao: ATIVA
+                situacaoEfetiva: ATIVA
+                criadoPor:
+                  id: 5eed0000-0000-4000-8000-000000000001
+                  nome: Administrador
+                criadoEm: '2026-10-19T12:00:00.000Z'
+                canceladoPor: null
+                canceladoEm: null
+                motivoCancelamento: null
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/AuthorizationReferenceNotFound'
+        '422':
+          $ref: '#/components/responses/AuthorizationValidationError'
+        '500':
+          $ref: '#/components/responses/InternalError'
+  /authorizations/{id}:
+    parameters:
+      - $ref: '#/components/parameters/IdPath'
+    get:
+      tags: [Authorizations]
+      summary: Obter autorização
+      description: >-
+        Só `ADMIN` nesta etapa; a visão do dono da autorização chega com a consulta e o
+        cancelamento. Devolve o mesmo objeto da criação, com `situacaoEfetiva` calculada na hora
+        (`CANCELADA`, `EXPIRADA`, `ESGOTADA` ou `ATIVA`). Um `id` que não é UUID também devolve 404.
+      operationId: getAuthorization
+      responses:
+        '200':
+          description: A autorização
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Autorizacao'
+              example:
+                id: 5eed0000-0000-4000-8000-000000000008
+                usuario:
+                  id: 5eed0000-0000-4000-8000-000000000002
+                  nome: Maria Souza
+                  perfil: VISITANTE
+                local:
+                  id: 5eed0000-0000-4000-8000-000000000005
+                  nome: Catraca Social
+                  tipo: CATRACA
+                  edificio:
+                    id: 5eed0000-0000-4000-8000-000000000004
+                    nome: Edifício Central
+                dataInicio: '2026-10-20'
+                dataFim: '2026-10-25'
+                horaInicio: '08:00'
+                horaFim: '18:00'
+                usosPermitidos: 3
+                usosRealizados: 3
+                usosRestantes: 0
+                situacao: ATIVA
+                situacaoEfetiva: ESGOTADA
+                criadoPor:
+                  id: 5eed0000-0000-4000-8000-000000000001
+                  nome: Administrador
+                criadoEm: '2026-10-19T12:00:00.000Z'
+                canceladoPor: null
+                canceladoEm: null
+                motivoCancelamento: null
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/AuthorizationNotFound'
+        '500':
+          $ref: '#/components/responses/InternalError'
 components:
   securitySchemes:
     bearerAuth:
@@ -1253,6 +1390,150 @@ components:
         total:
           type: integer
           description: Total de terminais, antes da paginação.
+    CriarAutorizacao:
+      type: object
+      required: [usuarioId, accessPointId, dataInicio, dataFim, horaInicio, horaFim, usosPermitidos]
+      properties:
+        usuarioId:
+          type: string
+          format: uuid
+        accessPointId:
+          type: string
+          format: uuid
+        dataInicio:
+          type: string
+          format: date
+          description: Dia no fuso de São Paulo (AAAA-MM-DD); pode ser no passado.
+        dataFim:
+          type: string
+          format: date
+          description: Igual ou posterior a `dataInicio` e não pode estar no passado; o último dia vale.
+        horaInicio:
+          type: string
+          pattern: '^([01]\d|2[0-3]):[0-5]\d$'
+          example: '08:00'
+        horaFim:
+          type: string
+          pattern: '^([01]\d|2[0-3]):[0-5]\d$'
+          description: Depois de `horaInicio`; não atravessa a meia-noite.
+          example: '18:00'
+        usosPermitidos:
+          type: integer
+          minimum: 1
+          maximum: 1000
+    Autorizacao:
+      type: object
+      required:
+        - id
+        - usuario
+        - local
+        - dataInicio
+        - dataFim
+        - horaInicio
+        - horaFim
+        - usosPermitidos
+        - usosRealizados
+        - usosRestantes
+        - situacao
+        - situacaoEfetiva
+        - criadoPor
+        - criadoEm
+        - canceladoPor
+        - canceladoEm
+        - motivoCancelamento
+      properties:
+        id:
+          type: string
+          format: uuid
+        usuario:
+          type: object
+          required: [id, nome, perfil]
+          properties:
+            id:
+              type: string
+              format: uuid
+            nome:
+              type: string
+            perfil:
+              type: string
+              enum: [ADMIN, CONDOMINO, VISITANTE]
+        local:
+          type: object
+          required: [id, nome, tipo, edificio]
+          properties:
+            id:
+              type: string
+              format: uuid
+            nome:
+              type: string
+            tipo:
+              type: string
+              enum: [PORTARIA, PORTA, CATRACA]
+            edificio:
+              type: object
+              required: [id, nome]
+              properties:
+                id:
+                  type: string
+                  format: uuid
+                nome:
+                  type: string
+        dataInicio:
+          type: string
+          format: date
+        dataFim:
+          type: string
+          format: date
+        horaInicio:
+          type: string
+          example: '08:00'
+        horaFim:
+          type: string
+          example: '18:00'
+        usosPermitidos:
+          type: integer
+        usosRealizados:
+          type: integer
+        usosRestantes:
+          type: integer
+          description: '`usosPermitidos` menos `usosRealizados`, nunca negativo. Calculado.'
+        situacao:
+          type: string
+          enum: [ATIVA, CANCELADA]
+          description: O que está gravado.
+        situacaoEfetiva:
+          type: string
+          enum: [ATIVA, CANCELADA, EXPIRADA, ESGOTADA]
+          description: >-
+            Calculada na hora, com esta prioridade: `CANCELADA`, `EXPIRADA` (hoje em São Paulo
+            depois de `dataFim`), `ESGOTADA` (usos realizados iguais ou acima dos permitidos),
+            `ATIVA`.
+        criadoPor:
+          type: object
+          required: [id, nome]
+          properties:
+            id:
+              type: string
+              format: uuid
+            nome:
+              type: string
+        criadoEm:
+          type: string
+          format: date-time
+        canceladoPor:
+          type: [object, 'null']
+          required: [id, nome]
+          properties:
+            id:
+              type: string
+              format: uuid
+            nome:
+              type: string
+        canceladoEm:
+          type: [string, 'null']
+          format: date-time
+        motivoCancelamento:
+          type: [string, 'null']
     Error:
       type: object
       required: [error]
@@ -1418,6 +1699,75 @@ components:
             error:
               code: LOCAL_COM_AUTORIZACOES_ATIVAS
               message: Este local ainda tem autorizações ativas. Cancele-as antes.
+    AuthorizationValidationError:
+      description: >-
+        Corpo inválido ou regra de data, hora ou cadastro violada, com a mensagem de cada campo em
+        `details`.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          examples:
+            camposInvalidos:
+              summary: Uso fora de 1 a 1000 e hora que não existe
+              value:
+                error:
+                  code: VALIDATION_ERROR
+                  message: Dados inválidos
+                  details:
+                    - field: horaFim
+                      message: deve estar no formato HH:mm
+                    - field: usosPermitidos
+                      message: deve ser de 1 a 1000
+            regrasDoPeriodo:
+              summary: Datas e horas fora das regras
+              value:
+                error:
+                  code: VALIDATION_ERROR
+                  message: Dados inválidos
+                  details:
+                    - field: dataFim
+                      message: Deve ser igual ou posterior à data de início
+                    - field: horaFim
+                      message: Deve ser depois da hora de início
+            inativos:
+              summary: Usuário ou ponto de acesso inativo
+              value:
+                error:
+                  code: VALIDATION_ERROR
+                  message: Dados inválidos
+                  details:
+                    - field: usuarioId
+                      message: Usuário inativo
+                    - field: accessPointId
+                      message: Ponto de acesso inativo
+    AuthorizationReferenceNotFound:
+      description: O usuário ou o ponto de acesso informado não existe
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          examples:
+            usuario:
+              value:
+                error:
+                  code: NOT_FOUND
+                  message: Usuário não encontrado
+            pontoDeAcesso:
+              value:
+                error:
+                  code: NOT_FOUND
+                  message: Ponto de acesso não encontrado
+    AuthorizationNotFound:
+      description: Autorização inexistente, ou `id` que não é UUID
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          example:
+            error:
+              code: NOT_FOUND
+              message: Autorização não encontrada
     UserNotFound:
       description: Usuário inexistente
       content:
