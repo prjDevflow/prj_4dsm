@@ -45,7 +45,7 @@ Legenda: 📄 exigência do documento oficial do desafio · 💡 decisão ou sug
 - [ ] O app abre no seu celular pelo Expo Go e mostra "API: ok" com o backend do Docker rodando. (conferido no emulador Android com o Expo Go e o mock; falta no celular com o backend do Docker)
 - [x] Desligar o backend mostra "API: fora do ar" sem fechar o app. (emulador: mock desligado e "Tentar novamente")
 - [x] Trocar `EXPO_PUBLIC_API_URL` (local ou outra máquina) não exige mudar código.
-- [ ] `npm test`, `npm run lint`, `npm run typecheck` e `npm run format:check` passam no seu computador e no CI. (no computador: sim; no CI: conferir no PR)
+- [x] `npm test`, `npm run lint`, `npm run typecheck` e `npm run format:check` passam no seu computador e no CI. (job `mobile` verde no GitHub Actions, run 40692035226)
 
 **Definição de pronto**
 
