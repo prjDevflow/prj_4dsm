@@ -85,13 +85,13 @@ Como ler cada etapa:
 - [x] `docker compose up` sobe API e banco; `GET /api/v1/health` mostra `"db": "up"`.
 - [x] Parar o container do banco faz `/health` mostrar `"db": "down"` (e a API continua de pé).
 - [x] A imagem não roda como root.
-- [ ] A migração inicial roda no banco local **e** no banco em nuvem.
+- [x] A migração inicial roda no banco local **e** no banco em nuvem.
 - [x] `DATABASE_URL` não aparece em nenhum arquivo versionado.
 
 **Definição de pronto**
 
 - [x] README explica como subir o ambiente e como resetar o banco.
-- [ ] Pedro e Lucas conseguem rodar o backend local seguindo o README (peça para um deles testar).
+- [x] Pedro e Lucas conseguem rodar o backend local seguindo o README (peça para um deles testar). _(confirmação verbal de Eduardo, 2026-10-25)_
 
 ---
 
