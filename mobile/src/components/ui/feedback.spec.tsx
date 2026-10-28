@@ -7,6 +7,15 @@ import { EmptyState, ErrorState, LoadingState, OfflineBanner } from './states';
 import { ToastProvider, useToast } from './Toast';
 
 describe('Alert', () => {
+  afterEach(() => jest.restoreAllMocks());
+
+  it('no iOS, a mensagem é anunciada ao aparecer (o liveRegion só existe no Android)', async () => {
+    const announce = jest.spyOn(AccessibilityInfo, 'announceForAccessibility');
+    await render(<Alert tone="info" message="Sua sessão expirou. Entre novamente." />);
+
+    expect(announce).toHaveBeenCalledWith('Sua sessão expirou. Entre novamente.');
+  });
+
   it('é anunciado pelo leitor de tela e mostra a mensagem', async () => {
     await render(<Alert tone="info" message="Sua sessão expirou. Entre novamente." />);
 
@@ -85,6 +94,18 @@ describe('Toast', () => {
       </Pressable>
     );
   };
+
+  it('o aviso curto é anunciado uma vez só (sem liveRegion junto do anúncio)', async () => {
+    await render(
+      <ToastProvider>
+        <ShowButton />
+      </ToastProvider>,
+    );
+
+    await fireEvent.press(screen.getByRole('button', { name: 'Mostrar' }));
+
+    expect(screen.getByTestId('toast').props.accessibilityLiveRegion).toBeUndefined();
+  });
 
   it('mostra o aviso curto, anuncia pelo leitor de tela e some em cerca de 3 s', async () => {
     const announce = jest.spyOn(AccessibilityInfo, 'announceForAccessibility');

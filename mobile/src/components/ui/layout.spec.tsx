@@ -47,6 +47,24 @@ describe('Header', () => {
 });
 
 describe('ScreenContainer', () => {
+  it('rodapé em linha põe lado a lado os itens de um fragmento ("Cancelar" e "Salvar")', async () => {
+    await render(
+      <ScreenContainer
+        footerDirection="row"
+        footer={
+          <>
+            <Text>Cancelar</Text>
+            <Text>Salvar</Text>
+          </>
+        }
+      >
+        <Text>Nome completo</Text>
+      </ScreenContainer>,
+    );
+
+    expect(screen.getAllByTestId('footer-item')).toHaveLength(2);
+  });
+
   it('mostra o conteúdo e o rodapé fixo', async () => {
     await render(
       <ScreenContainer footer={<Text>Salvar</Text>}>

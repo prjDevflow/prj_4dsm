@@ -1,6 +1,6 @@
 import { fireEvent, render, screen, within } from '@testing-library/react-native';
 import { createRef, useState } from 'react';
-import type { TextInputInstance } from 'react-native';
+import { AccessibilityInfo, type TextInputInstance } from 'react-native';
 import { colors } from '@/theme';
 import { DateField, TimeField } from './DateField';
 import { NumberStepper } from './NumberStepper';
@@ -30,6 +30,26 @@ jest.mock('@react-native-community/datetimepicker', () => {
 });
 
 describe('TextField', () => {
+  afterEach(() => jest.restoreAllMocks());
+
+  it('no iOS, anuncia o erro quando ele aparece, e não repete a cada renderização', async () => {
+    const announce = jest.spyOn(AccessibilityInfo, 'announceForAccessibility');
+    const { rerender } = await render(
+      <TextField label="E-mail" value="" onChangeText={jest.fn()} />,
+    );
+    expect(announce).not.toHaveBeenCalled();
+
+    await rerender(
+      <TextField label="E-mail" value="" onChangeText={jest.fn()} error="Informe seu e-mail." />,
+    );
+    await rerender(
+      <TextField label="E-mail" value="a" onChangeText={jest.fn()} error="Informe seu e-mail." />,
+    );
+
+    expect(announce).toHaveBeenCalledTimes(1);
+    expect(announce).toHaveBeenCalledWith('Informe seu e-mail.');
+  });
+
   it('mostra o rótulo acima, a ajuda, e o campo leva o nome do rótulo', async () => {
     await render(
       <TextField
