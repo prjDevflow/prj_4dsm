@@ -1,6 +1,7 @@
 import cors from 'cors';
 import express, { type Router } from 'express';
 import helmet from 'helmet';
+import type { Logger } from 'pino';
 import swaggerUi from 'swagger-ui-express';
 import { makeErrorHandler } from '../infra/http/errorHandler';
 import { notFound } from '../infra/http/notFound';
@@ -14,16 +15,19 @@ export interface AppOptions {
   isProduction?: boolean;
   /** Test-only hook to mount extra routes under /api/v1, before the 404 handler. */
   extraRoutes?: (router: Router) => void;
+  /** Test-only hook: reads the request log from a logger the test controls. */
+  logger?: Logger;
 }
 
 export function createApp({
   isProduction = container.env.NODE_ENV === 'production',
   extraRoutes,
+  logger = container.pino,
 }: AppOptions = {}) {
   const app = express();
 
   app.use(requestId);
-  app.use(makeRequestLogger(container.pino));
+  app.use(makeRequestLogger(logger));
   app.use(helmet());
   app.use(cors({ origin: container.env.CORS_ORIGINS }));
   app.use(express.json({ limit: '100kb' }));
