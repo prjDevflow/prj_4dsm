@@ -15,14 +15,16 @@ export class CancelAuthorizationUseCase {
     input: ICancelAuthorizationDTO,
     adminId: string,
   ): Promise<AuthorizationView> {
-    const details = await this.authorizations.findViewById(id);
-    if (!details) throw new NotFoundError('Autorização não encontrada');
+    // Does nothing when it is already cancelled (or missing): the answer is the stored state.
+    const now = this.clock.now();
     await this.authorizations.cancelIfActive({
       id,
       canceladoPorId: adminId,
-      canceladoEm: this.clock.now(),
+      canceladoEm: now,
       motivo: input.motivo ?? null,
     });
-    return toAuthorizationView(details, this.clock.now());
+    const updated = await this.authorizations.findViewById(id);
+    if (!updated) throw new NotFoundError('Autorização não encontrada');
+    return toAuthorizationView(updated, now);
   }
 }
