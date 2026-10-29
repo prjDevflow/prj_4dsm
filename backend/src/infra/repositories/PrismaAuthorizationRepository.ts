@@ -80,6 +80,26 @@ export class PrismaAuthorizationRepository implements IAuthorizationRepository {
     };
   }
 
+  async cancelIfActive(input: {
+    id: string;
+    canceladoPorId: string;
+    canceladoEm: Date;
+    motivo: string | null;
+  }) {
+    // One conditional UPDATE: the row only changes while it is still ATIVA, so of two
+    // simultaneous calls exactly one counts and the first `canceladoEm` stays.
+    const { count } = await this.prisma.authorization.updateMany({
+      where: { id: input.id, situacao: 'ATIVA' },
+      data: {
+        situacao: 'CANCELADA',
+        canceladoPorId: input.canceladoPorId,
+        canceladoEm: input.canceladoEm,
+        motivoCancelamento: input.motivo,
+      },
+    });
+    return count === 1;
+  }
+
   async hasActiveNonExpiredForAccessPoint(accessPointId: string, today: string) {
     return this.hasActiveNonExpired({ accessPointId }, today);
   }
