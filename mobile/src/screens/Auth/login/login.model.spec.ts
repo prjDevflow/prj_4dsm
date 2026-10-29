@@ -37,8 +37,8 @@ describe('useLoginModel', () => {
     await submit(result);
 
     expect(service.calls).toHaveLength(0);
-    expect(result.current.form.formState.errors.email?.message).toBe('Informe seu e-mail.');
-    expect(result.current.form.formState.errors.senha?.message).toBe('Informe sua senha.');
+    expect(result.current.form.getFieldState('email').error?.message).toBe('Informe seu e-mail.');
+    expect(result.current.form.getFieldState('senha').error?.message).toBe('Informe sua senha.');
   });
 
   it('e-mail sem "@" mostra a mensagem de formato e não envia', async () => {
@@ -49,7 +49,7 @@ describe('useLoginModel', () => {
     await submit(result);
 
     expect(service.calls).toHaveLength(0);
-    expect(result.current.form.formState.errors.email?.message).toBe(
+    expect(result.current.form.getFieldState('email').error?.message).toBe(
       'Digite um e-mail válido. Exemplo: nome@email.com',
     );
   });
