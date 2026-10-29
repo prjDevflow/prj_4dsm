@@ -69,7 +69,39 @@ describe('ListMyAuthorizations', () => {
     expect(parsed).toEqual({ situacao: 'ATIVA', page: 1, pageSize: 20 });
   });
 
-  it.todo('deve filtrar pela situação efetiva');
-  it.todo('deve ordenar por dataFim crescente e desempatar por id');
-  it.todo('deve paginar e informar o total');
+  it('deve filtrar pela situação efetiva', async () => {
+    const { add, idsOf } = await makeSut();
+    const active = add();
+    const expired = add({ dataFim: '2026-10-19' });
+    add({ usuarioId: JOAO.id, dataFim: '2026-10-19' });
+
+    expect(await idsOf(MARIA.id, query({ situacao: 'EXPIRADA' }))).toEqual([expired]);
+    expect(await idsOf(MARIA.id, query({ situacao: 'ATIVA' }))).toEqual([active]);
+  });
+
+  it('deve ordenar por dataFim crescente e desempatar por id', async () => {
+    const { add, idsOf } = await makeSut();
+    const late = add({ dataFim: '2026-12-01' });
+    const tieB = add({ dataFim: '2026-10-25' });
+    const early = add({ dataFim: '2026-10-21' });
+
+    const ids = await idsOf(MARIA.id);
+
+    expect(ids).toEqual([early, tieB, late]);
+  });
+
+  it('deve paginar e informar o total', async () => {
+    const { sut, add } = await makeSut();
+    const ids = [
+      add({ dataFim: '2026-10-21' }),
+      add({ dataFim: '2026-10-22' }),
+      add({ dataFim: '2026-10-23' }),
+    ];
+    add({ usuarioId: JOAO.id });
+
+    const second = await sut.execute(MARIA.id, query({ page: 2, pageSize: 2 }));
+
+    expect(second).toMatchObject({ page: 2, pageSize: 2, total: 3 });
+    expect(second.data.map((item) => item.id)).toEqual([ids[2]]);
+  });
 });
