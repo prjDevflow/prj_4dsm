@@ -15,7 +15,10 @@ export class GetAuthorizationUseCase {
     requester: { userId: string; perfil: UserProfile },
   ): Promise<AuthorizationView> {
     const details = await this.authorizations.findViewById(id);
-    if (!details) throw new NotFoundError('Autorização não encontrada');
+    // Someone else's authorization answers like a missing one, so its existence is not revealed.
+    const hidden =
+      requester.perfil !== 'ADMIN' && details?.authorization.usuarioId !== requester.userId;
+    if (!details || hidden) throw new NotFoundError('Autorização não encontrada');
     return toAuthorizationView(details, this.clock.now());
   }
 }
