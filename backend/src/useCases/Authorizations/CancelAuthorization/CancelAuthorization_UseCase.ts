@@ -1,6 +1,7 @@
 import type { IClock } from '../../../providers/IClock';
 import type { IAuthorizationRepository } from '../../../repositories/IAuthorizationRepository';
-import type { AuthorizationView } from '../authorizationView';
+import { NotFoundError } from '../../../shared/errors/AppError';
+import { toAuthorizationView, type AuthorizationView } from '../authorizationView';
 import type { ICancelAuthorizationDTO } from './CancelAuthorization_DTO';
 
 export class CancelAuthorizationUseCase {
@@ -10,12 +11,18 @@ export class CancelAuthorizationUseCase {
   ) {}
 
   async execute(
-    _id: string,
-    _input: ICancelAuthorizationDTO,
-    _adminId: string,
+    id: string,
+    input: ICancelAuthorizationDTO,
+    adminId: string,
   ): Promise<AuthorizationView> {
-    void this.authorizations;
-    void this.clock;
-    throw new Error('não implementado');
+    const details = await this.authorizations.findViewById(id);
+    if (!details) throw new NotFoundError('Autorização não encontrada');
+    await this.authorizations.cancelIfActive({
+      id,
+      canceladoPorId: adminId,
+      canceladoEm: this.clock.now(),
+      motivo: input.motivo ?? null,
+    });
+    return toAuthorizationView(details, this.clock.now());
   }
 }
