@@ -56,9 +56,63 @@ describe('CancelAuthorization', () => {
     ]);
   });
 
-  it.todo('deve gravar motivo nulo quando o corpo não traz motivo');
-  it.todo('deve devolver situacaoEfetiva CANCELADA e quem cancelou na resposta');
-  it.todo('deve devolver o estado atual e manter quem, quando e o motivo ao cancelar de novo');
-  it.todo('deve lançar NotFoundError quando a autorização não existe');
-  it.todo('deve cancelar a autorização expirada ou esgotada que ainda está gravada como ATIVA');
+  it('deve gravar motivo nulo quando o corpo não traz motivo', async () => {
+    const { sut, authorizations } = await makeSut();
+
+    await sut.execute(AUTHORIZATION_ID, {}, ADMIN.id);
+
+    expect(authorizations.all()[0]).toMatchObject({
+      situacao: 'CANCELADA',
+      motivoCancelamento: null,
+    });
+  });
+
+  it('deve devolver situacaoEfetiva CANCELADA e quem cancelou na resposta', async () => {
+    const { sut } = await makeSut();
+
+    const view = await sut.execute(AUTHORIZATION_ID, { motivo: 'Pedido' }, OTHER_ADMIN.id);
+
+    expect(view).toMatchObject({
+      situacao: 'CANCELADA',
+      situacaoEfetiva: 'CANCELADA',
+      canceladoPor: { id: OTHER_ADMIN.id, nome: 'Outro Admin' },
+      canceladoEm: NOW,
+      motivoCancelamento: 'Pedido',
+    });
+  });
+
+  it('deve devolver o estado atual e manter quem, quando e o motivo ao cancelar de novo', async () => {
+    const { sut, clock, authorizations } = await makeSut();
+    await sut.execute(AUTHORIZATION_ID, { motivo: 'Primeiro' }, ADMIN.id);
+    clock.advance(60 * 60 * 1000);
+
+    const again = await sut.execute(AUTHORIZATION_ID, { motivo: 'Segundo' }, OTHER_ADMIN.id);
+
+    expect(again).toMatchObject({
+      situacaoEfetiva: 'CANCELADA',
+      canceladoPor: { id: ADMIN.id },
+      canceladoEm: NOW,
+      motivoCancelamento: 'Primeiro',
+    });
+    expect(authorizations.all()[0]).toMatchObject({ canceladoPorId: ADMIN.id, canceladoEm: NOW });
+  });
+
+  it('deve lançar NotFoundError quando a autorização não existe', async () => {
+    const { sut } = await makeSut();
+
+    const error = await sut.execute(idOf(99), {}, ADMIN.id).catch((e) => e);
+
+    expect(error).toMatchObject({ code: 'NOT_FOUND', status: 404 });
+  });
+
+  it('deve cancelar a autorização expirada ou esgotada que ainda está gravada como ATIVA', async () => {
+    const expired = await makeSut({ dataInicio: '2026-10-10', dataFim: '2026-10-19' });
+    const spent = await makeSut({ usosRealizados: 3, usosPermitidos: 3 });
+
+    const fromExpired = await expired.sut.execute(AUTHORIZATION_ID, {}, ADMIN.id);
+    const fromSpent = await spent.sut.execute(AUTHORIZATION_ID, {}, ADMIN.id);
+
+    expect(fromExpired).toMatchObject({ situacao: 'CANCELADA', situacaoEfetiva: 'CANCELADA' });
+    expect(fromSpent).toMatchObject({ situacao: 'CANCELADA', situacaoEfetiva: 'CANCELADA' });
+  });
 });
