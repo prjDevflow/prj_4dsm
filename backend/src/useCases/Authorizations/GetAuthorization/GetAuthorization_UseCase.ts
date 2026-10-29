@@ -1,3 +1,4 @@
+import type { UserProfile } from '../../../entities/User';
 import type { IClock } from '../../../providers/IClock';
 import type { IAuthorizationRepository } from '../../../repositories/IAuthorizationRepository';
 import { NotFoundError } from '../../../shared/errors/AppError';
@@ -9,7 +10,10 @@ export class GetAuthorizationUseCase {
     private clock: IClock,
   ) {}
 
-  async execute(id: string): Promise<AuthorizationView> {
+  async execute(
+    id: string,
+    requester: { userId: string; perfil: UserProfile },
+  ): Promise<AuthorizationView> {
     const details = await this.authorizations.findViewById(id);
     if (!details) throw new NotFoundError('Autorização não encontrada');
     return toAuthorizationView(details, this.clock.now());
