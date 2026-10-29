@@ -40,10 +40,13 @@ export const useLoginModel = ({ loginUserService }: LoginModelProps) => {
     },
   });
 
-  // After a failed submit the fields are enabled again: only then the password can take the focus.
+  // The fields are disabled while sending. On Android the focus command can reach the native field
+  // before the "enabled again" prop does, so the focus waits for the next frame.
   useEffect(() => {
-    if (apiError) form.setFocus('senha');
-  }, [apiError, form]);
+    if (!apiError || login.isPending) return;
+    const frame = requestAnimationFrame(() => form.setFocus('senha'));
+    return () => cancelAnimationFrame(frame);
+  }, [apiError, login.isPending, form]);
 
   // The error strip goes away as soon as the person types again.
   useEffect(

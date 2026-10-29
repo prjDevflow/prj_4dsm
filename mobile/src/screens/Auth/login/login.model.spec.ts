@@ -85,7 +85,7 @@ describe('useLoginModel', () => {
 
       await waitFor(() => expect(result.current.apiError).toBe(message));
       expect(result.current.form.getValues()).toEqual({ email: 'admin@dev.local', senha: '' });
-      expect(setFocus).toHaveBeenCalledWith('senha');
+      await waitFor(() => expect(setFocus).toHaveBeenCalledWith('senha'));
       expect(result.current.isSubmitting).toBe(false);
       expect(useSessionStore.getState().usuario).toBeNull();
     },
@@ -94,11 +94,19 @@ describe('useLoginModel', () => {
   it('só foca a senha depois que os campos voltam a ficar habilitados', async () => {
     const service = new FakeLoginUserService();
     service.willFail(new ApiError(401, 'CREDENCIAIS_INVALIDAS', ''));
-    const { result } = await renderModel(service);
+    // Saved during render: result.current is only updated after the hook's own effects run.
+    let rendered: Model | null = null;
+    const { result } = await renderHook(
+      () => {
+        rendered = useLoginModel({ loginUserService: service });
+        return rendered;
+      },
+      { wrapper: createWrapper() },
+    );
     const submittingWhenFocused: boolean[] = [];
     jest
       .spyOn(result.current.form, 'setFocus')
-      .mockImplementation(() => submittingWhenFocused.push(result.current.isSubmitting));
+      .mockImplementation(() => submittingWhenFocused.push(rendered?.isSubmitting ?? true));
 
     await fill(result, 'admin@dev.local', 'errada');
     await submit(result);
