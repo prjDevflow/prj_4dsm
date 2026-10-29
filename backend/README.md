@@ -203,13 +203,13 @@ Só `ADMIN` (rotas em `/buildings`, `/access-points` e `/terminals`; contrato no
 
 Criar, listar e cancelar: só `ADMIN`. Ler uma e listar "as minhas": cada usuário, as próprias (contrato no Swagger).
 
-| Rota | Quem |
-|---|---|
-| `POST /authorizations` | `ADMIN` |
-| `GET /authorizations` (filtros `usuarioId`, `accessPointId`, `situacao`, `dataDe`, `dataAte`; paginada) | `ADMIN` |
-| `GET /authorizations/{id}` | `ADMIN` lê qualquer uma; os demais, só as próprias (a de outra pessoa dá `404`) |
-| `PATCH /authorizations/{id}/cancel` | `ADMIN` |
-| `GET /me/authorizations` | qualquer perfil, só as do token |
+| Rota                                                                                                    | Quem                                                                            |
+| ------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------- |
+| `POST /authorizations`                                                                                  | `ADMIN`                                                                         |
+| `GET /authorizations` (filtros `usuarioId`, `accessPointId`, `situacao`, `dataDe`, `dataAte`; paginada) | `ADMIN`                                                                         |
+| `GET /authorizations/{id}`                                                                              | `ADMIN` lê qualquer uma; os demais, só as próprias (a de outra pessoa dá `404`) |
+| `PATCH /authorizations/{id}/cancel`                                                                     | `ADMIN`                                                                         |
+| `GET /me/authorizations`                                                                                | qualquer perfil, só as do token                                                 |
 
 ```bash
 curl -X POST http://localhost:3000/api/v1/authorizations \
