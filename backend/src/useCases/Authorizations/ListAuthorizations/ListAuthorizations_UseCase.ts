@@ -1,7 +1,7 @@
 import type { IClock } from '../../../providers/IClock';
 import type { IAuthorizationRepository } from '../../../repositories/IAuthorizationRepository';
 import type { Page } from '../../../shared/pagination';
-import type { AuthorizationView } from '../authorizationView';
+import { toAuthorizationView, type AuthorizationView } from '../authorizationView';
 import type { IListAuthorizationsDTO } from './ListAuthorizations_DTO';
 
 export class ListAuthorizationsUseCase {
@@ -10,9 +10,14 @@ export class ListAuthorizationsUseCase {
     private clock: IClock,
   ) {}
 
-  async execute(_input: IListAuthorizationsDTO): Promise<Page<AuthorizationView>> {
-    void this.authorizations;
-    void this.clock;
-    throw new Error('não implementado');
+  async execute(input: IListAuthorizationsDTO): Promise<Page<AuthorizationView>> {
+    const now = this.clock.now();
+    const { items, total } = await this.authorizations.list({ ...input, now, sort: 'recent' });
+    return {
+      data: items.map((details) => toAuthorizationView(details, now)),
+      page: input.page,
+      pageSize: input.pageSize,
+      total,
+    };
   }
 }
