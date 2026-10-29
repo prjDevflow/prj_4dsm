@@ -24,7 +24,11 @@ async function scenario() {
   const joao = await insertUser({ nome: 'João Alves', perfil: 'CONDOMINO' });
   const building = await insertBuilding({ nome: 'Edifício Central' });
   const gate = await insertAccessPoint({ buildingId: building.id, nome: 'Catraca Social' });
-  const door = await insertAccessPoint({ buildingId: building.id, nome: 'Porta do Bloco A' });
+  const door = await insertAccessPoint({
+    buildingId: building.id,
+    nome: 'Porta do Bloco A',
+    tipo: 'PORTA',
+  });
   const add = (overrides: Parameters<typeof insertAuthorization>[0] = {}) =>
     insertAuthorization({
       usuarioId: maria.id,
