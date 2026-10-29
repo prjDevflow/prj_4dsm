@@ -126,6 +126,7 @@ describe('rotas de autorização da B09', () => {
         usuarioId: owner.id,
         accessPointId: point.id,
         criadoPorId: admin.id,
+        dataInicio: new Date('2020-01-01'),
         dataFim: new Date('2020-01-31'),
       });
 

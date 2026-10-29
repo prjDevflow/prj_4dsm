@@ -7,6 +7,8 @@ export const CancelAuthorizationSchema = z.object({
     .trim()
     .max(200, 'deve ter no máximo 200 caracteres')
     .refine(hasNoNul, NO_NUL_MESSAGE)
+    // A blank reason is no reason.
+    .transform((motivo) => motivo || undefined)
     .optional(),
 });
 
