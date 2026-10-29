@@ -21,6 +21,14 @@ const answerLogin = (usuario: Usuario) =>
     ),
   );
 
+// renderRouter turns on Jest's fake timers; with them the real request (MSW over Node's fetch)
+// never settles before axios's 10 s timeout fires in fake time. Back to real timers after mounting.
+const renderApp = async (initialUrl: string) => {
+  const result = await renderRouter('src/app', { initialUrl });
+  jest.useRealTimers();
+  return result;
+};
+
 const login = async (email: string) => {
   await fireEvent.changeText(screen.getByLabelText('E-mail'), email);
   await fireEvent.changeText(screen.getByLabelText('Senha'), 'Senha-Dev-2026');
@@ -31,7 +39,7 @@ describe('navegação por sessão', () => {
   beforeEach(() => useSessionStore.setState({ token: null, usuario: null, expired: false }));
 
   it('sem sessão, o app abre no login', async () => {
-    await renderRouter('src/app', { initialUrl: '/' });
+    await renderApp('/');
 
     expect(await screen.findByRole('header', { name: 'Entre com sua conta' })).toBeOnTheScreen();
     expect(screen).toHavePathname('/login');
@@ -39,7 +47,7 @@ describe('navegação por sessão', () => {
 
   it('o administrador entra e cai no início do administrador, sem voltar ao login', async () => {
     answerLogin(sampleAdmin);
-    await renderRouter('src/app', { initialUrl: '/' });
+    await renderApp('/');
 
     await login('admin@dev.local');
 
@@ -52,7 +60,7 @@ describe('navegação por sessão', () => {
     'condômino e visitante caem no início da pessoa ($perfil)',
     async (usuario) => {
       answerLogin(usuario);
-      await renderRouter('src/app', { initialUrl: '/' });
+      await renderApp('/');
 
       await login(usuario.email);
 
@@ -63,7 +71,7 @@ describe('navegação por sessão', () => {
 
   it('"Sair" volta ao login', async () => {
     answerLogin(sampleVisitante);
-    await renderRouter('src/app', { initialUrl: '/' });
+    await renderApp('/');
     await login('visitante@dev.local');
 
     await fireEvent.press(await screen.findByRole('button', { name: 'Sair' }));
@@ -74,7 +82,7 @@ describe('navegação por sessão', () => {
 
   it('com sessão aberta, o endereço do login leva ao início', async () => {
     useSessionStore.setState({ token: 't', usuario: sampleCondomino });
-    await renderRouter('src/app', { initialUrl: '/login' });
+    await renderApp('/login');
 
     expect(await screen.findByRole('header', { name: 'Início' })).toBeOnTheScreen();
   });
