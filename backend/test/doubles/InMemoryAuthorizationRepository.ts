@@ -1,6 +1,8 @@
 import type { Authorization } from '../../src/entities/Authorization';
+import { computeEffectiveStatus } from '../../src/entities/rules/computeEffectiveStatus';
 import type {
   AuthorizationDetails,
+  AuthorizationListFilter,
   IAuthorizationRepository,
 } from '../../src/repositories/IAuthorizationRepository';
 import type { InMemoryAccessPointRepository } from './InMemoryAccessPointRepository';
@@ -27,29 +29,30 @@ export class InMemoryAuthorizationRepository implements IAuthorizationRepository
 
   async findViewById(id: string): Promise<AuthorizationDetails | null> {
     const authorization = this.items.get(id);
-    if (!authorization) return null;
-    // The database guarantees these rows through foreign keys; the fake fails loudly instead.
-    const user = await this.users.findById(authorization.usuarioId);
-    const author = await this.users.findById(authorization.criadoPorId);
-    const canceller = authorization.canceladoPorId
-      ? await this.users.findById(authorization.canceladoPorId)
-      : null;
-    const point = await this.accessPoints.findById(authorization.accessPointId);
-    const building = point ? await this.buildings.findById(point.buildingId) : null;
-    if (!user || !author || !point || !building) {
-      throw new Error(`Fake incompleto para a autorização ${id}`);
-    }
+    return authorization ? this.toDetails(authorization) : null;
+  }
+
+  async list(filter: AuthorizationListFilter) {
+    const matches = [...this.items.values()]
+      .filter((a) => filter.usuarioId === undefined || a.usuarioId === filter.usuarioId)
+      .filter((a) => filter.accessPointId === undefined || a.accessPointId === filter.accessPointId)
+      .filter(
+        (a) =>
+          filter.situacao === undefined ||
+          computeEffectiveStatus(a, filter.now) === filter.situacao,
+      )
+      .filter((a) => filter.dataDe === undefined || a.dataFim >= filter.dataDe)
+      .filter((a) => filter.dataAte === undefined || a.dataInicio <= filter.dataAte)
+      .sort((a, b) =>
+        filter.sort === 'recent'
+          ? b.criadoEm.getTime() - a.criadoEm.getTime() || b.id.localeCompare(a.id)
+          : a.dataFim.localeCompare(b.dataFim) || a.id.localeCompare(b.id),
+      );
+    const start = (filter.page - 1) * filter.pageSize;
+    const page = matches.slice(start, start + filter.pageSize);
     return {
-      authorization: { ...authorization },
-      usuario: { id: user.id, nome: user.nome, perfil: user.perfil },
-      local: {
-        id: point.id,
-        nome: point.nome,
-        tipo: point.tipo,
-        edificio: { id: building.id, nome: building.nome },
-      },
-      criadoPor: { id: author.id, nome: author.nome },
-      canceladoPor: canceller ? { id: canceller.id, nome: canceller.nome } : null,
+      items: await Promise.all(page.map((a) => this.toDetails(a))),
+      total: matches.length,
     };
   }
 
@@ -87,6 +90,32 @@ export class InMemoryAuthorizationRepository implements IAuthorizationRepository
     return [...this.items.values()].some(
       (a) => pointIds.has(a.accessPointId) && a.situacao === 'ATIVA' && a.dataFim >= today,
     );
+  }
+
+  private async toDetails(authorization: Authorization): Promise<AuthorizationDetails> {
+    // The database guarantees these rows through foreign keys; the fake fails loudly instead.
+    const user = await this.users.findById(authorization.usuarioId);
+    const author = await this.users.findById(authorization.criadoPorId);
+    const canceller = authorization.canceladoPorId
+      ? await this.users.findById(authorization.canceladoPorId)
+      : null;
+    const point = await this.accessPoints.findById(authorization.accessPointId);
+    const building = point ? await this.buildings.findById(point.buildingId) : null;
+    if (!user || !author || !point || !building) {
+      throw new Error(`Fake incompleto para a autorização ${authorization.id}`);
+    }
+    return {
+      authorization: { ...authorization },
+      usuario: { id: user.id, nome: user.nome, perfil: user.perfil },
+      local: {
+        id: point.id,
+        nome: point.nome,
+        tipo: point.tipo,
+        edificio: { id: building.id, nome: building.nome },
+      },
+      criadoPor: { id: author.id, nome: author.nome },
+      canceladoPor: canceller ? { id: canceller.id, nome: canceller.nome } : null,
+    };
   }
 
   /** Not part of the port: lets a test see every stored authorization. */
