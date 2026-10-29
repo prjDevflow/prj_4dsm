@@ -76,11 +76,85 @@ describe('ListAuthorizations', () => {
     });
   });
 
-  it.todo('deve filtrar por usuarioId');
-  it.todo('deve filtrar por accessPointId');
-  it.todo('deve filtrar por situação efetiva');
-  it.todo('deve dar a precedência CANCELADA, EXPIRADA, ESGOTADA, ATIVA ao filtrar por situação');
-  it.todo('deve incluir as pontas de dataDe e dataAte e excluir um dia fora');
-  it.todo('deve combinar os filtros');
-  it.todo('deve paginar e informar o total');
+  it('deve filtrar por usuarioId', async () => {
+    const { add, idsOf } = await makeSut();
+    const maria = add({ usuarioId: MARIA.id });
+    add({ usuarioId: JOAO.id });
+
+    expect(await idsOf(query({ usuarioId: MARIA.id }))).toEqual([maria]);
+  });
+
+  it('deve filtrar por accessPointId', async () => {
+    const { add, idsOf } = await makeSut();
+    add({ accessPointId: GATE.id });
+    const door = add({ accessPointId: DOOR.id });
+
+    expect(await idsOf(query({ accessPointId: DOOR.id }))).toEqual([door]);
+  });
+
+  it('deve filtrar por situação efetiva', async () => {
+    const { add, idsOf } = await makeSut();
+    const active = add({ dataFim: '2026-10-31' });
+    const spent = add({ dataFim: '2026-10-31', usosRealizados: 3 });
+    const expired = add({ dataFim: '2026-10-19' });
+    const cancelled = add({ dataFim: '2026-10-31', situacao: 'CANCELADA' });
+
+    expect(await idsOf(query({ situacao: 'ATIVA' }))).toEqual([active]);
+    expect(await idsOf(query({ situacao: 'ESGOTADA' }))).toEqual([spent]);
+    expect(await idsOf(query({ situacao: 'EXPIRADA' }))).toEqual([expired]);
+    expect(await idsOf(query({ situacao: 'CANCELADA' }))).toEqual([cancelled]);
+  });
+
+  it('deve dar a precedência CANCELADA, EXPIRADA, ESGOTADA, ATIVA ao filtrar por situação', async () => {
+    const { add, idsOf } = await makeSut();
+    const cancelledAndExpired = add({ dataFim: '2026-10-19', situacao: 'CANCELADA' });
+    const expiredAndSpent = add({ dataFim: '2026-10-19', usosRealizados: 3 });
+    const lastDaySpent = add({ dataFim: '2026-10-20', usosRealizados: 3 });
+
+    expect(await idsOf(query({ situacao: 'CANCELADA' }))).toEqual([cancelledAndExpired]);
+    expect(await idsOf(query({ situacao: 'EXPIRADA' }))).toEqual([expiredAndSpent]);
+    expect(await idsOf(query({ situacao: 'ESGOTADA' }))).toEqual([lastDaySpent]);
+    expect(await idsOf(query({ situacao: 'ATIVA' }))).toEqual([]);
+  });
+
+  it('deve incluir as pontas de dataDe e dataAte e excluir um dia fora', async () => {
+    const { add, idsOf } = await makeSut();
+    const endsOnFrom = add({ dataInicio: '2026-10-01', dataFim: '2026-10-10' });
+    add({ dataInicio: '2026-10-01', dataFim: '2026-10-09' });
+    const startsOnTo = add({ dataInicio: '2026-10-20', dataFim: '2026-10-30' });
+    add({ dataInicio: '2026-10-21', dataFim: '2026-10-30' });
+
+    const found = await idsOf(query({ dataDe: '2026-10-10', dataAte: '2026-10-20' }));
+
+    expect(found.sort()).toEqual([endsOnFrom, startsOnTo].sort());
+  });
+
+  it('deve combinar os filtros', async () => {
+    const { add, idsOf } = await makeSut();
+    const target = add({ usuarioId: MARIA.id, accessPointId: GATE.id, dataFim: '2026-10-31' });
+    add({ usuarioId: JOAO.id, accessPointId: GATE.id, dataFim: '2026-10-31' });
+    add({ usuarioId: MARIA.id, accessPointId: DOOR.id, dataFim: '2026-10-31' });
+    add({ usuarioId: MARIA.id, accessPointId: GATE.id, dataFim: '2026-10-31', usosRealizados: 3 });
+
+    const found = await idsOf(
+      query({
+        usuarioId: MARIA.id,
+        accessPointId: GATE.id,
+        situacao: 'ATIVA',
+        dataDe: '2026-10-25',
+      }),
+    );
+
+    expect(found).toEqual([target]);
+  });
+
+  it('deve paginar e informar o total', async () => {
+    const { sut, add } = await makeSut();
+    const ids = [add(), add(), add(), add(), add()];
+
+    const second = await sut.execute(query({ page: 2, pageSize: 2 }));
+
+    expect(second).toMatchObject({ page: 2, pageSize: 2, total: 5 });
+    expect(second.data.map((item) => item.id)).toEqual([ids[2], ids[1]]);
+  });
 });
