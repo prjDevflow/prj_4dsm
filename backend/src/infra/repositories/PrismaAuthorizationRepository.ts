@@ -1,9 +1,57 @@
 import type { Authorization } from '../../entities/Authorization';
+import { todayInSaoPaulo } from '../../entities/rules/todayInSaoPaulo';
 import type { Prisma } from '../../generated/prisma/client';
 import type {
   AuthorizationDetails,
+  AuthorizationListFilter,
   IAuthorizationRepository,
 } from '../../repositories/IAuthorizationRepository';
+
+const withRelations = {
+  usuario: { select: { id: true, nome: true, perfil: true } },
+  criadoPor: { select: { id: true, nome: true } },
+  canceladoPor: { select: { id: true, nome: true } },
+  accessPoint: {
+    select: {
+      id: true,
+      nome: true,
+      tipo: true,
+      building: { select: { id: true, nome: true } },
+    },
+  },
+} satisfies Prisma.AuthorizationInclude;
+
+type AuthorizationRow = Prisma.AuthorizationGetPayload<{ include: typeof withRelations }>;
+
+// Explicit mapping, so a column added later never reaches the entity by accident.
+const toDetails = (row: AuthorizationRow): AuthorizationDetails => ({
+  authorization: {
+    id: row.id,
+    usuarioId: row.usuarioId,
+    accessPointId: row.accessPointId,
+    dataInicio: row.dataInicio.toISOString().slice(0, 10),
+    dataFim: row.dataFim.toISOString().slice(0, 10),
+    horaInicio: row.horaInicio,
+    horaFim: row.horaFim,
+    usosPermitidos: row.usosPermitidos,
+    usosRealizados: row.usosRealizados,
+    situacao: row.situacao,
+    criadoPorId: row.criadoPorId,
+    criadoEm: row.criadoEm,
+    canceladoPorId: row.canceladoPorId,
+    canceladoEm: row.canceladoEm,
+    motivoCancelamento: row.motivoCancelamento,
+  },
+  usuario: row.usuario,
+  local: {
+    id: row.accessPoint.id,
+    nome: row.accessPoint.nome,
+    tipo: row.accessPoint.tipo,
+    edificio: row.accessPoint.building,
+  },
+  criadoPor: row.criadoPor,
+  canceladoPor: row.canceladoPor,
+});
 
 export class PrismaAuthorizationRepository implements IAuthorizationRepository {
   // A transaction client too: inside a unit of work the same code runs on the transaction.
@@ -35,49 +83,63 @@ export class PrismaAuthorizationRepository implements IAuthorizationRepository {
   async findViewById(id: string): Promise<AuthorizationDetails | null> {
     const row = await this.prisma.authorization.findUnique({
       where: { id },
-      include: {
-        usuario: { select: { id: true, nome: true, perfil: true } },
-        criadoPor: { select: { id: true, nome: true } },
-        canceladoPor: { select: { id: true, nome: true } },
-        accessPoint: {
-          select: {
-            id: true,
-            nome: true,
-            tipo: true,
-            building: { select: { id: true, nome: true } },
-          },
-        },
-      },
+      include: withRelations,
     });
-    if (!row) return null;
-    return {
-      authorization: {
-        id: row.id,
-        usuarioId: row.usuarioId,
-        accessPointId: row.accessPointId,
-        dataInicio: row.dataInicio.toISOString().slice(0, 10),
-        dataFim: row.dataFim.toISOString().slice(0, 10),
-        horaInicio: row.horaInicio,
-        horaFim: row.horaFim,
-        usosPermitidos: row.usosPermitidos,
-        usosRealizados: row.usosRealizados,
-        situacao: row.situacao,
-        criadoPorId: row.criadoPorId,
-        criadoEm: row.criadoEm,
-        canceladoPorId: row.canceladoPorId,
-        canceladoEm: row.canceladoEm,
-        motivoCancelamento: row.motivoCancelamento,
-      },
-      usuario: row.usuario,
-      local: {
-        id: row.accessPoint.id,
-        nome: row.accessPoint.nome,
-        tipo: row.accessPoint.tipo,
-        edificio: row.accessPoint.building,
-      },
-      criadoPor: row.criadoPor,
-      canceladoPor: row.canceladoPor,
+    return row ? toDetails(row) : null;
+  }
+
+  async list(filter: AuthorizationListFilter) {
+    const where: Prisma.AuthorizationWhereInput = {
+      AND: [
+        filter.usuarioId ? { usuarioId: filter.usuarioId } : {},
+        filter.accessPointId ? { accessPointId: filter.accessPointId } : {},
+        // Overlap with [dataDe, dataAte]: it ends on or after the start and begins on or before the end.
+        filter.dataDe ? { dataFim: { gte: new Date(filter.dataDe) } } : {},
+        filter.dataAte ? { dataInicio: { lte: new Date(filter.dataAte) } } : {},
+        filter.situacao ? this.effectiveStatus(filter.situacao, filter.now) : {},
+      ],
     };
+    const orderBy: Prisma.AuthorizationOrderByWithRelationInput[] =
+      filter.sort === 'recent'
+        ? [{ criadoEm: 'desc' }, { id: 'desc' }]
+        : [{ dataFim: 'asc' }, { id: 'asc' }];
+    // Two queries, not `$transaction`: the repository also runs on a transaction client.
+    const rows = await this.prisma.authorization.findMany({
+      where,
+      orderBy,
+      skip: (filter.page - 1) * filter.pageSize,
+      take: filter.pageSize,
+      include: withRelations,
+    });
+    const total = await this.prisma.authorization.count({ where });
+    return { items: rows.map(toDetails), total };
+  }
+
+  // The contract's order of precedence (rules/computeEffectiveStatus), written as a condition.
+  private effectiveStatus(
+    situacao: NonNullable<AuthorizationListFilter['situacao']>,
+    now: Date,
+  ): Prisma.AuthorizationWhereInput {
+    const today = new Date(todayInSaoPaulo(now));
+    const { usosPermitidos } = this.prisma.authorization.fields;
+    switch (situacao) {
+      case 'CANCELADA':
+        return { situacao: 'CANCELADA' };
+      case 'EXPIRADA':
+        return { situacao: 'ATIVA', dataFim: { lt: today } };
+      case 'ESGOTADA':
+        return {
+          situacao: 'ATIVA',
+          dataFim: { gte: today },
+          usosRealizados: { gte: usosPermitidos },
+        };
+      case 'ATIVA':
+        return {
+          situacao: 'ATIVA',
+          dataFim: { gte: today },
+          usosRealizados: { lt: usosPermitidos },
+        };
+    }
   }
 
   async cancelIfActive(input: {
