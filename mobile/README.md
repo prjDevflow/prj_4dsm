@@ -36,8 +36,16 @@ Documentos do app (arquitetura, contrato, etapas, STATUS): [.claude/](.claude/).
 
    Se a rede bloquear, use `npx expo start --tunnel`.
 
-A tela inicial (provisória até a F04) mostra **"API: ok"** com a versão e o estado do banco, ou
-**"API: fora do ar"** com o botão "Tentar novamente".
+O app abre no **login** (T02). Com a API real e o seed do backend, use:
+
+| Perfil        | E-mail                | Senha              | Cai em                  |
+| ------------- | --------------------- | ------------------ | ----------------------- |
+| Administrador | `admin@dev.local`     | `Admin-Dev-2026`   | início do administrador |
+| Condômino     | `condomino@dev.local` | `Usuario-Dev-2026` | início da pessoa        |
+| Visitante     | `visitante@dev.local` | `Usuario-Dev-2026` | início da pessoa        |
+
+São as senhas públicas do `backend/.env.example`, só para desenvolvimento. Os inícios são provisórios
+(saudação, perfil e "Sair") até a F04 trazer a T03 e a T14.
 
 ## Apontar para a API real ou para o mock
 
@@ -64,11 +72,11 @@ Para rotas que ainda não existem no backend, cada serviço tem uma versão fals
 todos reais):
 
 ```bash
-EXPO_PUBLIC_FAKE_SERVICES=getHealth
+EXPO_PUBLIC_FAKE_SERVICES=getHealth,loginUser
 ```
 
 Os nomes aceitos são as chaves de `createServices` em [src/service/container.ts](src/service/container.ts).
-Hoje: `getHealth`.
+Hoje: `getHealth` e `loginUser`. O login falso aceita os mesmos três usuários e senhas do seed.
 
 ## Tema e componentes
 
@@ -85,9 +93,10 @@ As telas só usam o que está em `@/components/ui` e `@/theme`, com os valores d
   `Alert`, `Dialog`, `useToast`, `LoadingState`, `EmptyState`, `ErrorState`, `OfflineBanner`,
   `ScreenContainer`, `Header` e `Fab`. Formas em `@/components/shapes` e ícones em `@/components/Icon`.
 
-Em desenvolvimento, a tela inicial tem o botão **"Abrir catálogo de componentes"** (rota `/catalog`), com
-todos os componentes e estados nas duas escalas. Use-o para revisar com o Rafael e para conferir a fonte do
-celular no máximo. Em produção, a rota volta para o início.
+Em desenvolvimento, o rodapé do login tem **"Ferramentas de desenvolvimento"** (rota `/health`): mostra se
+a API está no ar e leva ao **catálogo de componentes** (rota `/catalog`), com todos os componentes e estados
+nas duas escalas. Use-o para revisar com o Rafael e para conferir a fonte do celular no máximo. Em produção,
+as duas rotas voltam para o início.
 
 ## Comandos
 
