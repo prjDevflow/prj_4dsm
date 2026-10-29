@@ -53,6 +53,24 @@ export class InMemoryAuthorizationRepository implements IAuthorizationRepository
     };
   }
 
+  async cancelIfActive(input: {
+    id: string;
+    canceladoPorId: string;
+    canceladoEm: Date;
+    motivo: string | null;
+  }) {
+    const current = this.items.get(input.id);
+    if (!current || current.situacao !== 'ATIVA') return false;
+    this.items.set(input.id, {
+      ...current,
+      situacao: 'CANCELADA',
+      canceladoPorId: input.canceladoPorId,
+      canceladoEm: input.canceladoEm,
+      motivoCancelamento: input.motivo,
+    });
+    return true;
+  }
+
   async hasActiveNonExpiredForAccessPoint(accessPointId: string, today: string) {
     return [...this.items.values()].some(
       (a) => a.accessPointId === accessPointId && a.situacao === 'ATIVA' && a.dataFim >= today,

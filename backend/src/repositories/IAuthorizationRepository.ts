@@ -29,4 +29,14 @@ export interface IAuthorizationRepository {
   save(authorization: Authorization): Promise<void>;
   /** The id must already be validated (a malformed id would make the database fail instead of returning null). */
   findViewById(id: string): Promise<AuthorizationDetails | null>;
+  /**
+   * Cancels only while the stored status is still `ATIVA`, in one statement, so two cancellations
+   * at once cannot overwrite each other. Returns whether this call was the one that cancelled.
+   */
+  cancelIfActive(input: {
+    id: string;
+    canceladoPorId: string;
+    canceladoEm: Date;
+    motivo: string | null;
+  }): Promise<boolean>;
 }
