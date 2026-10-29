@@ -39,7 +39,6 @@ export interface AuthorizationListResult {
 
 /**
  * "Active and not expired" means stored status `ATIVA` and `dataFim` today or later (usage is ignored).
- * B09 grows this port again.
  */
 export interface IAuthorizationRepository {
   /** `today` is YYYY-MM-DD in America/Sao_Paulo. */

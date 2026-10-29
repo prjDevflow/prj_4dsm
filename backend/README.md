@@ -201,7 +201,15 @@ Só `ADMIN` (rotas em `/buildings`, `/access-points` e `/terminals`; contrato no
 
 ## Autorizações
 
-Só `ADMIN` (`POST /authorizations` e `GET /authorizations/{id}`; contrato no Swagger). Consulta, cancelamento e "minhas autorizações" chegam na B09.
+Criar, listar e cancelar: só `ADMIN`. Ler uma e listar "as minhas": cada usuário, as próprias (contrato no Swagger).
+
+| Rota | Quem |
+|---|---|
+| `POST /authorizations` | `ADMIN` |
+| `GET /authorizations` (filtros `usuarioId`, `accessPointId`, `situacao`, `dataDe`, `dataAte`; paginada) | `ADMIN` |
+| `GET /authorizations/{id}` | `ADMIN` lê qualquer uma; os demais, só as próprias (a de outra pessoa dá `404`) |
+| `PATCH /authorizations/{id}/cancel` | `ADMIN` |
+| `GET /me/authorizations` | qualquer perfil, só as do token |
 
 ```bash
 curl -X POST http://localhost:3000/api/v1/authorizations \
@@ -212,6 +220,14 @@ curl -X POST http://localhost:3000/api/v1/authorizations \
 - Usuário ou ponto inexistente dá `404`; inativo dá `422` no campo `usuarioId` ou `accessPointId`. `dataFim` não pode ser anterior a `dataInicio` nem ao dia de hoje em São Paulo, e `horaFim` tem de ser depois de `horaInicio` (sem virada de meia-noite).
 - A resposta traz `usosRestantes` e `situacaoEfetiva` (`ATIVA`, `CANCELADA`, `EXPIRADA` ou `ESGOTADA`), calculadas na hora.
 - A criação trava o usuário e o ponto (`FOR SHARE`) até gravar: desativar qualquer um dos dois ao mesmo tempo espera, ou já foi confirmado e a criação é recusada.
+- O filtro `situacao` usa a situação **efetiva** e é aplicado na consulta. `dataDe` e `dataAte` mantêm as autorizações cujo período se sobrepõe ao intervalo (as pontas valem). A lista do admin vem das mais recentes para as mais antigas; `/me/authorizations` vem por `dataFim`, as que terminam primeiro à frente.
+- Cancelar é idempotente: cancelar de novo devolve `200` com o estado atual e não muda quem cancelou, quando nem o motivo (`motivo` opcional, até 200 caracteres).
+
+```bash
+curl -X PATCH http://localhost:3000/api/v1/authorizations/<id>/cancel \
+  -H "Authorization: Bearer <accessToken do admin>" -H 'content-type: application/json' \
+  -d '{"motivo":"Pedido da moradora"}'
+```
 
 ## Estrutura
 
