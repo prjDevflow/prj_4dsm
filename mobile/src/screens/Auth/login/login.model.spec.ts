@@ -91,6 +91,21 @@ describe('useLoginModel', () => {
     },
   );
 
+  it('só foca a senha depois que os campos voltam a ficar habilitados', async () => {
+    const service = new FakeLoginUserService();
+    service.willFail(new ApiError(401, 'CREDENCIAIS_INVALIDAS', ''));
+    const { result } = await renderModel(service);
+    const submittingWhenFocused: boolean[] = [];
+    jest
+      .spyOn(result.current.form, 'setFocus')
+      .mockImplementation(() => submittingWhenFocused.push(result.current.isSubmitting));
+
+    await fill(result, 'admin@dev.local', 'errada');
+    await submit(result);
+
+    await waitFor(() => expect(submittingWhenFocused).toEqual([false]));
+  });
+
   it('toque duplo em "Entrar" chama o serviço uma vez só', async () => {
     let finish: () => void = () => {};
     const exec = jest.fn(
