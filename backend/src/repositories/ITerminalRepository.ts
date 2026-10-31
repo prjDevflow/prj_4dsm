@@ -12,6 +12,18 @@ export interface TerminalListResult {
   total: number;
 }
 
+/** What one heartbeat tells the server about the terminal. */
+export interface TerminalHeartbeat {
+  /** When the server heard from the terminal (its own clock, never the terminal's). */
+  contatoEm: Date;
+  gpsFix: boolean;
+  gpsSimulado: boolean;
+  firmware: string;
+  rssi: number | null;
+  /** Null without a fix: the stored position stays as it was. */
+  posicao: { latitude: number; longitude: number } | null;
+}
+
 export interface ITerminalRepository {
   findById(id: string): Promise<Terminal | null>;
   /**
@@ -26,6 +38,16 @@ export interface ITerminalRepository {
   updateDetails(id: string, changes: { nome?: string; ativo?: boolean }): Promise<Terminal | null>;
   /** Replaces only the key hash. False when the terminal does not exist. */
   replaceKeyHash(id: string, apiKeyHash: string): Promise<boolean>;
+  /**
+   * Stores a heartbeat only if the terminal was last heard from at or before `previousContactUntil` (or never).
+   * One conditional write, so two simultaneous heartbeats cannot both pass. False means nothing was written:
+   * the previous contact was too recent (terminals are never deleted, so a missing id is not a case here).
+   */
+  updateHeartbeat(
+    id: string,
+    heartbeat: TerminalHeartbeat,
+    previousContactUntil: Date,
+  ): Promise<boolean>;
   /** Ordered by name. */
   list(filter: TerminalListFilter): Promise<TerminalListResult>;
 }

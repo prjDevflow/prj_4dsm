@@ -3,6 +3,7 @@ import { buildAuthRoutes } from './auth.routes';
 import { buildAuthorizationsRoutes } from './authorizations.routes';
 import { healthRoutes } from './health.routes';
 import { buildLocationsRoutes } from './locations.routes';
+import { buildTerminalChannelRoutes } from './terminalChannel.routes';
 import { buildTerminalsRoutes } from './terminals.routes';
 import { buildUsersRoutes } from './users.routes';
 
@@ -13,6 +14,7 @@ export function buildApiRouter() {
   router.use(buildUsersRoutes());
   router.use(buildLocationsRoutes());
   router.use(buildTerminalsRoutes());
+  router.use(buildTerminalChannelRoutes());
   router.use(buildAuthorizationsRoutes());
   return router;
 }

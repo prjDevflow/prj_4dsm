@@ -6,7 +6,8 @@ info:
 servers:
   - url: http://localhost:3000/api/v1
     description: Local
-# Padrão: toda rota exige o token. As rotas públicas (health, login) declaram `security: []`.
+# Padrão: toda rota exige o token. As rotas públicas (health, login) declaram `security: []`
+# e as do terminal (`/terminal/*`) declaram a chave dele (`terminalId` e `terminalKey`).
 security:
   - bearerAuth: []
 tags:
@@ -20,6 +21,10 @@ tags:
     description: Edifícios e pontos de acesso (só ADMIN)
   - name: Terminals
     description: Terminais de acesso e as chaves deles (só ADMIN)
+  - name: Terminal
+    description: >-
+      Rotas que o próprio terminal chama, autenticadas com `X-Terminal-Id` e `X-Terminal-Key`
+      (não usam o token de usuário).
   - name: Authorizations
     description: >-
       Autorizações de acesso. Criar, listar e cancelar: só ADMIN. Ler uma e listar "as minhas":
@@ -1159,6 +1164,72 @@ paths:
           $ref: '#/components/responses/AuthorizationQueryError'
         '500':
           $ref: '#/components/responses/InternalError'
+  /terminal/heartbeat:
+    post:
+      tags: [Terminal]
+      summary: Heartbeat do terminal
+      description: >-
+        O terminal chama a cada 10 s. Autenticado pela chave do terminal (cabeçalhos
+        `X-Terminal-Id` e `X-Terminal-Key`), nunca pelo token de usuário.
+
+
+        Grava o instante do contato (relógio do **servidor**), `gpsFix`, `gpsSimulado`, `firmware`,
+        `wifiRssi` (guardado como `rssi`) e a posição. Com `gpsFix` falso a latitude e a longitude
+        enviadas são ignoradas e a última posição conhecida continua gravada; com `gpsFix`
+        verdadeiro elas são obrigatórias. `uptimeS` e `eventosPendentes` são aceitos e não são
+        guardados. Campos desconhecidos são ignorados.
+
+
+        Depois do heartbeat `GET /terminals` mostra o terminal online (último contato com menos de
+        `TERMINAL_ONLINE_WINDOW_S`, 30 s) com a posição e a hora do contato.
+
+
+        **Limite:** um heartbeat a cada `HEARTBEAT_MIN_INTERVAL_S` (2 s) por terminal. O intervalo
+        exato de 2 s ainda passa; antes disso a resposta é 429 e nada é gravado (o contato anterior
+        não muda). A resposta traz `serverTime` em UTC e o bloco `config`, que vem do ambiente do
+        servidor.
+      operationId: registerHeartbeat
+      security:
+        - terminalId: []
+          terminalKey: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Heartbeat'
+            example:
+              latitude: -23.30512
+              longitude: -45.96551
+              gpsFix: true
+              gpsSimulado: false
+              firmware: 0.3.0
+              uptimeS: 1234
+              wifiRssi: -61
+              eventosPendentes: 0
+      responses:
+        '200':
+          description: Heartbeat registrado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HeartbeatResposta'
+              example:
+                serverTime: '2026-10-20T14:32:07Z'
+                config:
+                  qrRefreshMs: 10000
+                  commandPollMs: 1000
+                  aberturaMs: 5000
+        '401':
+          $ref: '#/components/responses/TerminalUnauthorized'
+        '403':
+          $ref: '#/components/responses/TerminalForbidden'
+        '422':
+          $ref: '#/components/responses/HeartbeatValidationError'
+        '429':
+          $ref: '#/components/responses/HeartbeatRateLimited'
+        '500':
+          $ref: '#/components/responses/InternalError'
 components:
   securitySchemes:
     bearerAuth:
@@ -1171,7 +1242,7 @@ components:
       in: header
       name: X-Terminal-Id
       description: >-
-        Id do terminal (uuid). Usado nas rotas do terminal (`/terminal/*`, a partir da B11) junto
+        Id do terminal (uuid). Usado nas rotas do terminal (`/terminal/*`) junto
         com `X-Terminal-Key`. Chave errada, ausente ou terminal inexistente: 401 `UNAUTHORIZED`
         com a mesma mensagem; terminal inativo com a chave certa: 403 `FORBIDDEN`.
     terminalKey:
@@ -1589,6 +1660,64 @@ components:
           maxLength: 120
         ativo:
           type: boolean
+    Heartbeat:
+      type: object
+      required: [gpsFix, firmware]
+      properties:
+        latitude:
+          type: [number, 'null']
+          minimum: -90
+          maximum: 90
+          description: Obrigatória com `gpsFix` verdadeiro; ignorada sem fix.
+        longitude:
+          type: [number, 'null']
+          minimum: -180
+          maximum: 180
+          description: Obrigatória com `gpsFix` verdadeiro; ignorada sem fix.
+        gpsFix:
+          type: boolean
+        gpsSimulado:
+          type: boolean
+          default: false
+          description: Verdadeiro quando a posição vem do simulador, não de um GPS real.
+        firmware:
+          type: string
+          minLength: 1
+          maxLength: 40
+        uptimeS:
+          type: integer
+          minimum: 0
+          description: Aceito e não guardado.
+        wifiRssi:
+          type: integer
+          minimum: -127
+          maximum: 0
+          description: Guardado como `rssi`. Sem ele o `rssi` fica nulo.
+        eventosPendentes:
+          type: integer
+          minimum: 0
+          description: Aceito e não guardado.
+    HeartbeatResposta:
+      type: object
+      required: [serverTime, config]
+      properties:
+        serverTime:
+          type: string
+          format: date-time
+          description: Hora do servidor em UTC, ao segundo.
+        config:
+          type: object
+          required: [qrRefreshMs, commandPollMs, aberturaMs]
+          properties:
+            qrRefreshMs:
+              type: integer
+              description: De quanto em quanto tempo pedir um QR novo (`QR_REFRESH_MS`).
+            commandPollMs:
+              type: integer
+              description: De quanto em quanto tempo consultar comandos (`COMMAND_POLL_MS`).
+            aberturaMs:
+              type: integer
+              description: Por quanto tempo a catraca fica aberta (`OPEN_DURATION_MS`).
     ChaveDoTerminal:
       type: object
       required: [id, apiKey]
@@ -2068,6 +2197,53 @@ components:
             error:
               code: NOT_FOUND
               message: Usuário não encontrado
+    TerminalUnauthorized:
+      description: >-
+        Chave errada, ausente, terminal inexistente ou id malformado: sempre a mesma resposta, para
+        não revelar quais terminais existem
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          example:
+            error:
+              code: UNAUTHORIZED
+              message: Credenciais do terminal inválidas
+    TerminalForbidden:
+      description: Terminal inativo, com a chave certa
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          example:
+            error:
+              code: FORBIDDEN
+              message: Terminal inativo
+    HeartbeatValidationError:
+      description: Corpo inválido, com a mensagem de cada campo em `details`
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          example:
+            error:
+              code: VALIDATION_ERROR
+              message: Dados inválidos
+              details:
+                - field: latitude
+                  message: deve estar entre -90 e 90
+    HeartbeatRateLimited:
+      description: >-
+        Outro heartbeat do mesmo terminal em menos de `HEARTBEAT_MIN_INTERVAL_S` (2 s). Nada foi
+        gravado; basta mandar o próximo no ritmo normal.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          example:
+            error:
+              code: RATE_LIMITED
+              message: Heartbeat muito frequente. Aguarde alguns segundos
     RateLimited:
       description: Limite de tentativas por minuto excedido
       headers:

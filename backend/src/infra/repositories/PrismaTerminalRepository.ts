@@ -3,6 +3,7 @@ import type { PrismaClient } from '../../generated/prisma/client';
 import type {
   ITerminalRepository,
   TerminalListFilter,
+  TerminalHeartbeat,
   TerminalListResult,
 } from '../../repositories/ITerminalRepository';
 import { ConflictError } from '../../shared/errors/AppError';
@@ -67,6 +68,29 @@ export class PrismaTerminalRepository implements ITerminalRepository {
     const { count } = await this.prisma.terminal.updateMany({
       where: { id },
       data: { apiKeyHash },
+    });
+    return count > 0;
+  }
+
+  async updateHeartbeat(id: string, heartbeat: TerminalHeartbeat, previousContactUntil: Date) {
+    // The contact check and the write are one statement: of two simultaneous heartbeats only one matches.
+    const { count } = await this.prisma.terminal.updateMany({
+      where: {
+        id,
+        OR: [{ ultimoContatoEm: null }, { ultimoContatoEm: { lte: previousContactUntil } }],
+      },
+      data: {
+        ultimoContatoEm: heartbeat.contatoEm,
+        gpsFix: heartbeat.gpsFix,
+        gpsSimulado: heartbeat.gpsSimulado,
+        firmware: heartbeat.firmware,
+        rssi: heartbeat.rssi,
+        // Leaving the columns out keeps the last known position when there is no fix.
+        ...(heartbeat.posicao && {
+          ultimaLat: heartbeat.posicao.latitude,
+          ultimaLon: heartbeat.posicao.longitude,
+        }),
+      },
     });
     return count > 0;
   }
