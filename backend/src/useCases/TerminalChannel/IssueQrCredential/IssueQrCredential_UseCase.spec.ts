@@ -83,10 +83,69 @@ describe('IssueQrCredential', () => {
     ]);
   });
 
-  it.todo('deve gerar tokens diferentes em dois pedidos seguidos');
-  it.todo('deve fazer expiraEm menos emitidoEm ser 15 s por padrão');
-  it.todo('deve mudar a validade quando QR_TTL_SECONDS ou QR_TOLERANCE_SECONDS mudam');
-  it.todo('deve devolver emitidoEm, expiraEm em ISO e renovarEmMs da configuração');
+  it('deve gerar tokens diferentes em dois pedidos seguidos', async () => {
+    const { sut, credentials, clock } = makeSut({}, []);
+
+    const first = await sut.execute(TERMINAL_ID);
+    clock.advance(5000);
+    const second = await sut.execute(TERMINAL_ID);
+
+    expect(second.payload).not.toBe(first.payload);
+    const [a, b] = credentials.all();
+    expect(a?.tokenHash).not.toBe(b?.tokenHash);
+  });
+
+  it('deve fazer expiraEm menos emitidoEm ser 15 s por padrão', async () => {
+    const { sut } = makeSut();
+
+    const result = await sut.execute(TERMINAL_ID);
+
+    expect(Date.parse(result.expiraEm) - Date.parse(result.emitidoEm)).toBe(15_000);
+  });
+
+  it.each([
+    { ttlSeconds: 20, toleranceSeconds: 10, expected: 30_000 },
+    { ttlSeconds: 10, toleranceSeconds: 0, expected: 10_000 },
+    { ttlSeconds: 3, toleranceSeconds: 2, expected: 5_000 },
+  ])(
+    'deve mudar a validade para $expected ms com TTL $ttlSeconds s e tolerância $toleranceSeconds s',
+    async ({ ttlSeconds, toleranceSeconds, expected }) => {
+      const { sut, credentials } = makeSut({ ttlSeconds, toleranceSeconds });
+
+      const result = await sut.execute(TERMINAL_ID);
+
+      expect(Date.parse(result.expiraEm) - Date.parse(result.emitidoEm)).toBe(expected);
+      const [stored] = credentials.all();
+      expect(stored!.expiraEm.getTime() - stored!.emitidoEm.getTime()).toBe(expected);
+    },
+  );
+
+  it('deve devolver emitidoEm e expiraEm em ISO e renovarEmMs da configuração', async () => {
+    const { sut, clock } = makeSut({ renovarEmMs: 7000 });
+    clock.set(new Date('2026-10-20T14:32:07Z'));
+
+    const result = await sut.execute(TERMINAL_ID);
+
+    expect(result).toEqual({
+      payload: `ACS1:${TOKEN}`,
+      emitidoEm: '2026-10-20T14:32:07.000Z',
+      expiraEm: '2026-10-20T14:32:22.000Z',
+      renovarEmMs: 7000,
+    });
+  });
+
+  it('deve manter o QR anterior intacto e válido até a própria expiração', async () => {
+    const { sut, credentials, clock } = makeSut({}, []);
+    await sut.execute(TERMINAL_ID);
+    const [before] = credentials.all();
+    clock.advance(10_000);
+
+    await sut.execute(TERMINAL_ID);
+
+    expect(credentials.all()).toHaveLength(2);
+    expect(credentials.all()[0]).toEqual(before);
+  });
+
   it.todo('deve lançar 429 quando o pedido vem com menos de 5 s do anterior');
   it.todo('deve emitir quando o pedido vem com exatamente 5 s do anterior');
   it.todo('deve respeitar o intervalo configurado');
