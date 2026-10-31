@@ -1,8 +1,9 @@
 # Backend CI: lint, typecheck, build and tests (unit with coverage, integration with PostgreSQL).
+# Mobile CI: lint, typecheck, format and tests with coverage of the Expo app.
 #
-# The workflow always runs, so the single required check `backend-ci` never stays "pending" on pull
-# requests that only touch other folders (mobile/, terminal/, ...). Heavy steps run only when
-# backend/** (or this file) changed.
+# The workflow always runs, so the checks `backend-ci` and `mobile-ci` never stay "pending" on pull
+# requests that only touch other folders. Heavy steps run only when backend/** or mobile/** (or this
+# file) changed.
 name: Backend CI
 
 on:
@@ -19,18 +20,19 @@ concurrency:
 
 jobs:
   changes:
-    name: Detectar mudanças no backend
+    name: Detectar mudanças no backend e no mobile
     runs-on: ubuntu-24.04
     timeout-minutes: 5
     outputs:
       backend: ${{ steps.filter.outputs.backend }}
+      mobile: ${{ steps.filter.outputs.mobile }}
     steps:
       - name: Baixar o repositório
         uses: actions/checkout@v7
         with:
           fetch-depth: 0
 
-      - name: Verificar se backend/** mudou
+      - name: Verificar se backend/** ou mobile/** mudou
         id: filter
         env:
           EVENT: ${{ github.event_name }}
@@ -46,8 +48,9 @@ jobs:
 
           # New branch (all-zero "before"), force push or missing commit: no reliable base, run everything.
           if [ -z "$base" ] || [[ "$base" =~ ^0+$ ]] || ! git cat-file -e "${base}^{commit}" 2>/dev/null; then
-            echo "Sem base para comparar; o backend roda por completo."
+            echo "Sem base para comparar; backend e mobile rodam por completo."
             echo "backend=true" >> "$GITHUB_OUTPUT"
+            echo "mobile=true" >> "$GITHUB_OUTPUT"
             exit 0
           fi
 
@@ -60,6 +63,13 @@ jobs:
           else
             echo "Nada do backend mudou; os passos pesados serão pulados."
             echo "backend=false" >> "$GITHUB_OUTPUT"
+          fi
+
+          if echo "$changed" | grep -qE '^(mobile/|\.github/workflows/ci\.yml$)'; then
+            echo "mobile=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "Nada do mobile mudou; os passos pesados serão pulados."
+            echo "mobile=false" >> "$GITHUB_OUTPUT"
           fi
 
   backend:
@@ -160,4 +170,72 @@ jobs:
             success) echo "Backend verde." ;;
             skipped) echo "Backend sem mudanças; nada a validar." ;;
             *) echo "Backend: $BACKEND_RESULT."; exit 1 ;;
+          esac
+
+  mobile:
+    name: Mobile
+    needs: changes
+    if: needs.changes.outputs.mobile == 'true'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    defaults:
+      run:
+        working-directory: mobile
+    steps:
+      - name: Baixar o repositório
+        uses: actions/checkout@v7
+
+      - name: Instalar dependências
+        uses: actions/setup-node@v7
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: mobile/package-lock.json
+
+      - name: Instalar pacotes (npm ci)
+        run: npm ci
+
+      - name: Lint (inclui as fronteiras de camada)
+        run: npm run lint
+
+      - name: Typecheck
+        run: npm run typecheck
+
+      - name: Formatação
+        run: npm run format:check
+
+      - name: Testes com cobertura
+        run: npm run test:cov -- --ci
+
+      - name: Publicar o relatório de cobertura
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: mobile-coverage
+          path: mobile/coverage
+          if-no-files-found: warn
+          retention-days: 14
+
+  # Same pattern as backend-ci: passes when the mobile job passed or was skipped (no mobile changes).
+  mobile-ci:
+    name: mobile-ci
+    if: always()
+    needs: [changes, mobile]
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - name: Conferir o resultado do mobile
+        env:
+          CHANGES_RESULT: ${{ needs.changes.result }}
+          MOBILE_RESULT: ${{ needs.mobile.result }}
+        run: |
+          echo "changes: $CHANGES_RESULT | mobile: $MOBILE_RESULT"
+          if [ "$CHANGES_RESULT" != "success" ]; then
+            echo "A detecção de mudanças falhou."
+            exit 1
+          fi
+          case "$MOBILE_RESULT" in
+            success) echo "Mobile verde." ;;
+            skipped) echo "Mobile sem mudanças; nada a validar." ;;
+            *) echo "Mobile: $MOBILE_RESULT."; exit 1 ;;
           esac

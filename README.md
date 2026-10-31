@@ -24,18 +24,18 @@ Sistema integrado de controle de acesso para edifícios e condomínios, formado 
 | Parte          | Pasta       | Situação                                                                                                  |
 | -------------- | ----------- | --------------------------------------------------------------------------------------------------------- |
 | Backend        | `backend/`  | Setup, Docker, Prisma, CI e modelo de dados com seed prontos (B01 a B04). Autenticação (B05) em andamento |
-| App mobile     | `mobile/`   | Setup do app em andamento (F01): Expo, testes com Jest e MSW, cliente HTTP e servidor mock                |
+| App mobile     | `mobile/`   | Setup do app (F01) em revisão: Expo SDK 58, Expo Router, cliente HTTP, testes com Jest e MSW, mock da API |
 | Terminal       | `terminal/` | Ainda não iniciado                                                                                        |
 | Infraestrutura | `infra/`    | Ainda não iniciada (banco em nuvem e deploy chegam na B10)                                                |
 
-O andamento etapa por etapa fica em [backend/docs/ai/STATUS.md](backend/docs/ai/STATUS.md) e [mobile/docs/ai/STATUS.md](mobile/docs/ai/STATUS.md).
+O andamento etapa por etapa fica em [backend/docs/ai/STATUS.md](backend/docs/ai/STATUS.md) e [mobile/.claude/STATUS.md](mobile/.claude/STATUS.md).
 
 ## Tecnologias
 
 | Parte   | Stack                                                                                          |
 | ------- | ---------------------------------------------------------------------------------------------- |
 | Backend | Node.js, Express 5, TypeScript (`strict`), Prisma 7, PostgreSQL 17, Zod, Pino, Vitest          |
-| Mobile  | React Native, Expo SDK 57, Expo Router, TypeScript (`strict`), Zod, Jest, Testing Library, MSW |
+| Mobile  | React Native, Expo SDK 58, Expo Router, TypeScript (`strict`), Zod, Jest, Testing Library, MSW |
 | DevOps  | Docker e Docker Compose, GitHub Actions                                                        |
 
 ## Estrutura do repositório
@@ -101,9 +101,9 @@ npm start       # inicia o Expo; leia o QR Code com o Expo Go
 | Onde      | Comando                                                                                                     |
 | --------- | ----------------------------------------------------------------------------------------------------------- |
 | `backend` | `npm test` (unitários), `npm run test:int` (integração com PostgreSQL), `npm run lint`, `npm run typecheck` |
-| `mobile`  | `npm test`, `npm run test:mock`, `npm run lint`, `npm run typecheck`, `npm run format:check`                |
+| `mobile`  | `npm test`, `npm run test:cov`, `npm run lint`, `npm run typecheck`, `npm run format:check`                 |
 
-O projeto segue TDD: todo código de produção nasce de um teste que falhou antes. O CI do backend ([.github/workflows/ci.yml](.github/workflows/ci.yml)) roda lint, typecheck, build e os testes em todo push e pull request, e o check `backend-ci` é obrigatório para o merge em `develop` e `main`.
+O projeto segue TDD: todo código de produção nasce de um teste que falhou antes. O CI ([.github/workflows/ci.yml](.github/workflows/ci.yml)) roda lint, typecheck, build e os testes do backend e lint, typecheck, formatação e testes do app em todo push e pull request. O check `backend-ci` é obrigatório para o merge em `develop` e `main`; o `mobile-ci` roda no PR e a decisão de torná-lo obrigatório é do Eduardo.
 
 ## Fluxo de trabalho
 
@@ -118,8 +118,8 @@ O projeto segue TDD: todo código de produção nasce de um teste que falhou ant
 | Integrante | Responsável por |
 | ---------- | --------------- |
 | Eduardo    | Backend         |
-| Lucas      | App mobile      |
-| Pedro      | Terminal (IoT)  |
+| Pedro      | App mobile      |
+| Matheus    | Terminal (IoT)  |
 | Rafael     | Design do app   |
 
 ## Documentação
@@ -127,6 +127,7 @@ O projeto segue TDD: todo código de produção nasce de um teste que falhou ant
 - [README do backend](backend/README.md): instalação, Docker, banco, testes e CI.
 - [Modelo de dados](backend/docs/modelo-de-dados.md): diagrama ER das tabelas.
 - [Domínio e contrato da API](backend/docs/ai/03-domain-and-contract.md): requisitos, regras de negócio, rotas e códigos.
-- [Etapas do app mobile](mobile/docs/ai/etapas-frontend.md): telas, textos e critérios de cada etapa.
+- [README do app mobile](mobile/README.md): como rodar no celular, apontar para a API ou para o mock e ligar serviços falsos.
+- [Documentos do app mobile](mobile/.claude/00-onboarding.md): arquitetura, contrato, telas, textos e critérios de cada etapa.
 - [Design do app mobile](docs/app-mobile/design/README.md): telas no Figma, decisões de design e tokens.
-- [AGENTS.md do backend](backend/AGENTS.md) e [do mobile](mobile/AGENTS.md): regras para quem trabalha com assistentes de IA.
+- [AGENTS.md do backend](backend/AGENTS.md) e [do mobile](mobile/.claude/AGENTS.md): regras para quem trabalha com assistentes de IA.
