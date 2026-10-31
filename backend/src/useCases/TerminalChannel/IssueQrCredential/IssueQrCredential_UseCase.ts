@@ -22,6 +22,10 @@ export interface IssueQrCredentialResult {
   renovarEmMs: number;
 }
 
+const PAYLOAD_PREFIX = 'ACS1:';
+/** 16 random bytes are 22 characters in base64url without padding. */
+const TOKEN_BYTES = 16;
+
 export class IssueQrCredentialUseCase {
   constructor(
     private credentials: IQrCredentialRepository,
@@ -32,7 +36,15 @@ export class IssueQrCredentialUseCase {
     private config: IssueQrCredentialConfig,
   ) {}
 
-  async execute(terminalId: string): Promise<IssueQrCredentialResult> {
-    throw new Error(`não implementado: ${terminalId}`);
+  async execute(_terminalId: string): Promise<IssueQrCredentialResult> {
+    const now = this.clock.now();
+    const token = this.random.base64Url(TOKEN_BYTES);
+    const lifeMs = (this.config.ttlSeconds + this.config.toleranceSeconds) * 1000;
+    return {
+      payload: `${PAYLOAD_PREFIX}${token}`,
+      emitidoEm: now.toISOString(),
+      expiraEm: new Date(now.getTime() + lifeMs).toISOString(),
+      renovarEmMs: this.config.renovarEmMs,
+    };
   }
 }
