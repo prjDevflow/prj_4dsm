@@ -1230,6 +1230,50 @@ paths:
           $ref: '#/components/responses/HeartbeatRateLimited'
         '500':
           $ref: '#/components/responses/InternalError'
+  /terminal/qr:
+    post:
+      tags: [Terminal]
+      summary: Emitir o QR Code do terminal
+      description: >-
+        O terminal chama a cada `renovarEmMs` (10 s) e mostra o `payload` como QR Code. Autenticado
+        pela chave do terminal (cabeçalhos `X-Terminal-Id` e `X-Terminal-Key`), nunca pelo token de
+        usuário. Não tem corpo.
+
+
+        O backend sorteia 16 bytes, codifica em base64url (22 caracteres) e grava só o **SHA-256**
+        do token, nunca o token. O payload é `ACS1:` + token e bate com `^ACS1:[A-Za-z0-9_-]{22}$`.
+        O QR vale `QR_TTL_SECONDS` + `QR_TOLERANCE_SECONDS` (10 + 5 = 15 s) e é de uso único. O QR
+        anterior **continua válido** até a própria expiração: dois QRs válidos por poucos segundos
+        é intencional.
+
+
+        **Limite:** um QR a cada `QR_ISSUE_MIN_INTERVAL_S` (5 s) por terminal. O intervalo exato de
+        5 s ainda passa; antes disso a resposta é 429 e nada é emitido. O limite é atômico: pedidos
+        simultâneos do mesmo terminal emitem um único QR.
+      operationId: issueQrCredential
+      security:
+        - terminalId: []
+          terminalKey: []
+      responses:
+        '200':
+          description: QR emitido
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/QrEmitido'
+              example:
+                payload: ACS1:q3F8k2Zr1pLw9XbTn0YhVA
+                emitidoEm: '2026-10-20T14:32:07.000Z'
+                expiraEm: '2026-10-20T14:32:22.000Z'
+                renovarEmMs: 10000
+        '401':
+          $ref: '#/components/responses/TerminalUnauthorized'
+        '403':
+          $ref: '#/components/responses/TerminalForbidden'
+        '429':
+          $ref: '#/components/responses/QrRateLimited'
+        '500':
+          $ref: '#/components/responses/InternalError'
 components:
   securitySchemes:
     bearerAuth:
@@ -1718,6 +1762,25 @@ components:
             aberturaMs:
               type: integer
               description: Por quanto tempo a catraca fica aberta (`OPEN_DURATION_MS`).
+    QrEmitido:
+      type: object
+      required: [payload, emitidoEm, expiraEm, renovarEmMs]
+      properties:
+        payload:
+          type: string
+          pattern: '^ACS1:[A-Za-z0-9_-]{22}$'
+          description: O que o terminal desenha no QR Code.
+        emitidoEm:
+          type: string
+          format: date-time
+          description: Instante da emissão, em UTC, com milissegundos.
+        expiraEm:
+          type: string
+          format: date-time
+          description: '`emitidoEm` + `QR_TTL_SECONDS` + `QR_TOLERANCE_SECONDS` (15 s por padrão).'
+        renovarEmMs:
+          type: integer
+          description: Quando pedir o próximo QR (`QR_REFRESH_MS`, 10000).
     ChaveDoTerminal:
       type: object
       required: [id, apiKey]
@@ -2244,6 +2307,18 @@ components:
             error:
               code: RATE_LIMITED
               message: Heartbeat muito frequente. Aguarde alguns segundos
+    QrRateLimited:
+      description: >-
+        Outro QR do mesmo terminal em menos de `QR_ISSUE_MIN_INTERVAL_S` (5 s). Nada foi emitido; o
+        terminal segue mostrando o QR atual e pede o próximo no ritmo normal.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          example:
+            error:
+              code: RATE_LIMITED
+              message: QR Code pedido com muita frequência. Aguarde alguns segundos
     RateLimited:
       description: Limite de tentativas por minuto excedido
       headers:

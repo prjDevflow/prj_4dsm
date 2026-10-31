@@ -31,25 +31,28 @@ aleatório com 32 caracteres ou mais serve para desenvolvimento).
 
 Variáveis do `.env`:
 
-| Variável                                               | Padrão                  | Uso                                                     |
-| ------------------------------------------------------ | ----------------------- | ------------------------------------------------------- |
-| `PORT`                                                 | `3000`                  | porta HTTP                                              |
-| `NODE_ENV`                                             | `development`           | `development`, `test` ou `production`                   |
-| `CORS_ORIGINS`                                         | `http://localhost:8081` | origens permitidas, separadas por vírgula               |
-| `LOG_LEVEL`                                            | `info`                  | nível de log do pino                                    |
-| `POSTGRES_USER`, `POSTGRES_PASSWORD`, `POSTGRES_DB`    | `access`, —, `access`   | banco local do docker compose                           |
-| `DB_PORT`                                              | `5432`                  | porta do PostgreSQL no seu computador                   |
-| `DATABASE_URL`                                         | —                       | conexão dos comandos `npm` (dev, testes) fora do Docker |
-| `JWT_SECRET`                                           | — (obrigatória)         | segredo que assina os tokens, mínimo 32 caracteres      |
-| `JWT_EXPIRES_IN`                                       | `12h`                   | validade do token: inteiro + `s`, `m`, `h` ou `d`       |
-| `BCRYPT_COST`                                          | `10`                    | custo do bcrypt (4 a 15), na API e no seed              |
-| `LOGIN_MAX_PER_MINUTE`                                 | `5`                     | tentativas de login por minuto por IP e e-mail          |
-| `TERMINAL_ONLINE_WINDOW_S`                             | `30`                    | segundos sem contato até o terminal aparecer offline    |
-| `HEARTBEAT_MIN_INTERVAL_S`                             | `2`                     | segundos mínimos entre dois heartbeats do terminal      |
-| `QR_REFRESH_MS`, `COMMAND_POLL_MS`, `OPEN_DURATION_MS` | `10000`, `1000`, `5000` | o que o heartbeat devolve ao terminal, em milissegundos |
-| `TERMINAL_POSITION_SOURCE`                             | `GPS_COM_FALLBACK`      | origem da posição na checagem de proximidade (B15)      |
-| `GPS_MAX_AGE_MIN`                                      | `10`                    | idade máxima do GPS, em minutos, para ele valer         |
-| `SEED_*`                                               | ver `.env.example`      | credenciais e local do seed de desenvolvimento          |
+| Variável                                               | Padrão                  | Uso                                                        |
+| ------------------------------------------------------ | ----------------------- | ---------------------------------------------------------- |
+| `PORT`                                                 | `3000`                  | porta HTTP                                                 |
+| `NODE_ENV`                                             | `development`           | `development`, `test` ou `production`                      |
+| `CORS_ORIGINS`                                         | `http://localhost:8081` | origens permitidas, separadas por vírgula                  |
+| `LOG_LEVEL`                                            | `info`                  | nível de log do pino                                       |
+| `POSTGRES_USER`, `POSTGRES_PASSWORD`, `POSTGRES_DB`    | `access`, —, `access`   | banco local do docker compose                              |
+| `DB_PORT`                                              | `5432`                  | porta do PostgreSQL no seu computador                      |
+| `DATABASE_URL`                                         | —                       | conexão dos comandos `npm` (dev, testes) fora do Docker    |
+| `JWT_SECRET`                                           | — (obrigatória)         | segredo que assina os tokens, mínimo 32 caracteres         |
+| `JWT_EXPIRES_IN`                                       | `12h`                   | validade do token: inteiro + `s`, `m`, `h` ou `d`          |
+| `BCRYPT_COST`                                          | `10`                    | custo do bcrypt (4 a 15), na API e no seed                 |
+| `LOGIN_MAX_PER_MINUTE`                                 | `5`                     | tentativas de login por minuto por IP e e-mail             |
+| `TERMINAL_ONLINE_WINDOW_S`                             | `30`                    | segundos sem contato até o terminal aparecer offline       |
+| `HEARTBEAT_MIN_INTERVAL_S`                             | `2`                     | segundos mínimos entre dois heartbeats do terminal         |
+| `QR_REFRESH_MS`, `COMMAND_POLL_MS`, `OPEN_DURATION_MS` | `10000`, `1000`, `5000` | o que o heartbeat devolve ao terminal, em milissegundos    |
+| `QR_TTL_SECONDS`, `QR_TOLERANCE_SECONDS`               | `10`, `5`               | validade do QR: o código vale a soma dos dois, em segundos |
+| `QR_ISSUE_MIN_INTERVAL_S`                              | `5`                     | segundos mínimos entre dois QR do mesmo terminal           |
+| `QR_PURGE_AFTER_HOURS`                                 | `1`                     | horas depois de vencer em que a credencial é apagada       |
+| `TERMINAL_POSITION_SOURCE`                             | `GPS_COM_FALLBACK`      | origem da posição na checagem de proximidade (B15)         |
+| `GPS_MAX_AGE_MIN`                                      | `10`                    | idade máxima do GPS, em minutos, para ele valer            |
+| `SEED_*`                                               | ver `.env.example`      | credenciais e local do seed de desenvolvimento             |
 
 O `.env` nunca vai para o Git nem para a imagem Docker. Troque a senha do exemplo no seu `.env`.
 A senha e a porta da `DATABASE_URL` precisam ser as mesmas de `POSTGRES_PASSWORD` e `DB_PORT`. Se a
@@ -98,16 +101,17 @@ O script `docker/postgres/init/01-create-test-db.sql` só roda quando o volume e
 
 ### Banco de dados (Prisma)
 
-| Comando                           | O que faz                                                                                |
-| --------------------------------- | ---------------------------------------------------------------------------------------- |
-| `docker compose run --rm migrate` | aplica as migrações existentes no banco do compose, só com Docker                        |
-| `npm run db:migrate`              | cria uma nova migração a partir do `prisma/schema.prisma` e aplica (desenvolvimento)     |
-| `npm run db:deploy`               | aplica as migrações existentes usando a `DATABASE_URL` do `.env` (inclui banco na nuvem) |
-| `docker compose run --rm seed`    | semeia o banco do compose com os dados de desenvolvimento, só com Docker                 |
-| `npm run db:reset`                | **apaga** o banco `access`, reaplica as migrações e semeia em seguida (pede confirmação) |
-| `npm run db:seed`                 | roda `prisma/seed.ts` com as variáveis `SEED_*` do `.env`                                |
-| `npm run db:erd`                  | regenera `docs/modelo-de-dados.md` (diagrama ER) a partir do `schema.prisma`             |
-| `npm run db:generate`             | gera o client do Prisma em `src/generated/` (não versionado)                             |
+| Comando                           | O que faz                                                                                           |
+| --------------------------------- | --------------------------------------------------------------------------------------------------- |
+| `docker compose run --rm migrate` | aplica as migrações existentes no banco do compose, só com Docker                                   |
+| `npm run db:migrate`              | cria uma nova migração a partir do `prisma/schema.prisma` e aplica (desenvolvimento)                |
+| `npm run db:deploy`               | aplica as migrações existentes usando a `DATABASE_URL` do `.env` (inclui banco na nuvem)            |
+| `docker compose run --rm seed`    | semeia o banco do compose com os dados de desenvolvimento, só com Docker                            |
+| `npm run db:reset`                | **apaga** o banco `access`, reaplica as migrações e semeia em seguida (pede confirmação)            |
+| `npm run db:seed`                 | roda `prisma/seed.ts` com as variáveis `SEED_*` do `.env`                                           |
+| `npm run db:erd`                  | regenera `docs/modelo-de-dados.md` (diagrama ER) a partir do `schema.prisma`                        |
+| `npm run db:generate`             | gera o client do Prisma em `src/generated/` (não versionado)                                        |
+| `npm run dev:qr`                  | emite um QR para o terminal de desenvolvimento e imprime o `payload` (recusa `NODE_ENV=production`) |
 
 Para que os testes de integração tenham as tabelas, aplique as migrações no banco de testes uma vez:
 
@@ -207,9 +211,10 @@ Só `ADMIN` (rotas em `/buildings`, `/access-points` e `/terminals`; contrato no
 
 Rotas que o terminal chama com os cabeçalhos `X-Terminal-Id` e `X-Terminal-Key` (contrato no Swagger).
 
-| Rota                       | O que faz                                                                     |
-| -------------------------- | ----------------------------------------------------------------------------- |
-| `POST /terminal/heartbeat` | informa que o terminal está vivo e onde está; devolve `serverTime` e `config` |
+| Rota                       | O que faz                                                                       |
+| -------------------------- | ------------------------------------------------------------------------------- |
+| `POST /terminal/heartbeat` | informa que o terminal está vivo e onde está; devolve `serverTime` e `config`   |
+| `POST /terminal/qr`        | emite o QR Code do terminal: `payload`, `emitidoEm`, `expiraEm` e `renovarEmMs` |
 
 ```bash
 curl -X POST http://localhost:3000/api/v1/terminal/heartbeat \
@@ -222,6 +227,20 @@ curl -X POST http://localhost:3000/api/v1/terminal/heartbeat \
 - Com `gpsFix: false` a latitude e a longitude enviadas são ignoradas e a última posição conhecida continua gravada; com `gpsFix: true` elas são obrigatórias (`422`). `wifiRssi` vira `rssi`; `uptimeS` e `eventosPendentes` são aceitos e não guardados.
 - No máximo um heartbeat a cada `HEARTBEAT_MIN_INTERVAL_S` por terminal: antes disso `429 RATE_LIMITED`, sem gravar nada. A checagem é um `UPDATE` condicional, então heartbeats simultâneos não passam todos.
 - `config` (`qrRefreshMs`, `commandPollMs`, `aberturaMs`) vem do ambiente do servidor, para ajustar o terminal sem reprogramá-lo.
+
+`POST /terminal/qr` (sem corpo) devolve o texto que o terminal desenha como QR Code:
+
+```bash
+curl -X POST http://localhost:3000/api/v1/terminal/qr \
+  -H 'X-Terminal-Id: 5eed0000-0000-4000-8000-000000000006' \
+  -H 'X-Terminal-Key: terminal-dev-key-1234567890abcdef1234567890'
+# {"payload":"ACS1:q3F8k2Zr1pLw9XbTn0YhVA","emitidoEm":"...","expiraEm":"...","renovarEmMs":10000}
+```
+
+- O token tem 16 bytes aleatórios (22 caracteres em base64url) e o banco guarda só o SHA-256 dele. O QR vale `QR_TTL_SECONDS` + `QR_TOLERANCE_SECONDS` (15 s) e é de uso único; o anterior continua válido até a própria expiração, então dois QRs valem juntos por poucos segundos (de propósito).
+- No máximo um QR a cada `QR_ISSUE_MIN_INTERVAL_S` por terminal: antes disso `429 RATE_LIMITED`. A conferência e a gravação acontecem numa transação com trava consultiva por terminal (`pg_advisory_xact_lock`), então pedidos simultâneos emitem um só.
+- Um job a cada minuto (iniciado em `server.ts`, nunca em `app.ts`) apaga as credenciais vencidas há mais de `QR_PURGE_AFTER_HOURS`.
+- Sem terminal físico: `npm run dev:qr` emite um QR para o terminal do seed e imprime o `payload` (veja [docs/ambiente-dev.md](docs/ambiente-dev.md)).
 
 ## Autorizações
 
@@ -347,3 +366,4 @@ use o mesmo padrão de detecção de mudanças da sua pasta e termine com um job
 | `test:int`   | `vitest run -c vitest.int.config.ts`                                         |
 | `test:cov`   | `vitest run --coverage`                                                      |
 | `db:*`       | Prisma: `generate`, `migrate`, `deploy`, `reset`, `seed`, e `erd` (diagrama) |
+| `dev:qr`     | `tsx scripts/dev-qr.ts`: QR de teste do terminal de desenvolvimento          |

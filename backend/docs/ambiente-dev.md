@@ -50,8 +50,8 @@ do banco.
 
 O middleware `authenticateTerminal` (B07) confere os dois cabeçalhos: chave errada, ausente ou id desconhecido dão
 `401 UNAUTHORIZED` (a mesma mensagem nos três casos); terminal inativo com a chave certa dá `403 FORBIDDEN`. As rotas
-`/terminal/*` que o usam chegam aos poucos: o heartbeat (B11) já existe; o QR, os comandos e as validações vêm nas
-etapas seguintes. O administrador vê o terminal do seed em `GET /terminals` (campo `online`).
+`/terminal/*` que o usam chegam aos poucos: o heartbeat (B11) e o QR (B12) já existem; os comandos e as validações vêm
+nas etapas seguintes. O administrador vê o terminal do seed em `GET /terminals` (campo `online`).
 
 Heartbeat de teste (o terminal deve mandar a cada 10 s; menos de 2 s entre dois dá `429`):
 
@@ -61,6 +61,29 @@ curl -s -X POST http://localhost:3000/api/v1/terminal/heartbeat \
   -H 'X-Terminal-Key: terminal-dev-key-1234567890abcdef1234567890' -H 'content-type: application/json' \
   -d '{"latitude":-23.30512,"longitude":-45.96551,"gpsFix":true,"gpsSimulado":false,"firmware":"0.3.0","wifiRssi":-61}'
 # {"serverTime":"2026-10-20T14:32:07Z","config":{"qrRefreshMs":10000,"commandPollMs":1000,"aberturaMs":5000}}
+```
+
+QR Code de teste, sem terminal físico (B12). O comando emite um QR para o terminal do seed e imprime só o `payload` na
+saída padrão (o aviso de validade vai para a saída de erro):
+
+```bash
+npm run dev:qr
+# ACS1:q3F8k2Zr1pLw9XbTn0YhVA
+# QR emitido para o terminal 5eed0000-0000-4000-8000-000000000006, válido até 2026-10-20T14:32:22.000Z.
+```
+
+- O QR vale 15 s e é de uso único; use-o logo (a validação por QR chega na B15). Um pedido com menos de 5 s do anterior
+  dá `QR Code pedido com muita frequência. Aguarde alguns segundos`, igual à rota.
+- Para ver o QR como imagem: `npm run --silent dev:qr 2>/dev/null | qrencode -t ANSIUTF8` (precisa do `qrencode`).
+- **O comando recusa rodar com `NODE_ENV=production`** (no ambiente ou no `.env`): ele emite credenciais válidas, é só
+  para desenvolvimento. Ele grava no banco do `.env`, então o terminal do seed precisa existir (`npm run db:seed`).
+- A mesma emissão por HTTP, com a chave de dev:
+
+```bash
+curl -s -X POST http://localhost:3000/api/v1/terminal/qr \
+  -H 'X-Terminal-Id: 5eed0000-0000-4000-8000-000000000006' \
+  -H 'X-Terminal-Key: terminal-dev-key-1234567890abcdef1234567890'
+# {"payload":"ACS1:q3F8k2Zr1pLw9XbTn0YhVA","emitidoEm":"2026-10-20T14:32:07.000Z","expiraEm":"2026-10-20T14:32:22.000Z","renovarEmMs":10000}
 ```
 
 Para o administrador cadastrar um terminal novo ou trocar a chave (a chave só aparece na resposta):
