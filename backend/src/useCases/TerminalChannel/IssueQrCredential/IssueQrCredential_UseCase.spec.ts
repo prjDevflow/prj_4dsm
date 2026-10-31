@@ -5,6 +5,7 @@ import { FakeHashProvider } from '../../../../test/doubles/FakeHashProvider';
 import { FixedRandom } from '../../../../test/doubles/FixedRandom';
 import { InMemoryQrCredentialRepository } from '../../../../test/doubles/InMemoryQrCredentialRepository';
 import { SequentialIdGenerator } from '../../../../test/doubles/SequentialIdGenerator';
+import { makeQrCredential } from '../../../../test/factories/makeQrCredential';
 import {
   IssueQrCredentialUseCase,
   type IssueQrCredentialConfig,
@@ -146,10 +147,55 @@ describe('IssueQrCredential', () => {
     expect(credentials.all()[0]).toEqual(before);
   });
 
-  it.todo('deve lançar 429 quando o pedido vem com menos de 5 s do anterior');
-  it.todo('deve emitir quando o pedido vem com exatamente 5 s do anterior');
-  it.todo('deve respeitar o intervalo configurado');
-  it.todo('deve limitar por terminal: o QR de um terminal não barra o de outro');
-  it.todo('deve não gravar nada quando o pedido é barrado pelo limite');
-  it.todo('deve manter válido o QR anterior até a própria expiração');
+  it('deve lançar 429 quando o pedido vem com menos de 5 s do anterior', async () => {
+    const { sut, credentials, clock } = makeSut({}, []);
+    await sut.execute(TERMINAL_ID);
+    clock.advance(4999);
+
+    const error = await sut.execute(TERMINAL_ID).catch((e) => e);
+
+    expect(error).toMatchObject({ status: 429, code: 'RATE_LIMITED' });
+    expect(credentials.all()).toHaveLength(1);
+  });
+
+  it('deve emitir quando o pedido vem com exatamente 5 s do anterior', async () => {
+    const { sut, credentials, clock } = makeSut({}, []);
+    await sut.execute(TERMINAL_ID);
+    clock.advance(5000);
+
+    await sut.execute(TERMINAL_ID);
+
+    expect(credentials.all()).toHaveLength(2);
+  });
+
+  it('deve respeitar o intervalo configurado', async () => {
+    const { sut, clock } = makeSut({ minIntervalSeconds: 2 }, []);
+    await sut.execute(TERMINAL_ID);
+    clock.advance(1999);
+    await expect(sut.execute(TERMINAL_ID)).rejects.toMatchObject({ status: 429 });
+    clock.advance(1);
+
+    await expect(sut.execute(TERMINAL_ID)).resolves.toBeDefined();
+  });
+
+  it('deve limitar por terminal: o QR de um terminal não barra o de outro', async () => {
+    const { sut, credentials } = makeSut({}, []);
+    await sut.execute(TERMINAL_ID);
+
+    await sut.execute('00000000-0000-4000-8000-0000000000b8');
+
+    expect(credentials.all().map((c) => c.terminalId)).toEqual([
+      TERMINAL_ID,
+      '00000000-0000-4000-8000-0000000000b8',
+    ]);
+  });
+
+  it('deve não gravar nada quando o pedido é barrado pelo limite', async () => {
+    const { sut, credentials, clock } = makeSut({}, []);
+    credentials.seed(makeQrCredential({ terminalId: TERMINAL_ID, emitidoEm: clock.now() }));
+
+    await sut.execute(TERMINAL_ID).catch(() => undefined);
+
+    expect(credentials.all()).toHaveLength(1);
+  });
 });
