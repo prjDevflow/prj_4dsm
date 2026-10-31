@@ -15,9 +15,7 @@ export class PurgeExpiredCredentialsUseCase {
 
   /** Returns how many credentials were deleted. */
   async execute(): Promise<number> {
-    void this.credentials;
-    void this.clock;
-    void this.config;
-    return 0;
+    const cutoff = new Date(this.clock.now().getTime() - this.config.purgeAfterHours * 3_600_000);
+    return this.credentials.deleteExpiredBefore(cutoff);
   }
 }

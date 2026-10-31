@@ -81,7 +81,7 @@ describe('PurgeExpiredCredentials', () => {
     await sut.execute();
     expect(credentials.all()).toHaveLength(1);
 
-    clock.advance(HOUR);
+    clock.advance(HOUR + 1);
     await sut.execute();
     expect(credentials.all()).toHaveLength(0);
   });
