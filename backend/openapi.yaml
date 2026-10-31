@@ -16,6 +16,10 @@ tags:
     description: Login e usuário autenticado
   - name: Users
     description: Cadastro de usuários (só ADMIN)
+  - name: Locations
+    description: Edifícios e pontos de acesso (só ADMIN)
+  - name: Terminals
+    description: Terminais de acesso e as chaves deles (só ADMIN)
 paths:
   /health:
     get:
@@ -313,6 +317,484 @@ paths:
           $ref: '#/components/responses/UserValidationError'
         '500':
           $ref: '#/components/responses/InternalError'
+  /buildings:
+    post:
+      tags: [Locations]
+      summary: Cadastrar edifício
+      description: >-
+        Só `ADMIN`. Latitude entre -90 e 90 e longitude entre -180 e 180 (os limites valem). Nada é
+        apagado: para tirar um edifício de uso, `PATCH` com `ativo: false`. `ativo` é opcional e,
+        se omitido, o edifício nasce ativo.
+      operationId: createBuilding
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CriarEdificio'
+            example:
+              nome: Edifício Central
+              endereco: Rua das Acácias, 120
+              latitude: -23.30512
+              longitude: -45.96551
+      responses:
+        '201':
+          description: Edifício criado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Edificio'
+              example:
+                id: 5eed0000-0000-4000-8000-000000000004
+                nome: Edifício Central
+                endereco: Rua das Acácias, 120
+                latitude: -23.30512
+                longitude: -45.96551
+                ativo: true
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '422':
+          $ref: '#/components/responses/LocationValidationError'
+        '500':
+          $ref: '#/components/responses/InternalError'
+    get:
+      tags: [Locations]
+      summary: Listar edifícios
+      description: Só `ADMIN`. Ordenado por nome.
+      operationId: listBuildings
+      parameters:
+        - name: ativo
+          in: query
+          schema:
+            type: boolean
+        - $ref: '#/components/parameters/Page'
+        - $ref: '#/components/parameters/PageSize'
+      responses:
+        '200':
+          description: Página de edifícios
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ListaEdificios'
+              example:
+                data:
+                  - id: 5eed0000-0000-4000-8000-000000000004
+                    nome: Edifício Central
+                    endereco: Rua das Acácias, 120
+                    latitude: -23.30512
+                    longitude: -45.96551
+                    ativo: true
+                page: 1
+                pageSize: 20
+                total: 1
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '422':
+          $ref: '#/components/responses/ValidationError'
+        '500':
+          $ref: '#/components/responses/InternalError'
+  /buildings/{id}:
+    parameters:
+      - $ref: '#/components/parameters/IdPath'
+    patch:
+      tags: [Locations]
+      summary: Alterar ou desativar edifício
+      description: >-
+        Só `ADMIN`. Aceita um ou mais de `nome`, `endereco`, `latitude`, `longitude` e `ativo`
+        (qualquer outro campo dá 422). Um `id` que não é UUID também devolve 404.
+
+
+        **Desativar** (`ativo: false`) desativa junto todos os pontos de acesso do edifício, na mesma
+        transação, e recusa com 409 `LOCAL_COM_AUTORIZACOES_ATIVAS` se algum deles tem autorização
+        ativa e não expirada. Os terminais não mudam (o acesso é negado porque o ponto fica
+        inativo). **Reativar** o edifício não reativa os pontos: reative cada um pelo `PATCH`
+        deles.
+      operationId: updateBuilding
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AtualizarEdificio'
+            example:
+              ativo: false
+      responses:
+        '200':
+          description: Edifício atualizado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Edificio'
+              example:
+                id: 5eed0000-0000-4000-8000-000000000004
+                nome: Edifício Central
+                endereco: Rua das Acácias, 120
+                latitude: -23.30512
+                longitude: -45.96551
+                ativo: false
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/ResourceNotFound'
+        '409':
+          $ref: '#/components/responses/LocalWithActiveAuthorizations'
+        '422':
+          $ref: '#/components/responses/LocationValidationError'
+        '500':
+          $ref: '#/components/responses/InternalError'
+  /access-points:
+    post:
+      tags: [Locations]
+      summary: Cadastrar ponto de acesso
+      description: >-
+        Só `ADMIN`. A `identificacao` é única dentro do edifício (409 `CONFLICT`). O edifício tem
+        de existir (404) e estar ativo (422 no campo `buildingId`). O `buildingId` não muda depois.
+      operationId: createAccessPoint
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CriarPontoDeAcesso'
+            example:
+              buildingId: 5eed0000-0000-4000-8000-000000000004
+              tipo: CATRACA
+              nome: Catraca Social
+              identificacao: CAT-01
+              latitude: -23.30512
+              longitude: -45.96551
+      responses:
+        '201':
+          description: Ponto de acesso criado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PontoDeAcesso'
+              example:
+                id: 5eed0000-0000-4000-8000-000000000005
+                buildingId: 5eed0000-0000-4000-8000-000000000004
+                tipo: CATRACA
+                nome: Catraca Social
+                identificacao: CAT-01
+                latitude: -23.30512
+                longitude: -45.96551
+                ativo: true
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/ResourceNotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '422':
+          $ref: '#/components/responses/LocationValidationError'
+        '500':
+          $ref: '#/components/responses/InternalError'
+    get:
+      tags: [Locations]
+      summary: Listar pontos de acesso
+      description: Só `ADMIN`. Ordenado por nome.
+      operationId: listAccessPoints
+      parameters:
+        - name: buildingId
+          in: query
+          schema:
+            type: string
+            format: uuid
+        - name: tipo
+          in: query
+          schema:
+            type: string
+            enum: [PORTARIA, PORTA, CATRACA]
+        - name: ativo
+          in: query
+          schema:
+            type: boolean
+        - $ref: '#/components/parameters/Page'
+        - $ref: '#/components/parameters/PageSize'
+      responses:
+        '200':
+          description: Página de pontos de acesso
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ListaPontosDeAcesso'
+              example:
+                data:
+                  - id: 5eed0000-0000-4000-8000-000000000005
+                    buildingId: 5eed0000-0000-4000-8000-000000000004
+                    tipo: CATRACA
+                    nome: Catraca Social
+                    identificacao: CAT-01
+                    latitude: -23.30512
+                    longitude: -45.96551
+                    ativo: true
+                page: 1
+                pageSize: 20
+                total: 1
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '422':
+          $ref: '#/components/responses/ValidationError'
+        '500':
+          $ref: '#/components/responses/InternalError'
+  /access-points/{id}:
+    parameters:
+      - $ref: '#/components/parameters/IdPath'
+    patch:
+      tags: [Locations]
+      summary: Alterar ou desativar ponto de acesso
+      description: >-
+        Só `ADMIN`. Aceita um ou mais de `tipo`, `nome`, `identificacao`, `latitude`, `longitude` e
+        `ativo`; o `buildingId` não muda (enviá-lo dá 422). Um `id` que não é UUID também devolve
+        404.
+
+
+        **Desativar** recusa com 409 `LOCAL_COM_AUTORIZACOES_ATIVAS` se o ponto tem autorização
+        ativa e não expirada (situação armazenada `ATIVA` e `dataFim` hoje ou depois, no fuso de
+        São Paulo, mesmo que os usos já tenham acabado): cancele-as antes. **Reativar** um ponto
+        cujo edifício está inativo dá 422 no campo `ativo`.
+      operationId: updateAccessPoint
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AtualizarPontoDeAcesso'
+            example:
+              ativo: false
+      responses:
+        '200':
+          description: Ponto de acesso atualizado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PontoDeAcesso'
+              example:
+                id: 5eed0000-0000-4000-8000-000000000005
+                buildingId: 5eed0000-0000-4000-8000-000000000004
+                tipo: CATRACA
+                nome: Catraca Social
+                identificacao: CAT-01
+                latitude: -23.30512
+                longitude: -45.96551
+                ativo: false
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/ResourceNotFound'
+        '409':
+          $ref: '#/components/responses/LocalWithActiveAuthorizations'
+        '422':
+          $ref: '#/components/responses/LocationValidationError'
+        '500':
+          $ref: '#/components/responses/InternalError'
+  /terminals:
+    post:
+      tags: [Terminals]
+      summary: Cadastrar terminal
+      description: >-
+        Só `ADMIN`. Um terminal por ponto de acesso (409 `CONFLICT`); o ponto tem de existir (404)
+        e estar ativo (422 no campo `accessPointId`). A resposta traz a `apiKey` (32 bytes
+        aleatórios em base64url, 43 caracteres): **ela só aparece aqui e em `rotate-key`**. O
+        banco guarda só o SHA-256, então a chave não pode ser recuperada; se for perdida, gere
+        outra.
+      operationId: createTerminal
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CriarTerminal'
+            example:
+              accessPointId: 5eed0000-0000-4000-8000-000000000005
+              nome: Terminal Social
+      responses:
+        '201':
+          description: Terminal criado, com a chave que o terminal usará
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ChaveDoTerminal'
+              example:
+                id: 5eed0000-0000-4000-8000-000000000006
+                apiKey: q3F8k2Zr1pLw9XbTn0YhVAq3F8k2Zr1pLw9XbTn0Yh
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/ResourceNotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '422':
+          $ref: '#/components/responses/LocationValidationError'
+        '500':
+          $ref: '#/components/responses/InternalError'
+    get:
+      tags: [Terminals]
+      summary: Listar terminais
+      description: >-
+        Só `ADMIN`. Ordenado por nome. `online` é verdadeiro quando o último contato do terminal
+        tem menos de `TERMINAL_ONLINE_WINDOW_S` segundos (padrão 30); sem contato, é falso. Nunca
+        traz a chave.
+      operationId: listTerminals
+      parameters:
+        - $ref: '#/components/parameters/Page'
+        - $ref: '#/components/parameters/PageSize'
+      responses:
+        '200':
+          description: Página de terminais
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ListaTerminais'
+              example:
+                data:
+                  - id: 5eed0000-0000-4000-8000-000000000006
+                    accessPointId: 5eed0000-0000-4000-8000-000000000005
+                    nome: Terminal Social
+                    ativo: true
+                    online: true
+                    ultimoContatoEm: '2026-10-25T14:32:07.000Z'
+                    ultimaLat: -23.30512
+                    ultimaLon: -45.96551
+                    gpsFix: true
+                    gpsSimulado: false
+                    firmware: 0.3.0
+                    rssi: -61
+                page: 1
+                pageSize: 20
+                total: 1
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '422':
+          $ref: '#/components/responses/ValidationError'
+        '500':
+          $ref: '#/components/responses/InternalError'
+  /terminals/{id}:
+    parameters:
+      - $ref: '#/components/parameters/IdPath'
+    get:
+      tags: [Terminals]
+      summary: Obter terminal
+      description: Só `ADMIN`. Nunca traz a chave. Um `id` que não é UUID também devolve 404.
+      operationId: getTerminal
+      responses:
+        '200':
+          description: O terminal
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Terminal'
+              example:
+                id: 5eed0000-0000-4000-8000-000000000006
+                accessPointId: 5eed0000-0000-4000-8000-000000000005
+                nome: Terminal Social
+                ativo: true
+                online: false
+                ultimoContatoEm: null
+                ultimaLat: null
+                ultimaLon: null
+                gpsFix: false
+                gpsSimulado: false
+                firmware: null
+                rssi: null
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/ResourceNotFound'
+        '500':
+          $ref: '#/components/responses/InternalError'
+    patch:
+      tags: [Terminals]
+      summary: Alterar ou desativar terminal
+      description: >-
+        Só `ADMIN`. Aceita `nome` e `ativo`; o ponto de acesso e a chave não mudam por aqui (enviar
+        `accessPointId` ou `apiKey` dá 422). Terminal inativo recebe 403 em todas as rotas de
+        terminal.
+      operationId: updateTerminal
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AtualizarTerminal'
+            example:
+              ativo: false
+      responses:
+        '200':
+          description: Terminal atualizado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Terminal'
+              example:
+                id: 5eed0000-0000-4000-8000-000000000006
+                accessPointId: 5eed0000-0000-4000-8000-000000000005
+                nome: Terminal Social
+                ativo: false
+                online: false
+                ultimoContatoEm: null
+                ultimaLat: null
+                ultimaLon: null
+                gpsFix: false
+                gpsSimulado: false
+                firmware: null
+                rssi: null
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/ResourceNotFound'
+        '422':
+          $ref: '#/components/responses/LocationValidationError'
+        '500':
+          $ref: '#/components/responses/InternalError'
+  /terminals/{id}/rotate-key:
+    parameters:
+      - $ref: '#/components/parameters/IdPath'
+    post:
+      tags: [Terminals]
+      summary: Gerar nova chave do terminal
+      description: >-
+        Só `ADMIN`. Gera uma chave nova e invalida a antiga **na hora**. Como no cadastro, a chave
+        só aparece nesta resposta.
+      operationId: rotateTerminalKey
+      responses:
+        '200':
+          description: A chave nova
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ChaveDoTerminal'
+              example:
+                id: 5eed0000-0000-4000-8000-000000000006
+                apiKey: Zk9pL2mQ8vXw1nTb4YhR7cJd5eGf3sAu6HiOxB0Nq1M
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/ResourceNotFound'
+        '500':
+          $ref: '#/components/responses/InternalError'
 components:
   securitySchemes:
     bearerAuth:
@@ -320,6 +802,42 @@ components:
       scheme: bearer
       bearerFormat: JWT
       description: Token devolvido por `POST /auth/login`. Cole só o token, sem a palavra Bearer.
+    terminalId:
+      type: apiKey
+      in: header
+      name: X-Terminal-Id
+      description: >-
+        Id do terminal (uuid). Usado nas rotas do terminal (`/terminal/*`, a partir da B11) junto
+        com `X-Terminal-Key`. Chave errada, ausente ou terminal inexistente: 401 `UNAUTHORIZED`
+        com a mesma mensagem; terminal inativo com a chave certa: 403 `FORBIDDEN`.
+    terminalKey:
+      type: apiKey
+      in: header
+      name: X-Terminal-Key
+      description: Chave devolvida por `POST /terminals` ou `POST /terminals/{id}/rotate-key`.
+  parameters:
+    IdPath:
+      name: id
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+    Page:
+      name: page
+      in: query
+      schema:
+        type: integer
+        minimum: 1
+        default: 1
+    PageSize:
+      name: pageSize
+      in: query
+      schema:
+        type: integer
+        minimum: 1
+        maximum: 100
+        default: 20
   headers:
     XRequestId:
       description: Identificador da requisição. Reaproveitado se enviado pelo cliente e válido.
@@ -459,6 +977,282 @@ components:
         total:
           type: integer
           description: Total de usuários que atendem aos filtros, antes da paginação.
+    Edificio:
+      type: object
+      required: [id, nome, endereco, latitude, longitude, ativo]
+      properties:
+        id:
+          type: string
+          format: uuid
+        nome:
+          type: string
+        endereco:
+          type: string
+        latitude:
+          type: number
+          minimum: -90
+          maximum: 90
+        longitude:
+          type: number
+          minimum: -180
+          maximum: 180
+        ativo:
+          type: boolean
+    CriarEdificio:
+      type: object
+      required: [nome, endereco, latitude, longitude]
+      properties:
+        nome:
+          type: string
+          minLength: 1
+          maxLength: 120
+        endereco:
+          type: string
+          minLength: 1
+          maxLength: 255
+        latitude:
+          type: number
+          minimum: -90
+          maximum: 90
+        longitude:
+          type: number
+          minimum: -180
+          maximum: 180
+        ativo:
+          type: boolean
+          default: true
+    AtualizarEdificio:
+      type: object
+      minProperties: 1
+      additionalProperties: false
+      properties:
+        nome:
+          type: string
+          minLength: 1
+          maxLength: 120
+        endereco:
+          type: string
+          minLength: 1
+          maxLength: 255
+        latitude:
+          type: number
+          minimum: -90
+          maximum: 90
+        longitude:
+          type: number
+          minimum: -180
+          maximum: 180
+        ativo:
+          type: boolean
+    ListaEdificios:
+      type: object
+      required: [data, page, pageSize, total]
+      properties:
+        data:
+          type: array
+          items:
+            $ref: '#/components/schemas/Edificio'
+        page:
+          type: integer
+        pageSize:
+          type: integer
+        total:
+          type: integer
+          description: Total de edifícios que atendem aos filtros, antes da paginação.
+    PontoDeAcesso:
+      type: object
+      required: [id, buildingId, tipo, nome, identificacao, latitude, longitude, ativo]
+      properties:
+        id:
+          type: string
+          format: uuid
+        buildingId:
+          type: string
+          format: uuid
+        tipo:
+          type: string
+          enum: [PORTARIA, PORTA, CATRACA]
+        nome:
+          type: string
+        identificacao:
+          type: string
+          description: Única dentro do edifício (por exemplo `CAT-01`).
+        latitude:
+          type: number
+          minimum: -90
+          maximum: 90
+        longitude:
+          type: number
+          minimum: -180
+          maximum: 180
+        ativo:
+          type: boolean
+    CriarPontoDeAcesso:
+      type: object
+      required: [buildingId, tipo, nome, identificacao, latitude, longitude]
+      properties:
+        buildingId:
+          type: string
+          format: uuid
+        tipo:
+          type: string
+          enum: [PORTARIA, PORTA, CATRACA]
+        nome:
+          type: string
+          minLength: 1
+          maxLength: 120
+        identificacao:
+          type: string
+          minLength: 1
+          maxLength: 60
+        latitude:
+          type: number
+          minimum: -90
+          maximum: 90
+        longitude:
+          type: number
+          minimum: -180
+          maximum: 180
+        ativo:
+          type: boolean
+          default: true
+    AtualizarPontoDeAcesso:
+      type: object
+      minProperties: 1
+      additionalProperties: false
+      description: Qualquer um dos campos de `CriarPontoDeAcesso`, exceto `buildingId`.
+      properties:
+        tipo:
+          type: string
+          enum: [PORTARIA, PORTA, CATRACA]
+        nome:
+          type: string
+          minLength: 1
+          maxLength: 120
+        identificacao:
+          type: string
+          minLength: 1
+          maxLength: 60
+        latitude:
+          type: number
+          minimum: -90
+          maximum: 90
+        longitude:
+          type: number
+          minimum: -180
+          maximum: 180
+        ativo:
+          type: boolean
+    ListaPontosDeAcesso:
+      type: object
+      required: [data, page, pageSize, total]
+      properties:
+        data:
+          type: array
+          items:
+            $ref: '#/components/schemas/PontoDeAcesso'
+        page:
+          type: integer
+        pageSize:
+          type: integer
+        total:
+          type: integer
+          description: Total de pontos que atendem aos filtros, antes da paginação.
+    Terminal:
+      type: object
+      required:
+        - id
+        - accessPointId
+        - nome
+        - ativo
+        - online
+        - ultimoContatoEm
+        - ultimaLat
+        - ultimaLon
+        - gpsFix
+        - gpsSimulado
+        - firmware
+        - rssi
+      description: O terminal como a API o expõe. Nunca traz a chave nem o hash dela.
+      properties:
+        id:
+          type: string
+          format: uuid
+        accessPointId:
+          type: string
+          format: uuid
+        nome:
+          type: string
+        ativo:
+          type: boolean
+        online:
+          type: boolean
+          description: Último contato há menos de `TERMINAL_ONLINE_WINDOW_S` segundos.
+        ultimoContatoEm:
+          type: [string, 'null']
+          format: date-time
+        ultimaLat:
+          type: [number, 'null']
+        ultimaLon:
+          type: [number, 'null']
+        gpsFix:
+          type: boolean
+        gpsSimulado:
+          type: boolean
+        firmware:
+          type: [string, 'null']
+        rssi:
+          type: [integer, 'null']
+    CriarTerminal:
+      type: object
+      required: [accessPointId, nome]
+      properties:
+        accessPointId:
+          type: string
+          format: uuid
+        nome:
+          type: string
+          minLength: 1
+          maxLength: 120
+    AtualizarTerminal:
+      type: object
+      minProperties: 1
+      additionalProperties: false
+      properties:
+        nome:
+          type: string
+          minLength: 1
+          maxLength: 120
+        ativo:
+          type: boolean
+    ChaveDoTerminal:
+      type: object
+      required: [id, apiKey]
+      properties:
+        id:
+          type: string
+          format: uuid
+        apiKey:
+          type: string
+          pattern: '^[A-Za-z0-9_-]{43}$'
+          description: >-
+            Mostrada uma única vez. Vai no cabeçalho `X-Terminal-Key`. Quem a perde gera outra com
+            `rotate-key`.
+    ListaTerminais:
+      type: object
+      required: [data, page, pageSize, total]
+      properties:
+        data:
+          type: array
+          items:
+            $ref: '#/components/schemas/Terminal'
+        page:
+          type: integer
+        pageSize:
+          type: integer
+        total:
+          type: integer
+          description: Total de terminais, antes da paginação.
     Error:
       type: object
       required: [error]
@@ -478,6 +1272,8 @@ components:
                   EMAIL_JA_CADASTRADO,
                   AUTO_DESATIVACAO,
                   ULTIMO_ADMIN,
+                  LOCAL_COM_AUTORIZACOES_ATIVAS,
+                  CONFLICT,
                   RATE_LIMITED,
                   INTERNAL_ERROR,
                 ]
@@ -568,6 +1364,60 @@ components:
                 error:
                   code: ULTIMO_ADMIN
                   message: O sistema precisa de ao menos um administrador ativo
+    LocationValidationError:
+      description: Corpo inválido, com a mensagem de cada campo em `details`
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          example:
+            error:
+              code: VALIDATION_ERROR
+              message: Dados inválidos
+              details:
+                - field: latitude
+                  message: deve estar entre -90 e 90
+    ResourceNotFound:
+      description: Recurso inexistente (edifício, ponto de acesso ou terminal), ou `id` que não é UUID
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          example:
+            error:
+              code: NOT_FOUND
+              message: Edifício não encontrado
+    Conflict:
+      description: >-
+        `CONFLICT`: já existe um ponto com esta identificação no edifício, ou o ponto de acesso já
+        tem um terminal.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          examples:
+            identificacaoRepetida:
+              value:
+                error:
+                  code: CONFLICT
+                  message: Já existe um ponto de acesso com esta identificação no edifício
+            terminalRepetido:
+              value:
+                error:
+                  code: CONFLICT
+                  message: Este ponto de acesso já tem um terminal
+    LocalWithActiveAuthorizations:
+      description: >-
+        `LOCAL_COM_AUTORIZACOES_ATIVAS`: o local (ou, ao desativar um edifício, algum ponto dele)
+        ainda tem autorização ativa e não expirada. Cancele-as antes.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          example:
+            error:
+              code: LOCAL_COM_AUTORIZACOES_ATIVAS
+              message: Este local ainda tem autorizações ativas. Cancele-as antes.
     UserNotFound:
       description: Usuário inexistente
       content:

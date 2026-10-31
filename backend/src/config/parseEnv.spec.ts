@@ -137,4 +137,20 @@ describe('parseEnv', () => {
       );
     },
   );
+
+  it('deve usar 30 como padrão de TERMINAL_ONLINE_WINDOW_S e converter para número', () => {
+    expect(parseEnv(validSource).TERMINAL_ONLINE_WINDOW_S).toBe(30);
+    expect(
+      parseEnv({ ...validSource, TERMINAL_ONLINE_WINDOW_S: '45' }).TERMINAL_ONLINE_WINDOW_S,
+    ).toBe(45);
+  });
+
+  it.each(['0', '-1', 'abc', '2.5'])(
+    'deve rejeitar TERMINAL_ONLINE_WINDOW_S inválido (%s)',
+    (value) => {
+      expect(() => parseEnv({ ...validSource, TERMINAL_ONLINE_WINDOW_S: value })).toThrow(
+        /TERMINAL_ONLINE_WINDOW_S/,
+      );
+    },
+  );
 });

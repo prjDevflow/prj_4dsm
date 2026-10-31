@@ -88,32 +88,33 @@ Legenda: **U** = unitário (doubles, sem banco) · **I** = integração (superte
 
 **Lista de testes**
 
-- [ ] U `CreateTerminal`: devolve a `apiKey` uma vez e persiste só o hash (a chave em claro não aparece no repositório).
-- [ ] U `CreateTerminal`: segundo terminal no mesmo ponto lança 409.
-- [ ] U `RotateTerminalKey`: a chave antiga deixa de autenticar; a nova autentica.
-- [ ] U `AuthenticateTerminal`: chave certa passa; chave errada → 401; cabeçalho ausente → 401; terminal inativo → 403.
-- [ ] U `ListTerminals`: com `FakeClock`, 29 s após o contato é online e 31 s é offline.
-- [ ] U `UpdateAccessPoint`: desativar com autorização ativa e vigente lança 409 `LOCAL_COM_AUTORIZACOES_ATIVAS`; com autorização expirada ou cancelada permite.
-- [ ] I coordenadas fora da faixa em edifício e ponto de acesso → 422.
-- [ ] I só `ADMIN` cadastra e consulta; os outros perfis recebem 403.
-- [ ] I o terminal do seed (B04) autentica com a chave de desenvolvimento.
-- [ ] I a `apiKey` não aparece em `GET /terminals` nem em `GET` de um terminal.
+- [x] U `CreateTerminal`: devolve a `apiKey` uma vez e persiste só o hash (a chave em claro não aparece no repositório).
+- [x] U `CreateTerminal`: segundo terminal no mesmo ponto lança 409.
+- [x] U `RotateTerminalKey`: a chave antiga deixa de autenticar; a nova autentica.
+- [x] U `AuthenticateTerminal`: chave certa passa; chave errada → 401; cabeçalho ausente → 401; terminal inativo → 403.
+- [x] U `ListTerminals`: com `FakeClock`, 29 s após o contato é online e 31 s é offline.
+- [x] U `UpdateAccessPoint`: desativar com autorização ativa e vigente lança 409 `LOCAL_COM_AUTORIZACOES_ATIVAS`; com autorização expirada ou cancelada permite.
+- [x] I coordenadas fora da faixa em edifício e ponto de acesso → 422.
+- [x] I só `ADMIN` cadastra e consulta; os outros perfis recebem 403.
+- [x] I o terminal do seed (B04) autentica com a chave de desenvolvimento.
+- [x] I a `apiKey` não aparece em `GET /terminals` nem em `GET` de um terminal.
+- [x] U e I (acréscimo da B07) desativar um **edifício** segue a mesma regra do ponto: 409 `LOCAL_COM_AUTORIZACOES_ATIVAS` se algum ponto dele tem autorização ativa e vigente; senão desativa o edifício e todos os pontos dele numa transação (reativar não reativa os pontos). Ponto novo ou reativado em edifício inativo → 422.
 
 **Critérios de aceitação**
 
-- [ ] Só `ADMIN` cadastra e consulta; outros perfis recebem 403.
-- [ ] Coordenadas fora da faixa → 422.
-- [ ] Criar um segundo terminal no mesmo ponto → 409.
-- [ ] A `apiKey` aparece uma única vez e não é recuperável depois.
-- [ ] Requisição de terminal com chave errada → 401; com terminal inativo → 403.
-- [ ] Depois de `rotate-key`, a chave antiga deixa de funcionar na hora.
-- [ ] `GET /terminals` indica corretamente online e offline.
+- [x] Só `ADMIN` cadastra e consulta; outros perfis recebem 403.
+- [x] Coordenadas fora da faixa → 422.
+- [x] Criar um segundo terminal no mesmo ponto → 409.
+- [x] A `apiKey` aparece uma única vez e não é recuperável depois.
+- [x] Requisição de terminal com chave errada → 401; com terminal inativo → 403.
+- [x] Depois de `rotate-key`, a chave antiga deixa de funcionar na hora.
+- [x] `GET /terminals` indica corretamente online e offline.
 
 **Definição de pronto**
 
-- [ ] O terminal de desenvolvimento do seed (B04) autentica com a chave de dev.
-- [ ] Testes do middleware `authenticateTerminal` (chave certa, errada, terminal inativo, ausência de cabeçalho).
-- [ ] Pedro avisado da chave de dev e de como testar com `curl` (★).
+- [x] O terminal de desenvolvimento do seed (B04) autentica com a chave de dev.
+- [x] Testes do middleware `authenticateTerminal` (chave certa, errada, terminal inativo, ausência de cabeçalho).
+- [ ] Pedro avisado da chave de dev e de como testar com `curl` (★). (o roteiro está em `docs/ambiente-dev.md`; falta avisar)
 
 ---
 
@@ -127,6 +128,7 @@ Legenda: **U** = unitário (doubles, sem banco) · **I** = integração (superte
 
 **Regras de validação**
 
+- Nota (B07): ponto de acesso inativo já cobre o edifício inativo, porque desativar o edifício desativa os pontos dele; a B08 só olha o ponto. **Concorrência (protocolo de travas da B07):** a B08 grava a autorização dentro de `ILocationUnitOfWork` (ou outra unidade de trabalho), trava o ponto com `FOR SHARE` (`findByIdForShare` no `IAccessPointRepository`, a criar) e só então confere `ativo`; sem isso, uma autorização criada no instante da desativação do local pode ficar num ponto inativo. Teste de integração com PostgreSQL real, como em `locationConcurrency.test.ts`.
 - Usuário existe (senão 404) e está ativo (senão 422 com `details` no campo `usuarioId`). Ponto de acesso existe (404) e está ativo (422).
 - `dataFim` maior ou igual a `dataInicio`; `dataFim` **não** pode estar no passado (hoje no fuso de São Paulo); `horaFim` maior que `horaInicio` (sem virada de meia-noite); `usosPermitidos` inteiro de 1 a 1000.
 - Grava `criadoPorId` (do token), `criadoEm` (relógio), `situacao = ATIVA`, `usosRealizados = 0`.

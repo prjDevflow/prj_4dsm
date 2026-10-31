@@ -44,6 +44,7 @@ Variáveis do `.env`:
 | `JWT_EXPIRES_IN`                                    | `12h`                   | validade do token: inteiro + `s`, `m`, `h` ou `d`       |
 | `BCRYPT_COST`                                       | `10`                    | custo do bcrypt (4 a 15), na API e no seed              |
 | `LOGIN_MAX_PER_MINUTE`                              | `5`                     | tentativas de login por minuto por IP e e-mail          |
+| `TERMINAL_ONLINE_WINDOW_S`                          | `30`                    | segundos sem contato até o terminal aparecer offline    |
 | `SEED_*`                                            | ver `.env.example`      | credenciais e local do seed de desenvolvimento          |
 
 O `.env` nunca vai para o Git nem para a imagem Docker. Troque a senha do exemplo no seu `.env`.
@@ -189,6 +190,14 @@ curl http://localhost:3000/api/v1/auth/me -H "Authorization: Bearer <accessToken
 - Token ausente, expirado, adulterado ou de usuário desativado dá `401 UNAUTHORIZED`. A cada requisição o usuário é recarregado do banco, então desativar uma conta ou mudar o perfil vale na hora.
 - Mais de `LOGIN_MAX_PER_MINUTE` tentativas por minuto para o mesmo IP e e-mail dão `429 RATE_LIMITED`. O contador fica na memória do processo (um reinício o zera).
 - Rotas protegidas usam `authenticate()` e `authorize('ADMIN', ...)` de `src/main/middlewares.ts`.
+
+## Locais e terminais
+
+Só `ADMIN` (rotas em `/buildings`, `/access-points` e `/terminals`; contrato no Swagger).
+
+- Nada é apagado: desativa-se com `PATCH` `ativo: false`. Desativar um **ponto de acesso** dá `409 LOCAL_COM_AUTORIZACOES_ATIVAS` se ele ainda tem autorização ativa e não expirada; desativar um **edifício** faz o mesmo teste nos pontos dele e, se passar, desativa todos eles junto (reativar o edifício não reativa os pontos).
+- `POST /terminals` e `POST /terminals/{id}/rotate-key` devolvem a `apiKey` **uma única vez**; o banco guarda só o SHA-256. `rotate-key` invalida a chave antiga na hora.
+- O terminal se identifica com os cabeçalhos `X-Terminal-Id` e `X-Terminal-Key` (middleware `authenticateTerminal`, em `src/main/middlewares.ts`): chave errada ou ausente dá `401`, terminal inativo dá `403`. O log oculta a chave. Teste com o terminal do seed em [docs/ambiente-dev.md](docs/ambiente-dev.md).
 
 ## Estrutura
 
