@@ -37,7 +37,16 @@
         {
           "locationWhenInUsePermission": "O Passe usa a sua localização para confirmar que você está perto da catraca."
         }
-      ]
+      ],
+      [
+        "expo-splash-screen",
+        {
+          "backgroundColor": "#121318",
+          "image": "./assets/splash-icon.png",
+          "imageWidth": 120
+        }
+      ],
+      "expo-asset"
     ],
     "experiments": {
       "typedRoutes": true

@@ -95,27 +95,28 @@ Legenda: 📄 exigência do documento oficial do desafio · 💡 decisão ou sug
 
 **Lista de testes**
 
-- [ ] U `Button`: em `loading` mostra o `loadingLabel`, fica com estado "ocupado" e não chama `onPress` de novo.
-- [ ] U `Button`: cada variante usa as cores do `tokens.md` (fundo e texto).
-- [ ] U `TextField`: mostra o rótulo, a ajuda e o erro com ícone; o erro é anunciado.
-- [ ] U `PasswordField`: "Mostrar" revela, "Ocultar" esconde, sem perder o texto; o rótulo de acessibilidade muda junto.
-- [ ] U `NumberStepper`: não passa do mínimo nem do máximo; "−" desabilita no mínimo.
-- [ ] U `StatusBadge`: cada situação tem texto, ícone e cor próprios.
-- [ ] U `Dialog`: confirmar e cancelar chamam as funções certas.
-- [ ] U `ErrorState`: "Tentar novamente" chama `onRetry`.
+- [x] U `Button`: em `loading` mostra o `loadingLabel`, fica com estado "ocupado" e não chama `onPress` de novo (e ignora o toque duplo enquanto a ação anterior não termina).
+- [x] U `Button`: cada variante usa as cores do `tokens.md` (fundo e texto).
+- [x] U `TextField`: mostra o rótulo, a ajuda e o erro com ícone; o erro é anunciado.
+- [x] U `PasswordField`: "Mostrar" revela, "Ocultar" esconde, sem perder o texto; o rótulo de acessibilidade muda junto.
+- [x] U `NumberStepper`: não passa do mínimo nem do máximo; "−" desabilita no mínimo.
+- [x] U `StatusBadge`: cada situação tem texto e cor próprios; Autorizado e Negado têm o cookie com check ou X. O Figma (T31) não tem ícone nas pílulas, e ele manda no visual.
+- [x] U `Dialog`: confirmar e cancelar chamam as funções certas.
+- [x] U `ErrorState`: "Tentar novamente" chama `onRetry`.
 
 **Critérios de aceitação**
 
-- [ ] O catálogo mostra todos os componentes iguais ao Figma, no celular.
-- [ ] Todo componente interativo tem `accessibilityRole` e `accessibilityLabel`.
-- [ ] Com a fonte do celular no máximo, nenhum texto do catálogo fica cortado ou sobreposto.
-- [ ] Botão em carregamento não dispara duas ações no toque duplo.
-- [ ] Erro de campo aparece com ícone e texto, não só com cor.
+- [ ] O catálogo mostra todos os componentes iguais ao Figma, no celular. Conferido no emulador Android (Expo Go) com o PDF do Figma; falta o celular.
+- [x] Todo componente interativo tem `accessibilityRole` e `accessibilityLabel` (`catalog.view.spec.tsx` percorre o catálogo nas duas escalas).
+- [x] Com a fonte do celular no máximo, nenhum texto do catálogo fica cortado ou sobreposto (emulador com a fonte em 200%).
+- [x] Botão em carregamento não dispara duas ações no toque duplo.
+- [x] Erro de campo aparece com ícone e texto, não só com cor.
+- [x] O contraste das cores do tema foi conferido (`theme.spec.ts` calcula a razão do WCAG: todos os pares de texto passam de 4,5:1).
 
 **Definição de pronto**
 
 - [ ] Catálogo revisado pelo Rafael (print ou chamada) e pelo Eduardo.
-- [ ] Prints do catálogo no PR.
+- [ ] Prints do catálogo no PR. Prontos (emulador, fonte em 100% e em 200%); falta anexar ao PR.
 
 ---
 

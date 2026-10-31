@@ -1,4 +1,5 @@
 import { useQuery } from '@tanstack/react-query';
+import { useRouter } from 'expo-router';
 import type { Health } from '@/lib/types/health';
 import type { ApiError } from '@/service/ApiError';
 import type { IGetHealthService } from '@/service/IHealthService';
@@ -7,6 +8,8 @@ import { healthErrorMessage } from './health.messages';
 type HealthModelProps = {
   getHealthService: IGetHealthService;
   apiUrl: string;
+  /** Development builds show a shortcut to the component catalog. */
+  showCatalog?: boolean;
 };
 
 export type HealthStatus = 'checking' | 'ok' | 'down';
@@ -14,7 +17,12 @@ export type HealthStatus = 'checking' | 'ok' | 'down';
 const describeHealth = (health: Health) =>
   `Versão ${health.version} · banco de dados ${health.db === 'up' ? 'conectado' : 'fora do ar'}`;
 
-export const useHealthModel = ({ getHealthService, apiUrl }: HealthModelProps) => {
+export const useHealthModel = ({
+  getHealthService,
+  apiUrl,
+  showCatalog = false,
+}: HealthModelProps) => {
+  const router = useRouter();
   const { data, error, isPending, isFetching, refetch } = useQuery<Health, ApiError>({
     queryKey: ['health'],
     queryFn: () => getHealthService.exec(),
@@ -45,5 +53,7 @@ export const useHealthModel = ({ getHealthService, apiUrl }: HealthModelProps) =
     detail,
     isRetrying: isFetching,
     onRetry,
+    showCatalog,
+    onOpenCatalog: () => router.push('/catalog'),
   };
 };

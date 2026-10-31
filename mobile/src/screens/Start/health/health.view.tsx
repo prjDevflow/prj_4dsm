@@ -1,21 +1,10 @@
-import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { StyleSheet, View } from 'react-native';
+import { Button, Card, ScreenContainer, Text } from '@/components/ui';
 import type { useHealthModel } from './health.model';
 
 type HealthViewProps = ReturnType<typeof useHealthModel>;
 
-// Provisional screen (F01): the theme and the ui components arrive in F02 (tokens.md).
-const colors = {
-  fundo: '#121318',
-  superficie: '#1E1F25',
-  texto: '#E3E1E9',
-  textoApoio: '#C6C5D0',
-  primaria: '#B5C4FF',
-  primariaSobre: '#0F2B76',
-  sucesso: '#8BD8A2',
-  erro: '#FFB4AB',
-};
-
+// Provisional home (F01) until the real home arrives in F04.
 export const HealthView = ({
   apiUrl,
   status,
@@ -23,61 +12,50 @@ export const HealthView = ({
   detail,
   isRetrying,
   onRetry,
+  showCatalog,
+  onOpenCatalog,
 }: HealthViewProps) => (
-  <SafeAreaView style={styles.screen}>
-    <ScrollView contentContainerStyle={styles.content}>
-      <Text accessibilityRole="header" style={styles.appName}>
-        Passe
-      </Text>
+  <ScreenContainer contentStyle={styles.content}>
+    <Text
+      variant="pessoaResultado"
+      color="primaria"
+      accessibilityRole="header"
+      style={styles.center}
+    >
+      Passe
+    </Text>
 
-      <View style={styles.card} accessibilityLiveRegion="polite">
-        <Text
-          style={[
-            styles.title,
-            status === 'ok' && { color: colors.sucesso },
-            status === 'down' && { color: colors.erro },
-          ]}
-        >
-          {title}
+    <Card accessibilityLiveRegion="polite">
+      <Text
+        variant="pessoaDestaque"
+        color={status === 'ok' ? 'sucesso' : status === 'down' ? 'erro' : 'texto'}
+      >
+        {title}
+      </Text>
+      {detail ? <Text>{detail}</Text> : null}
+      <View>
+        <Text variant="pessoaApoio" color="textoApoio">
+          Endereço da API
         </Text>
-        {detail ? <Text style={styles.detail}>{detail}</Text> : null}
-        <Text style={styles.label}>Endereço da API</Text>
-        <Text style={styles.url} selectable>
+        <Text variant="pessoaApoio" color="textoApoio" selectable>
           {apiUrl}
         </Text>
       </View>
+    </Card>
 
-      <Pressable
-        accessibilityRole="button"
-        accessibilityLabel={isRetrying ? 'Verificando…' : 'Tentar novamente'}
-        accessibilityState={{ busy: isRetrying, disabled: isRetrying }}
-        disabled={isRetrying}
-        onPress={onRetry}
-        style={({ pressed }) => [styles.button, (pressed || isRetrying) && styles.buttonPressed]}
-      >
-        <Text style={styles.buttonText}>{isRetrying ? 'Verificando…' : 'Tentar novamente'}</Text>
-      </Pressable>
-    </ScrollView>
-  </SafeAreaView>
+    <Button
+      label="Tentar novamente"
+      loadingLabel="Verificando…"
+      loading={isRetrying}
+      onPress={onRetry}
+    />
+    {showCatalog ? (
+      <Button variant="texto" label="Abrir catálogo de componentes" onPress={onOpenCatalog} />
+    ) : null}
+  </ScreenContainer>
 );
 
 const styles = StyleSheet.create({
-  screen: { flex: 1, backgroundColor: colors.fundo },
-  content: { flexGrow: 1, justifyContent: 'center', padding: 16, gap: 24 },
-  appName: { color: colors.primaria, fontSize: 32, fontWeight: '800', textAlign: 'center' },
-  card: { backgroundColor: colors.superficie, borderRadius: 20, padding: 24, gap: 8 },
-  title: { color: colors.texto, fontSize: 24, fontWeight: '700' },
-  detail: { color: colors.texto, fontSize: 18, lineHeight: 24 },
-  label: { color: colors.textoApoio, fontSize: 14, marginTop: 8 },
-  url: { color: colors.textoApoio, fontSize: 16 },
-  button: {
-    minHeight: 60,
-    borderRadius: 999,
-    backgroundColor: colors.primaria,
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingHorizontal: 24,
-  },
-  buttonPressed: { opacity: 0.7 },
-  buttonText: { color: colors.primariaSobre, fontSize: 20, fontWeight: '700' },
+  content: { justifyContent: 'center', gap: 24 },
+  center: { textAlign: 'center' },
 });
