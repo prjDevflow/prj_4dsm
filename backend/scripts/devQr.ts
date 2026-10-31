@@ -13,10 +13,16 @@ export interface DevQrDeps {
   err(text: string): void;
 }
 
+/** A development tool that mints valid QR codes must never run against a production environment. */
 export function assertNotProduction(nodeEnv: string | undefined) {
-  void nodeEnv;
+  if (nodeEnv === 'production') {
+    throw new Error('dev:qr não roda com NODE_ENV=production.');
+  }
 }
 
 export async function runDevQr(deps: DevQrDeps) {
-  void deps;
+  assertNotProduction(deps.nodeEnv);
+  const issued = await deps.issue(deps.terminalId);
+  deps.out(`${issued.payload}\n`);
+  deps.err(`QR emitido para o terminal ${deps.terminalId}, válido até ${issued.expiraEm}.\n`);
 }

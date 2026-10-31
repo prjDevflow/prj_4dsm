@@ -8,4 +8,5 @@ const useCase = new IssueQrCredentialUseCase(c.qrCredentials, c.random, c.hash, 
   minIntervalSeconds: c.env.QR_ISSUE_MIN_INTERVAL_S,
   renovarEmMs: c.env.QR_REFRESH_MS,
 });
+export const issueQrCredentialUseCase = useCase;
 export const issueQrCredentialController = new IssueQrCredentialController(useCase);
