@@ -3,6 +3,7 @@ import type { IHashProvider } from '../../../providers/IHashProvider';
 import type { IIdGenerator } from '../../../providers/IIdGenerator';
 import type { ISecureRandom } from '../../../providers/ISecureRandom';
 import type { IQrCredentialRepository } from '../../../repositories/IQrCredentialRepository';
+import { RateLimitedError } from '../../../shared/errors/AppError';
 
 export interface IssueQrCredentialConfig {
   /** `QR_TTL_SECONDS`. */
@@ -42,7 +43,7 @@ export class IssueQrCredentialUseCase {
     const lifeMs = (this.config.ttlSeconds + this.config.toleranceSeconds) * 1000;
     const expiraEm = new Date(now.getTime() + lifeMs);
 
-    await this.credentials.saveIfIdle(
+    const stored = await this.credentials.saveIfIdle(
       {
         id: this.ids.next(),
         terminalId,
@@ -55,6 +56,8 @@ export class IssueQrCredentialUseCase {
       },
       new Date(now.getTime() - this.config.minIntervalSeconds * 1000),
     );
+    if (!stored)
+      throw new RateLimitedError('QR Code pedido com muita frequência. Aguarde alguns segundos');
 
     return {
       payload: `${PAYLOAD_PREFIX}${token}`,
