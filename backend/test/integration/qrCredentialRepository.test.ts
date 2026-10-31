@@ -1,9 +1,12 @@
+import { createHash } from 'node:crypto';
 import { beforeEach, describe, expect, it } from 'vitest';
 import type { QrCredential } from '../../src/entities/QrCredential';
 import { PrismaQrCredentialRepository } from '../../src/infra/repositories/PrismaQrCredentialRepository';
-import { insertTerminal, newId, prisma, resetDatabase, sha256Hex } from './helpers';
+import { insertQrCredential, insertTerminal, newId, prisma, resetDatabase } from './helpers';
 
 const credentials = new PrismaQrCredentialRepository(prisma);
+
+const sha256Hex = (seed: string) => createHash('sha256').update(seed).digest('hex');
 
 const T0 = new Date('2026-10-20T14:00:00.000Z');
 const at = (ms: number) => new Date(T0.getTime() + ms);
@@ -101,10 +104,15 @@ describe('PrismaQrCredentialRepository', () => {
   describe('deleteExpiredBefore', () => {
     it('apaga só as que vencem antes do corte (a que vence exatamente no corte fica) e conta', async () => {
       const terminal = await insertTerminal();
-      // Expire at T0+15 s, T0+16 s, T0+17 s.
-      await credentials.saveIfIdle(credential(terminal.id, 'a', at(0)), at(-5000));
-      await credentials.saveIfIdle(credential(terminal.id, 'b', at(1000)), at(-5000));
-      await credentials.saveIfIdle(credential(terminal.id, 'c', at(2000)), at(-5000));
+      // Expire at T0+15 s, T0+16 s, T0+17 s. Inserted directly: the rate limit is not under test here.
+      for (const [seed, offset] of [
+        ['a', 0],
+        ['b', 1000],
+        ['c', 2000],
+      ] as const) {
+        const item = credential(terminal.id, seed, at(offset));
+        await insertQrCredential(item);
+      }
 
       const deleted = await credentials.deleteExpiredBefore(at(16_000));
 
