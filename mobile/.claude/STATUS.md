@@ -2,9 +2,9 @@
 
 Atualize este arquivo no fim de cada sessão de trabalho e ao abrir ou integrar um PR. A IA lê aqui qual é a etapa atual antes de começar.
 
-**Etapa atual:** F02 (PR aberto, empilhado na F01, em revisão) → próxima: F03
-**Branch:** `feature/F02-theme-components` (criada da `F01-Setup-do-app`, porque o PR #14 ainda não foi integrado)
-**Último teste vermelho/verde:** anúncio no iOS e rodapé em linha (green), 175 testes passando
+**Etapa atual:** F03 (pronta na branch, PR a abrir, empilhado na F02) → próxima: F04
+**Branch:** `feature/F03-login` (criada da `feature/F02-theme-components`, porque os PRs #14 e #16 ainda não foram integrados)
+**Último teste vermelho/verde:** foco na senha depois do erro (green), 229 testes passando
 
 Legenda: ⬜ pendente · 🟨 em andamento · ✅ pronta (critérios e DoD marcados, PR integrado em `develop`) · 🔴 essencial · 🟡 importante · 🟢 pode ser cortada · ❓ pergunta em aberto (lista no fim deste arquivo).
 
@@ -17,8 +17,8 @@ Hoje é 28/10 e o app começa do zero. 💡 Por isso a ordem muda em relação a
 | ID | Etapa | Telas | Depende de (app) | Depende de (backend) | Prazo 💡 | Prioridade | Status | PR |
 |---|---|---|---|---|---|---|---|---|
 | F01 | Setup do app | — | — | B01 ✅ | 30/10 | 🔴 | 🟨 | [#14](https://github.com/prjDevflow/prj_4dsm/pull/14) |
-| F02 | Tema e componentes base | Fundamentos, componentes, T31 | F01 | — | 01/11 | 🔴 | 🟨 | a abrir |
-| F03 | Login | T02 | F02 | B05 ✅ | 03/11 | 🔴 | ⬜ | |
+| F02 | Tema e componentes base | Fundamentos, componentes, T31 | F01 | — | 01/11 | 🔴 | 🟨 | [#16](https://github.com/prjDevflow/prj_4dsm/pull/16) |
+| F03 | Login | T02 | F02 | B05 ✅ | 03/11 | 🔴 | 🟨 | a abrir |
 | F04 | Abertura, navegação por perfil, início e sessão | T01, T03, T13, T14 | F03 | B05 ✅ | 04/11 | 🔴 | ⬜ | |
 | F10 | Leitor de QR Code | T06, T07 | F04 | (B12 para QR real) | 05/11 | 🔴 | ⬜ | |
 | F11 | Validação do acesso e resultado | T08, T09, T10, T11 | F10 | B15 (falso até sair) | 07/11 | 🔴 | ⬜ | |
@@ -102,6 +102,9 @@ Formato: data · decisão · motivo.
 - 2026-10-28 · `StatusBadge` segue o Figma: pílula com texto e cor, e cookie com check ou X só em Autorizado e Negado · o plano pedia ícone em todos os selos, mas o Figma (T31) não tem, e o Figma manda no visual.
 - 2026-10-28 · Visual conferido pelo PDF do Figma (`docs/app-mobile/design/passe-telas.pdf`) · a conta do Pedro não tem acesso de edição ao arquivo do Figma, e sem isso a integração não lê as telas.
 - 2026-10-28 · Com a fonte do sistema a partir de 130%, o selo do `ListItem` desce para baixo do título · no emulador a 200% o título e o e-mail ficavam espremidos ao lado do selo.
+- 2026-10-29 · Na F03, o login leva a inícios provisórios (Administração ou Início, com saudação, perfil e "Sair") · o card pede o início de cada perfil, mas a T03, a T14 e a sessão que sobrevive ao fechamento são da F04.
+- 2026-10-29 · A tela "API: ok" vira `/health`, ferramenta só de desenvolvimento aberta pelo rodapé do login · com o login, o app abre em `/login`, e `/` passou a ser o início do perfil.
+- 2026-10-29 · O topo do login segue o Figma (logo, "Controle de Acesso" pequeno e "Entre com sua conta" como título) e o botão tem 60 · o card pedia "Controle de Acesso" como título e botão de 56; o Figma e o `tokens.md` mandam no visual.
 - 2026-10-28 · `npm run mock` com um proxy (`scripts/mock.mjs`) na frente do Prism · o Prism ignora o `/api/v1` de `servers`; assim o mock e a API real usam a mesma URL, mudando só a porta.
 
 ## Registro de sessões
@@ -112,6 +115,7 @@ Formato: data · decisão · motivo.
 | 2026-10-28 | F01 | App Expo SDK 58 com Expo Router; env, ApiError, AxiosInstance, SessionStore, tokenStorage, container, GetHealthService e tela provisória "API: ok"/"API: fora do ar" (32 testes); mock do openapi; jobs `mobile` e `mobile-ci` no CI; README do app. Conferido no emulador Android com o mock | Testar no celular com o backend do Docker e anexar o print ao PR; aval do Eduardo no CI; F02 |
 | 2026-10-28 | F02 | Tema do `tokens.md` (cores conferidas pelo teste contra o próprio `tokens.md`, contraste WCAG), fonte Atkinson com a splash, formas, `Icon` e 25 componentes em `components/ui`; catálogo em `/catalog` só em `__DEV__`; teste que percorre o catálogo e exige papel e rótulo em todo elemento interativo. Conferido no emulador a 100% e a 200% (161 testes) | Testar o catálogo no celular; revisão do Rafael e do Eduardo; F03 |
 | 2026-10-28 | F01, F02 | Revisão: no celular do Pedro (Expo Go), "API: ok" com o mock e "API: fora do ar" sem ele, sem fechar o app. Corrigidos na F02: anúncio do erro de campo, dos avisos e dos estados no iOS (`useAnnounce`), aviso curto lido uma vez, rodapé em linha com fragmento, "Voltar" do catálogo aberto por link; o teste de contraste cobre as partes que não são texto (175 testes) | F01: celular com o Docker e revisor no #14; F02: catálogo no celular e revisão do Eduardo |
+| 2026-10-29 | F03 | Login (T02): schema, mensagens, `LoginUserService` e falso com os usuários do seed, model com toque duplo, senha limpa e foco, faixa que some ao digitar e aviso de sessão expirada; guards por sessão (`Stack.Protected` com `redirectTo`) e inícios provisórios; `/health` vira ferramenta de desenvolvimento. Emulador contra a API real no Docker: os três perfis, senha errada, sem internet, voltar do Android, fonte em 200% com teclado. Corrigido no aparelho: o foco não ia para a senha depois do erro | Abrir o PR (base #16); GIF; ouvir com TalkBack/VoiceOver; Eduardo confirmar o contrato; teste com uma pessoa; F04 |
 
 ---
 

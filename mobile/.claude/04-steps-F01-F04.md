@@ -151,27 +151,28 @@ Legenda: 📄 exigência do documento oficial do desafio · 💡 decisão ou sug
 
 **Lista de testes**
 
-- [ ] U schema: e-mail vazio, e-mail sem "@", senha vazia → as três mensagens; e-mail com espaços nas pontas é aceito.
-- [ ] U `loginErrorMessage`: um teste por linha da tabela de erros.
-- [ ] U model: campos vazios não chamam o serviço.
-- [ ] U model: sucesso envia o e-mail em minúsculas e abre a sessão com o perfil certo.
-- [ ] U model: cada erro da API mostra a mensagem, limpa a senha e mantém o e-mail.
-- [ ] U model: toque duplo em "Entrar" chama o serviço **uma** vez.
-- [ ] U tela: "Mostrar"/"Ocultar" senha; erros anunciados com `role` de alerta.
-- [ ] U `LoginUserService` (MSW): `POST /auth/login` com `{ email, senha }`.
+- [x] U schema: e-mail vazio, e-mail sem "@", senha vazia → as três mensagens; e-mail com espaços nas pontas é aceito.
+- [x] U `loginErrorMessage`: um teste por linha da tabela de erros.
+- [x] U model: campos vazios não chamam o serviço.
+- [x] U model: sucesso envia o e-mail em minúsculas e abre a sessão com o perfil certo.
+- [x] U model: cada erro da API mostra a mensagem, limpa a senha e mantém o e-mail.
+- [x] U model: toque duplo em "Entrar" chama o serviço **uma** vez.
+- [x] U tela: "Mostrar"/"Ocultar" senha; erros anunciados com `role` de alerta.
+- [x] U navegação (`renderRouter` com as rotas de verdade): sem sessão abre o login; cada perfil cai no seu início; "Sair" volta ao login; com sessão, `/login` leva ao início.
+- [x] U `LoginUserService` (MSW): `POST /auth/login` com `{ email, senha }`.
 
 **Critérios de aceitação**
 
-- [ ] "Entrar" com os dois campos vazios mostra as duas mensagens e não envia nada.
-- [ ] Credenciais do seed levam ao início certo de cada perfil (admin, condômino, visitante) em menos de 2 s na rede local.
-- [ ] Credenciais erradas mostram a faixa, limpam a senha e põem o foco nela.
-- [ ] Sem internet mostra a mensagem de conexão e o botão volta a funcionar.
-- [ ] O teclado não cobre o botão "Entrar" nem o campo em edição.
-- [ ] Com o leitor de tela (TalkBack ou VoiceOver), campos, botão e erros são anunciados.
+- [x] "Entrar" com os dois campos vazios mostra as duas mensagens e não envia nada.
+- [x] Credenciais do seed levam ao início certo de cada perfil (admin, condômino, visitante) em menos de 2 s na rede local. Emulador contra a API real no Docker: início desenhado em até 2,0 s (API em 0,15 s); conferir no celular.
+- [x] Credenciais erradas mostram a faixa, limpam a senha e põem o foco nela.
+- [x] Sem internet mostra a mensagem de conexão e o botão volta a funcionar.
+- [x] O teclado não cobre o botão "Entrar" nem o campo em edição (emulador, também com a fonte em 200%).
+- [ ] Com o leitor de tela (TalkBack ou VoiceOver), campos, botão e erros são anunciados. Coberto pelos testes de componente e da tela (papéis, rótulos e `alert`); falta ouvir no celular.
 
 **Definição de pronto**
 
-- [ ] Testado com os três usuários do seed na API real.
+- [x] Testado com os três usuários do seed na API real (emulador).
 - [ ] GIF do sucesso e do erro no PR.
 
 ---

@@ -11,6 +11,7 @@ import * as SplashScreen from 'expo-splash-screen';
 import { StatusBar } from 'expo-status-bar';
 import { useEffect } from 'react';
 import { ToastProvider } from '@/components/ui';
+import { useSessionStore } from '@/context/SessionStore';
 import { colors, ThemeProvider } from '@/theme';
 
 // The native splash stays until the fonts load, so no screen flashes with the system font.
@@ -21,6 +22,7 @@ const queryClient = new QueryClient({
 });
 
 export default function RootLayout() {
+  const usuario = useSessionStore((state) => state.usuario);
   const [fontsLoaded, fontError] = useFonts({
     AtkinsonHyperlegibleNext_400Regular,
     AtkinsonHyperlegibleNext_700Bold,
@@ -41,9 +43,20 @@ export default function RootLayout() {
       <ThemeProvider>
         <ToastProvider>
           <StatusBar style="light" />
+          {/* Guards by session: the login and the app never stay in the same stack, so "back"
+              never returns to the login. Every Protected has redirectTo; free screens go last. */}
           <Stack
             screenOptions={{ headerShown: false, contentStyle: { backgroundColor: colors.fundo } }}
-          />
+          >
+            <Stack.Protected guard={!usuario} redirectTo="/">
+              <Stack.Screen name="login" />
+            </Stack.Protected>
+            <Stack.Protected guard={!!usuario} redirectTo="/login">
+              <Stack.Screen name="(app)" />
+            </Stack.Protected>
+            <Stack.Screen name="health" />
+            <Stack.Screen name="catalog" />
+          </Stack>
         </ToastProvider>
       </ThemeProvider>
     </QueryClientProvider>

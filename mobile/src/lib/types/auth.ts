@@ -6,3 +6,11 @@ export interface Usuario {
   email: string;
   perfil: Perfil;
 }
+
+// POST /auth/login → 200
+export interface LoginResponse {
+  accessToken: string;
+  tokenType: 'Bearer';
+  expiresIn: number;
+  usuario: Usuario;
+}
