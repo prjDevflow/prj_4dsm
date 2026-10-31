@@ -54,8 +54,35 @@ describe('IssueQrCredential', () => {
     expect(random.lastBytes).toBe(16);
   });
 
-  it.todo('deve gravar só o SHA-256 do token, sem o token em nenhum campo');
-  it.todo('deve gravar terminalId, emitidoEm e expiraEm com o relógio injetado');
+  it('deve gravar só o SHA-256 do token, sem o token em nenhum campo', async () => {
+    const { sut, credentials, hash } = makeSut();
+
+    await sut.execute(TERMINAL_ID);
+
+    const [stored] = credentials.all();
+    expect(stored?.tokenHash).toBe(hash.sha256(TOKEN));
+    expect(stored?.tokenHash).toMatch(/^[0-9a-f]{64}$/);
+    expect(JSON.stringify(stored)).not.toContain(TOKEN);
+  });
+
+  it('deve gravar terminalId, emitidoEm e expiraEm com o relógio injetado, sem uso', async () => {
+    const { sut, credentials, clock } = makeSut();
+    const emitidoEm = new Date('2026-10-20T14:32:07Z');
+    clock.set(emitidoEm);
+
+    await sut.execute(TERMINAL_ID);
+
+    expect(credentials.all()).toEqual([
+      expect.objectContaining({
+        terminalId: TERMINAL_ID,
+        emitidoEm,
+        expiraEm: new Date('2026-10-20T14:32:22Z'),
+        consumidoEm: null,
+        consumidoPorId: null,
+      }),
+    ]);
+  });
+
   it.todo('deve gerar tokens diferentes em dois pedidos seguidos');
   it.todo('deve fazer expiraEm menos emitidoEm ser 15 s por padrão');
   it.todo('deve mudar a validade quando QR_TTL_SECONDS ou QR_TOLERANCE_SECONDS mudam');
