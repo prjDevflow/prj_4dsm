@@ -36,14 +36,30 @@ export class IssueQrCredentialUseCase {
     private config: IssueQrCredentialConfig,
   ) {}
 
-  async execute(_terminalId: string): Promise<IssueQrCredentialResult> {
+  async execute(terminalId: string): Promise<IssueQrCredentialResult> {
     const now = this.clock.now();
     const token = this.random.base64Url(TOKEN_BYTES);
     const lifeMs = (this.config.ttlSeconds + this.config.toleranceSeconds) * 1000;
+    const expiraEm = new Date(now.getTime() + lifeMs);
+
+    await this.credentials.saveIfIdle(
+      {
+        id: this.ids.next(),
+        terminalId,
+        // Only the digest is stored: the database never holds a token that could be replayed.
+        tokenHash: this.hash.sha256(token),
+        emitidoEm: now,
+        expiraEm,
+        consumidoEm: null,
+        consumidoPorId: null,
+      },
+      new Date(now.getTime() - this.config.minIntervalSeconds * 1000),
+    );
+
     return {
       payload: `${PAYLOAD_PREFIX}${token}`,
       emitidoEm: now.toISOString(),
-      expiraEm: new Date(now.getTime() + lifeMs).toISOString(),
+      expiraEm: expiraEm.toISOString(),
       renovarEmMs: this.config.renovarEmMs,
     };
   }
