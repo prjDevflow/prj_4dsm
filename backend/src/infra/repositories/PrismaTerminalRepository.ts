@@ -3,6 +3,7 @@ import type { PrismaClient } from '../../generated/prisma/client';
 import type {
   ITerminalRepository,
   TerminalListFilter,
+  TerminalHeartbeat,
   TerminalListResult,
 } from '../../repositories/ITerminalRepository';
 import { ConflictError } from '../../shared/errors/AppError';
@@ -69,6 +70,10 @@ export class PrismaTerminalRepository implements ITerminalRepository {
       data: { apiKeyHash },
     });
     return count > 0;
+  }
+
+  async updateHeartbeat(_id: string, _heartbeat: TerminalHeartbeat, _previousContactUntil: Date) {
+    return false;
   }
 
   async list(filter: TerminalListFilter): Promise<TerminalListResult> {

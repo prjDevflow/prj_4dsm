@@ -1,6 +1,7 @@
 import type { Terminal } from '../../src/entities/Terminal';
 import type {
   ITerminalRepository,
+  TerminalHeartbeat,
   TerminalListFilter,
 } from '../../src/repositories/ITerminalRepository';
 import { ConflictError } from '../../src/shared/errors/AppError';
@@ -41,6 +42,10 @@ export class InMemoryTerminalRepository implements ITerminalRepository {
     if (!terminal) return false;
     this.items.set(id, { ...terminal, apiKeyHash });
     return true;
+  }
+
+  async updateHeartbeat(_id: string, _heartbeat: TerminalHeartbeat, _previousContactUntil: Date) {
+    return false;
   }
 
   async list(filter: TerminalListFilter) {
