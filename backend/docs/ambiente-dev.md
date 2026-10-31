@@ -76,7 +76,7 @@ npm run dev:qr
   dá `QR Code pedido com muita frequência. Aguarde alguns segundos`, igual à rota.
 - Para ver o QR como imagem: `npm run --silent dev:qr 2>/dev/null | qrencode -t ANSIUTF8` (precisa do `qrencode`).
 - **O comando recusa rodar com `NODE_ENV=production`** (no ambiente ou no `.env`): ele emite credenciais válidas, é só
-  para desenvolvimento. Ele grava no banco do `.env`, então o terminal do seed precisa existir (`npm run db:seed`).
+  para desenvolvimento. Ele grava no banco do `.env`, então o terminal do seed precisa existir (`npm run db:seed`). Com a `DATABASE_URL` do `.env` apontando para o banco em nuvem (Neon), o QR é gravado lá: confira a URL antes de rodar. O comando também não confere se o terminal está ativo, ao contrário da rota.
 - A mesma emissão por HTTP, com a chave de dev:
 
 ```bash
