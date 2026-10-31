@@ -40,6 +40,12 @@ export class PrismaAccessPointRepository implements IAccessPointRepository {
     return this.findById(id);
   }
 
+  async findByIdForShare(id: string) {
+    // Only meaningful inside a transaction: the lock lasts until it ends.
+    await this.prisma.$queryRaw`SELECT id FROM access_points WHERE id = ${id}::uuid FOR SHARE`;
+    return this.findById(id);
+  }
+
   async lockByBuilding(buildingId: string) {
     await this.prisma
       .$queryRaw`SELECT id FROM access_points WHERE "buildingId" = ${buildingId}::uuid FOR UPDATE`;

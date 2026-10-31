@@ -5,6 +5,7 @@ import type {
 import { InMemoryAccessPointRepository } from './InMemoryAccessPointRepository';
 import { InMemoryAuthorizationRepository } from './InMemoryAuthorizationRepository';
 import { InMemoryBuildingRepository } from './InMemoryBuildingRepository';
+import { InMemoryUserRepository } from './InMemoryUserRepository';
 
 /** Runs the work right away on the same fakes. Rollback and real locking are proven in the integration tests. */
 export class InMemoryLocationUnitOfWork implements ILocationUnitOfWork {
@@ -20,7 +21,8 @@ export function makeLocationDoubles() {
   const locks: string[] = [];
   const accessPoints = new InMemoryAccessPointRepository(locks);
   const buildings = new InMemoryBuildingRepository(locks);
-  const authorizations = new InMemoryAuthorizationRepository(accessPoints);
-  const uow = new InMemoryLocationUnitOfWork({ buildings, accessPoints, authorizations });
-  return { uow, buildings, accessPoints, authorizations, locks };
+  const users = new InMemoryUserRepository(locks);
+  const authorizations = new InMemoryAuthorizationRepository(accessPoints, buildings, users);
+  const uow = new InMemoryLocationUnitOfWork({ buildings, accessPoints, authorizations, users });
+  return { uow, buildings, accessPoints, authorizations, users, locks };
 }

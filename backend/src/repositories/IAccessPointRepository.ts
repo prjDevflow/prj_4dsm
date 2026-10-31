@@ -22,6 +22,12 @@ export interface IAccessPointRepository {
    * The id must already be validated (a malformed id would make the database fail instead of returning null).
    */
   findByIdForUpdate(id: string): Promise<AccessPoint | null>;
+  /**
+   * Same as `findById`, but locks the row against deactivation (`FOR SHARE`) while still letting other
+   * readers in. Used before putting an authorization on the point.
+   * The id must already be validated.
+   */
+  findByIdForShare(id: string): Promise<AccessPoint | null>;
   /** Locks every access point of the building (`FOR UPDATE`) until the transaction ends. Ids must already be validated. */
   lockByBuilding(buildingId: string): Promise<void>;
   /** Sets `ativo = false` on every access point of the building. */

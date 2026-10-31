@@ -1,12 +1,14 @@
 import type { IAccessPointRepository } from './IAccessPointRepository';
 import type { IAuthorizationRepository } from './IAuthorizationRepository';
 import type { IBuildingRepository } from './IBuildingRepository';
+import type { IUserRepository } from './IUserRepository';
 
 /** The repositories as seen inside one transaction. */
 export interface LocationRepositories {
   buildings: IBuildingRepository;
   accessPoints: IAccessPointRepository;
   authorizations: IAuthorizationRepository;
+  users: IUserRepository;
 }
 
 /**
@@ -15,7 +17,9 @@ export interface LocationRepositories {
  * That is what lets "check, then change" rules (no active authorization, building still active) hold
  * against requests running at the same time.
  *
- * Lock order, to avoid deadlocks: building first, then its access points.
+ * Lock order, to avoid deadlocks: building first, then its access points. The user lock
+ * (`findByIdForShare`) is independent of both: nothing takes a user lock while holding a place lock,
+ * and `CreateAuthorization` takes the user before the point.
  */
 export interface ILocationUnitOfWork {
   run<T>(work: (repositories: LocationRepositories) => Promise<T>): Promise<T>;

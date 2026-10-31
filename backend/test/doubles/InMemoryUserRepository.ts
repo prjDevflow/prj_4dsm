@@ -4,6 +4,9 @@ import type { IUserRepository, UserListFilter } from '../../src/repositories/IUs
 export class InMemoryUserRepository implements IUserRepository {
   private items = new Map<string, User>();
 
+  /** `locks` is shared with the other fakes of a unit of work, so a test sees the order of the locks. */
+  constructor(private locks: string[] = []) {}
+
   async save(user: User) {
     this.items.set(user.id, { ...user });
   }
@@ -11,6 +14,11 @@ export class InMemoryUserRepository implements IUserRepository {
   async findById(id: string) {
     const user = this.items.get(id);
     return user ? { ...user } : null;
+  }
+
+  async findByIdForShare(id: string) {
+    this.locks.push(`user:share:${id}`);
+    return this.findById(id);
   }
 
   async findByEmail(email: string) {
