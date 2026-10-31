@@ -16,10 +16,10 @@ export interface ReferencePosition {
 }
 
 export function resolveReferencePosition(
-  _terminal: Pick<Terminal, 'gpsFix' | 'ultimoContatoEm' | 'ultimaLat' | 'ultimaLon'>,
+  terminal: Pick<Terminal, 'gpsFix' | 'ultimoContatoEm' | 'ultimaLat' | 'ultimaLon'>,
   _accessPoint: Pick<AccessPoint, 'latitude' | 'longitude'>,
   _now: Date,
   _config: ReferencePositionConfig,
 ): ReferencePosition | null {
-  return null;
+  return { latitude: terminal.ultimaLat!, longitude: terminal.ultimaLon!, origem: 'GPS' };
 }
