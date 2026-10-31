@@ -181,6 +181,36 @@ describe('parseEnv', () => {
     }
   });
 
+  it('deve usar os padrões do QR e converter para número', () => {
+    expect(parseEnv(validSource)).toMatchObject({
+      QR_TTL_SECONDS: 10,
+      QR_TOLERANCE_SECONDS: 5,
+      QR_ISSUE_MIN_INTERVAL_S: 5,
+      QR_PURGE_AFTER_HOURS: 1,
+    });
+    expect(
+      parseEnv({ ...validSource, QR_TTL_SECONDS: '20', QR_ISSUE_MIN_INTERVAL_S: '3' }),
+    ).toMatchObject({ QR_TTL_SECONDS: 20, QR_ISSUE_MIN_INTERVAL_S: 3 });
+  });
+
+  it.each(['QR_TTL_SECONDS', 'QR_ISSUE_MIN_INTERVAL_S', 'QR_PURGE_AFTER_HOURS'])(
+    'deve rejeitar %s zero, negativo, decimal ou não numérico',
+    (name) => {
+      for (const value of ['0', '-1', 'abc', '2.5']) {
+        expect(() => parseEnv({ ...validSource, [name]: value })).toThrow(new RegExp(name));
+      }
+    },
+  );
+
+  it('deve aceitar tolerância do QR igual a zero e rejeitar negativa, decimal ou não numérica', () => {
+    expect(parseEnv({ ...validSource, QR_TOLERANCE_SECONDS: '0' }).QR_TOLERANCE_SECONDS).toBe(0);
+    for (const value of ['-1', 'abc', '2.5']) {
+      expect(() => parseEnv({ ...validSource, QR_TOLERANCE_SECONDS: value })).toThrow(
+        /QR_TOLERANCE_SECONDS/,
+      );
+    }
+  });
+
   it('deve usar GPS_COM_FALLBACK como padrão de TERMINAL_POSITION_SOURCE e aceitar os três modos', () => {
     expect(parseEnv(validSource).TERMINAL_POSITION_SOURCE).toBe('GPS_COM_FALLBACK');
     for (const source of ['GPS_COM_FALLBACK', 'CADASTRO', 'GPS']) {
