@@ -7,6 +7,7 @@ const now = new Date('2026-10-20T14:00:00Z');
 const secondsAgo = (s: number) => new Date(now.getTime() - s * 1000);
 
 const accessPoint = makeAccessPoint({ latitude: -23.30512, longitude: -45.96551 });
+const cadastro = { latitude: accessPoint.latitude, longitude: accessPoint.longitude };
 const gps = { latitude: -23.3051, longitude: -45.9655 };
 
 // Terminal with a GPS fix, last heard from `ageSeconds` ago, reporting the `gps` coordinates.
@@ -28,10 +29,45 @@ describe('resolveReferencePosition', () => {
       expect(result).toEqual({ ...gps, origem: 'GPS' });
     });
 
-    it.todo('deve cair nas coordenadas do ponto quando não há fix');
-    it.todo('deve usar o GPS com 9 min 59 s e cair no ponto com exatamente 10 min');
-    it.todo('deve cair nas coordenadas do ponto quando o terminal nunca fez contato');
-    it.todo('deve cair nas coordenadas do ponto quando há fix mas faltam as coordenadas');
+    it('deve cair nas coordenadas do ponto quando não há fix', () => {
+      const terminal = { ...terminalWithFix(30), gpsFix: false };
+
+      const result = resolveReferencePosition(terminal, accessPoint, now, fallback);
+
+      expect(result).toEqual({ ...cadastro, origem: 'CADASTRO' });
+    });
+
+    it('deve usar o GPS com 9 min 59 s e cair no ponto com exatamente 10 min', () => {
+      const recent = resolveReferencePosition(terminalWithFix(599), accessPoint, now, fallback);
+      const old = resolveReferencePosition(terminalWithFix(600), accessPoint, now, fallback);
+
+      expect(recent?.origem).toBe('GPS');
+      expect(old).toEqual({ ...cadastro, origem: 'CADASTRO' });
+    });
+
+    it('deve respeitar o limite configurado de idade do GPS', () => {
+      const config = { source: 'GPS_COM_FALLBACK', gpsMaxAgeMinutes: 1 } as const;
+
+      const result = resolveReferencePosition(terminalWithFix(60), accessPoint, now, config);
+
+      expect(result?.origem).toBe('CADASTRO');
+    });
+
+    it('deve cair nas coordenadas do ponto quando o terminal nunca fez contato', () => {
+      const terminal = { ...terminalWithFix(30), ultimoContatoEm: null };
+
+      const result = resolveReferencePosition(terminal, accessPoint, now, fallback);
+
+      expect(result).toEqual({ ...cadastro, origem: 'CADASTRO' });
+    });
+
+    it('deve cair nas coordenadas do ponto quando há fix mas faltam as coordenadas', () => {
+      const terminal = { ...terminalWithFix(30), ultimaLat: null, ultimaLon: null };
+
+      const result = resolveReferencePosition(terminal, accessPoint, now, fallback);
+
+      expect(result).toEqual({ ...cadastro, origem: 'CADASTRO' });
+    });
   });
 
   describe('CADASTRO', () => {
