@@ -1,5 +1,6 @@
 import type { IClock } from '../../../providers/IClock';
 import type { ITerminalRepository } from '../../../repositories/ITerminalRepository';
+import { RateLimitedError } from '../../../shared/errors/AppError';
 import type { IRegisterHeartbeatDTO } from './RegisterHeartbeat_DTO';
 
 export interface RegisterHeartbeatConfig {
@@ -31,7 +32,14 @@ export class RegisterHeartbeatUseCase {
     input: IRegisterHeartbeatDTO,
   ): Promise<RegisterHeartbeatResult> {
     const now = this.clock.now();
-    await this.terminals.updateHeartbeat(
+    const { minIntervalSeconds, qrRefreshMs, commandPollMs, aberturaMs } = this.config;
+    // Latitude and longitude only count with a fix; the DTO already guarantees both come together.
+    const posicao =
+      input.gpsFix && input.latitude != null && input.longitude != null
+        ? { latitude: input.latitude, longitude: input.longitude }
+        : null;
+
+    const stored = await this.terminals.updateHeartbeat(
       terminalId,
       {
         contatoEm: now,
@@ -39,10 +47,18 @@ export class RegisterHeartbeatUseCase {
         gpsSimulado: input.gpsSimulado,
         firmware: input.firmware,
         rssi: input.wifiRssi ?? null,
-        posicao: { latitude: input.latitude as number, longitude: input.longitude as number },
+        posicao,
       },
-      new Date(now.getTime() - this.config.minIntervalSeconds * 1000),
+      new Date(now.getTime() - minIntervalSeconds * 1000),
     );
-    return { serverTime: '', config: { qrRefreshMs: 0, commandPollMs: 0, aberturaMs: 0 } };
+    if (!stored) {
+      throw new RateLimitedError('Heartbeat muito frequente. Aguarde alguns segundos');
+    }
+
+    return {
+      // The contract shows the time to the second, which is easier to parse on the terminal.
+      serverTime: now.toISOString().replace(/\.\d{3}Z$/, 'Z'),
+      config: { qrRefreshMs, commandPollMs, aberturaMs },
+    };
   }
 }
