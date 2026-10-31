@@ -71,12 +71,40 @@ describe('resolveReferencePosition', () => {
   });
 
   describe('CADASTRO', () => {
-    it.todo('deve usar sempre as coordenadas do ponto, mesmo com GPS recente');
+    it('deve usar sempre as coordenadas do ponto, mesmo com GPS recente', () => {
+      const config = { source: 'CADASTRO', gpsMaxAgeMinutes: 10 } as const;
+
+      const result = resolveReferencePosition(terminalWithFix(1), accessPoint, now, config);
+
+      expect(result).toEqual({ ...cadastro, origem: 'CADASTRO' });
+    });
   });
 
   describe('GPS', () => {
-    it.todo('deve usar o GPS quando há fix e o contato é recente');
-    it.todo('deve devolver null quando não há fix');
-    it.todo('deve devolver null quando o GPS é antigo (10 min ou mais)');
+    const onlyGps = { source: 'GPS', gpsMaxAgeMinutes: 10 } as const;
+
+    it('deve usar o GPS quando há fix e o contato é recente', () => {
+      const result = resolveReferencePosition(terminalWithFix(599), accessPoint, now, onlyGps);
+
+      expect(result).toEqual({ ...gps, origem: 'GPS' });
+    });
+
+    it('deve devolver null quando não há fix', () => {
+      const terminal = { ...terminalWithFix(30), gpsFix: false };
+
+      expect(resolveReferencePosition(terminal, accessPoint, now, onlyGps)).toBeNull();
+    });
+
+    it('deve devolver null quando o GPS é antigo (10 min ou mais)', () => {
+      const result = resolveReferencePosition(terminalWithFix(600), accessPoint, now, onlyGps);
+
+      expect(result).toBeNull();
+    });
+
+    it('deve devolver null quando o terminal nunca fez contato', () => {
+      const terminal = makeTerminal();
+
+      expect(resolveReferencePosition(terminal, accessPoint, now, onlyGps)).toBeNull();
+    });
   });
 });
