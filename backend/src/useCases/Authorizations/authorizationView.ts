@@ -5,7 +5,11 @@ import type {
 import type { AccessPointType } from '../../entities/AccessPoint';
 import type { UserProfile } from '../../entities/User';
 import { computeEffectiveStatus } from '../../entities/rules/computeEffectiveStatus';
-import type { AuthorizationDetails } from '../../repositories/IAuthorizationRepository';
+import type {
+  AuthorizationDetails,
+  AuthorizationListResult,
+} from '../../repositories/IAuthorizationRepository';
+import type { Page } from '../../shared/pagination';
 
 /** The authorization as the API exposes it, with the computed fields. */
 export interface AuthorizationView {
@@ -53,5 +57,18 @@ export function toAuthorizationView(details: AuthorizationDetails, now: Date): A
     canceladoPor: details.canceladoPor,
     canceladoEm: a.canceladoEm,
     motivoCancelamento: a.motivoCancelamento,
+  };
+}
+
+export function toAuthorizationPage(
+  result: AuthorizationListResult,
+  paging: { page: number; pageSize: number },
+  now: Date,
+): Page<AuthorizationView> {
+  return {
+    data: result.items.map((details) => toAuthorizationView(details, now)),
+    page: paging.page,
+    pageSize: paging.pageSize,
+    total: result.total,
   };
 }

@@ -324,15 +324,13 @@ describe('rotas /api/v1/authorizations', () => {
       expect(malformed.status).toBe(404);
     });
 
-    it('401 sem token e 403 para quem não é administrador, inclusive o dono (a B09 abre a visão do dono)', async () => {
+    it('401 sem token', async () => {
       const { admin, visitor, point } = await scenario();
       const created = await post(admin, bodyFor(visitor.id, point.id));
 
       const anonymous = await request(app).get(`/api/v1/authorizations/${created.body.id}`);
-      const owner = await get(visitor, created.body.id);
 
       expect(anonymous.status).toBe(401);
-      expect(owner.status).toBe(403);
     });
   });
 });

@@ -10,6 +10,8 @@ import { GetAuthorizationUseCase } from './GetAuthorization_UseCase';
 const idOf = (n: number) => `00000000-0000-4000-8000-${String(n).padStart(12, '0')}`;
 const ADMIN = makeUser({ id: idOf(1), nome: 'Admin', perfil: 'ADMIN' });
 const VISITOR = makeUser({ id: idOf(2), nome: 'Maria Souza' });
+const STRANGER = makeUser({ id: idOf(4), nome: 'João Alves', email: 'joao@teste.local' });
+const AS_ADMIN = { userId: ADMIN.id, perfil: ADMIN.perfil };
 const BUILDING = makeBuilding({ id: idOf(10), nome: 'Edifício Central' });
 const POINT = makeAccessPoint({ id: idOf(20), buildingId: BUILDING.id, nome: 'Catraca Social' });
 const AUTHORIZATION_ID = idOf(30);
@@ -19,7 +21,7 @@ const NOW = new Date('2026-10-20T14:00:00Z');
 
 const makeSut = async (overrides: Parameters<typeof makeAuthorization>[0] = {}) => {
   const doubles = makeLocationDoubles();
-  for (const user of [ADMIN, VISITOR]) await doubles.users.save(user);
+  for (const user of [ADMIN, VISITOR, STRANGER]) await doubles.users.save(user);
   await doubles.buildings.save(BUILDING);
   await doubles.accessPoints.save(POINT);
   doubles.authorizations.add(
@@ -42,7 +44,7 @@ describe('GetAuthorization', () => {
   it('deve devolver a autorização com usuário, local, edifício e quem a criou', async () => {
     const { sut } = await makeSut();
 
-    const view = await sut.execute(AUTHORIZATION_ID);
+    const view = await sut.execute(AUTHORIZATION_ID, AS_ADMIN);
 
     expect(view).toMatchObject({
       id: AUTHORIZATION_ID,
@@ -62,7 +64,7 @@ describe('GetAuthorization', () => {
   it('deve calcular usosRestantes a partir dos usos realizados', async () => {
     const { sut } = await makeSut({ usosRealizados: 2 });
 
-    const view = await sut.execute(AUTHORIZATION_ID);
+    const view = await sut.execute(AUTHORIZATION_ID, AS_ADMIN);
 
     expect(view).toMatchObject({ usosRealizados: 2, usosRestantes: 1, situacaoEfetiva: 'ATIVA' });
   });
@@ -70,7 +72,7 @@ describe('GetAuthorization', () => {
   it('deve indicar ESGOTADA quando todos os usos foram gastos e a data ainda vale', async () => {
     const { sut } = await makeSut({ usosRealizados: 3 });
 
-    const view = await sut.execute(AUTHORIZATION_ID);
+    const view = await sut.execute(AUTHORIZATION_ID, AS_ADMIN);
 
     expect(view).toMatchObject({
       situacao: 'ATIVA',
@@ -82,7 +84,7 @@ describe('GetAuthorization', () => {
   it('deve indicar EXPIRADA quando dataFim ficou para trás em São Paulo, mesmo com a situação gravada ATIVA', async () => {
     const { sut } = await makeSut({ dataInicio: '2026-10-10', dataFim: '2026-10-19' });
 
-    const view = await sut.execute(AUTHORIZATION_ID);
+    const view = await sut.execute(AUTHORIZATION_ID, AS_ADMIN);
 
     expect(view).toMatchObject({ situacao: 'ATIVA', situacaoEfetiva: 'EXPIRADA' });
   });
@@ -95,7 +97,7 @@ describe('GetAuthorization', () => {
       motivoCancelamento: 'Pedido da moradora',
     });
 
-    const view = await sut.execute(AUTHORIZATION_ID);
+    const view = await sut.execute(AUTHORIZATION_ID, AS_ADMIN);
 
     expect(view).toMatchObject({
       situacao: 'CANCELADA',
@@ -109,8 +111,35 @@ describe('GetAuthorization', () => {
   it('deve lançar NotFoundError quando a autorização não existe', async () => {
     const { sut } = await makeSut();
 
-    const error = await sut.execute(idOf(99)).catch((e) => e);
+    const error = await sut.execute(idOf(99), AS_ADMIN).catch((e) => e);
 
     expect(error).toMatchObject({ code: 'NOT_FOUND', status: 404 });
+  });
+
+  it('deve deixar o dono ler a própria autorização', async () => {
+    const { sut } = await makeSut();
+
+    const view = await sut.execute(AUTHORIZATION_ID, { userId: VISITOR.id, perfil: 'VISITANTE' });
+
+    expect(view).toMatchObject({ id: AUTHORIZATION_ID, usuario: { id: VISITOR.id } });
+  });
+
+  it('deve lançar NotFoundError, igual ao de inexistente, quando um não-admin lê a de outro', async () => {
+    const { sut } = await makeSut();
+    const stranger = { userId: STRANGER.id, perfil: STRANGER.perfil };
+
+    const others = await sut.execute(AUTHORIZATION_ID, stranger).catch((e) => e);
+    const missing = await sut.execute(idOf(99), stranger).catch((e) => e);
+
+    expect(others).toMatchObject({ code: 'NOT_FOUND', status: 404 });
+    expect(others.message).toBe(missing.message);
+  });
+
+  it('deve deixar o administrador ler a de qualquer usuário', async () => {
+    const { sut } = await makeSut();
+
+    const view = await sut.execute(AUTHORIZATION_ID, AS_ADMIN);
+
+    expect(view.usuario.id).toBe(VISITOR.id);
   });
 });

@@ -7,6 +7,7 @@ export class GetAuthorizationController {
 
   async handle(req: Request, res: Response) {
     const id = parseIdParam(req.params.id, 'Autorização não encontrada');
-    return res.status(200).json(await this.useCase.execute(id));
+    // `authenticate` runs before this, so `req.auth` is set.
+    return res.status(200).json(await this.useCase.execute(id, req.auth!));
   }
 }

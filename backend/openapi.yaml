@@ -21,7 +21,9 @@ tags:
   - name: Terminals
     description: Terminais de acesso e as chaves deles (só ADMIN)
   - name: Authorizations
-    description: Autorizações de acesso (só ADMIN nesta etapa)
+    description: >-
+      Autorizações de acesso. Criar, listar e cancelar: só ADMIN. Ler uma e listar "as minhas":
+      cada usuário, as próprias.
 paths:
   /health:
     get:
@@ -877,6 +879,94 @@ paths:
           $ref: '#/components/responses/AuthorizationValidationError'
         '500':
           $ref: '#/components/responses/InternalError'
+    get:
+      tags: [Authorizations]
+      summary: Listar autorizações
+      description: >-
+        Só `ADMIN`. As mais recentes primeiro (`criadoEm`, depois `id`). Os filtros se combinam.
+        `dataDe` e `dataAte` (AAAA-MM-DD, as pontas valem) mantêm as autorizações cujo período
+        **se sobrepõe** ao intervalo: `dataFim` igual ou depois de `dataDe` e `dataInicio` igual ou
+        antes de `dataAte`. `dataAte` antes de `dataDe` dá 422.
+      operationId: listAuthorizations
+      parameters:
+        - name: usuarioId
+          in: query
+          schema:
+            type: string
+            format: uuid
+        - name: accessPointId
+          in: query
+          schema:
+            type: string
+            format: uuid
+        - name: situacao
+          in: query
+          description: >-
+            Situação **efetiva**, calculada na consulta: `CANCELADA`; `EXPIRADA` (`dataFim` antes de
+            hoje em São Paulo); `ESGOTADA` (ainda no prazo, todos os usos gastos); `ATIVA`.
+          schema:
+            type: string
+            enum: [ATIVA, EXPIRADA, ESGOTADA, CANCELADA]
+        - name: dataDe
+          in: query
+          schema:
+            type: string
+            format: date
+        - name: dataAte
+          in: query
+          schema:
+            type: string
+            format: date
+        - $ref: '#/components/parameters/Page'
+        - $ref: '#/components/parameters/PageSize'
+      responses:
+        '200':
+          description: Página de autorizações
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ListaAutorizacoes'
+              example:
+                data:
+                  - id: 5eed0000-0000-4000-8000-000000000008
+                    usuario:
+                      id: 5eed0000-0000-4000-8000-000000000002
+                      nome: Maria Souza
+                      perfil: VISITANTE
+                    local:
+                      id: 5eed0000-0000-4000-8000-000000000005
+                      nome: Catraca Social
+                      tipo: CATRACA
+                      edificio:
+                        id: 5eed0000-0000-4000-8000-000000000004
+                        nome: Edifício Central
+                    dataInicio: '2026-10-20'
+                    dataFim: '2026-10-25'
+                    horaInicio: '08:00'
+                    horaFim: '18:00'
+                    usosPermitidos: 3
+                    usosRealizados: 3
+                    usosRestantes: 0
+                    situacao: ATIVA
+                    situacaoEfetiva: ESGOTADA
+                    criadoPor:
+                      id: 5eed0000-0000-4000-8000-000000000001
+                      nome: Administrador
+                    criadoEm: '2026-10-19T12:00:00.000Z'
+                    canceladoPor: null
+                    canceladoEm: null
+                    motivoCancelamento: null
+                page: 1
+                pageSize: 20
+                total: 1
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '422':
+          $ref: '#/components/responses/AuthorizationQueryError'
+        '500':
+          $ref: '#/components/responses/InternalError'
   /authorizations/{id}:
     parameters:
       - $ref: '#/components/parameters/IdPath'
@@ -884,9 +974,10 @@ paths:
       tags: [Authorizations]
       summary: Obter autorização
       description: >-
-        Só `ADMIN` nesta etapa; a visão do dono da autorização chega com a consulta e o
-        cancelamento. Devolve o mesmo objeto da criação, com `situacaoEfetiva` calculada na hora
-        (`CANCELADA`, `EXPIRADA`, `ESGOTADA` ou `ATIVA`). Um `id` que não é UUID também devolve 404.
+        O `ADMIN` lê qualquer uma; os demais perfis, só as próprias. A autorização de outra pessoa
+        devolve 404, igual à que não existe, para não revelar que ela existe. Devolve o mesmo
+        objeto da criação, com `situacaoEfetiva` calculada na hora (`CANCELADA`, `EXPIRADA`,
+        `ESGOTADA` ou `ATIVA`). Um `id` que não é UUID também devolve 404.
       operationId: getAuthorization
       responses:
         '200':
@@ -926,10 +1017,146 @@ paths:
                 motivoCancelamento: null
         '401':
           $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/AuthorizationNotFound'
+        '500':
+          $ref: '#/components/responses/InternalError'
+  /authorizations/{id}/cancel:
+    parameters:
+      - $ref: '#/components/parameters/IdPath'
+    patch:
+      tags: [Authorizations]
+      summary: Cancelar autorização
+      description: >-
+        Só `ADMIN`. Grava `situacao` `CANCELADA`, quem cancelou, quando (relógio do servidor) e o
+        motivo. O corpo é opcional; `motivo` tem até 200 caracteres e, vazio ou só com espaços,
+        vira `null`. Também cancela a que já venceu ou esgotou, se ainda estiver gravada como
+        `ATIVA`.
+
+
+        **Idempotente:** cancelar de novo devolve 200 com o estado atual e **não** altera
+        `canceladoPor`, `canceladoEm` nem `motivoCancelamento`. Um `id` que não é UUID devolve 404.
+      operationId: cancelAuthorization
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CancelarAutorizacao'
+            example:
+              motivo: Pedido da moradora
+      responses:
+        '200':
+          description: A autorização cancelada (ou, se já estava, como está)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Autorizacao'
+              example:
+                id: 5eed0000-0000-4000-8000-000000000008
+                usuario:
+                  id: 5eed0000-0000-4000-8000-000000000002
+                  nome: Maria Souza
+                  perfil: VISITANTE
+                local:
+                  id: 5eed0000-0000-4000-8000-000000000005
+                  nome: Catraca Social
+                  tipo: CATRACA
+                  edificio:
+                    id: 5eed0000-0000-4000-8000-000000000004
+                    nome: Edifício Central
+                dataInicio: '2026-10-20'
+                dataFim: '2026-10-25'
+                horaInicio: '08:00'
+                horaFim: '18:00'
+                usosPermitidos: 3
+                usosRealizados: 0
+                usosRestantes: 3
+                situacao: CANCELADA
+                situacaoEfetiva: CANCELADA
+                criadoPor:
+                  id: 5eed0000-0000-4000-8000-000000000001
+                  nome: Administrador
+                criadoEm: '2026-10-19T12:00:00.000Z'
+                canceladoPor:
+                  id: 5eed0000-0000-4000-8000-000000000001
+                  nome: Administrador
+                canceladoEm: '2026-10-21T13:00:00.000Z'
+                motivoCancelamento: Pedido da moradora
+        '401':
+          $ref: '#/components/responses/Unauthorized'
         '403':
           $ref: '#/components/responses/Forbidden'
         '404':
           $ref: '#/components/responses/AuthorizationNotFound'
+        '422':
+          $ref: '#/components/responses/AuthorizationCancelError'
+        '500':
+          $ref: '#/components/responses/InternalError'
+  /me/authorizations:
+    get:
+      tags: [Authorizations]
+      summary: Minhas autorizações
+      description: >-
+        Qualquer perfil autenticado; devolve só as autorizações do dono do token. Um `usuarioId`
+        enviado na query é ignorado. Ordenadas por `dataFim`, as que terminam primeiro à frente
+        (`id` desempata). Mesmo objeto de `GET /authorizations`.
+      operationId: listMyAuthorizations
+      parameters:
+        - name: situacao
+          in: query
+          description: >-
+            Situação **efetiva**, calculada na consulta: `CANCELADA`; `EXPIRADA` (`dataFim` antes de
+            hoje em São Paulo); `ESGOTADA` (ainda no prazo, todos os usos gastos); `ATIVA`.
+          schema:
+            type: string
+            enum: [ATIVA, EXPIRADA, ESGOTADA, CANCELADA]
+        - $ref: '#/components/parameters/Page'
+        - $ref: '#/components/parameters/PageSize'
+      responses:
+        '200':
+          description: Página das minhas autorizações
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ListaAutorizacoes'
+              example:
+                data:
+                  - id: 5eed0000-0000-4000-8000-000000000008
+                    usuario:
+                      id: 5eed0000-0000-4000-8000-000000000002
+                      nome: Maria Souza
+                      perfil: VISITANTE
+                    local:
+                      id: 5eed0000-0000-4000-8000-000000000005
+                      nome: Catraca Social
+                      tipo: CATRACA
+                      edificio:
+                        id: 5eed0000-0000-4000-8000-000000000004
+                        nome: Edifício Central
+                    dataInicio: '2026-10-20'
+                    dataFim: '2026-10-25'
+                    horaInicio: '08:00'
+                    horaFim: '18:00'
+                    usosPermitidos: 3
+                    usosRealizados: 0
+                    usosRestantes: 3
+                    situacao: ATIVA
+                    situacaoEfetiva: ATIVA
+                    criadoPor:
+                      id: 5eed0000-0000-4000-8000-000000000001
+                      nome: Administrador
+                    criadoEm: '2026-10-19T12:00:00.000Z'
+                    canceladoPor: null
+                    canceladoEm: null
+                    motivoCancelamento: null
+                page: 1
+                pageSize: 20
+                total: 1
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '422':
+          $ref: '#/components/responses/AuthorizationQueryError'
         '500':
           $ref: '#/components/responses/InternalError'
 components:
@@ -1421,6 +1648,28 @@ components:
           type: integer
           minimum: 1
           maximum: 1000
+    CancelarAutorizacao:
+      type: object
+      properties:
+        motivo:
+          type: string
+          maxLength: 200
+          description: Opcional. Vazio ou só com espaços vira `null`.
+    ListaAutorizacoes:
+      type: object
+      required: [data, page, pageSize, total]
+      properties:
+        data:
+          type: array
+          items:
+            $ref: '#/components/schemas/Autorizacao'
+        page:
+          type: integer
+        pageSize:
+          type: integer
+        total:
+          type: integer
+          description: Total de autorizações que atendem aos filtros, antes da paginação.
     Autorizacao:
       type: object
       required:
@@ -1741,6 +1990,46 @@ components:
                       message: Usuário inativo
                     - field: accessPointId
                       message: Ponto de acesso inativo
+    AuthorizationQueryError:
+      description: Filtro ou paginação inválidos, com a mensagem de cada parâmetro em `details`
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          examples:
+            filtrosInvalidos:
+              summary: Situação desconhecida e data que não existe
+              value:
+                error:
+                  code: VALIDATION_ERROR
+                  message: Dados inválidos
+                  details:
+                    - field: situacao
+                      message: deve ser ATIVA, EXPIRADA, ESGOTADA ou CANCELADA
+                    - field: dataDe
+                      message: deve ser uma data que existe
+            intervaloInvertido:
+              summary: dataAte antes de dataDe
+              value:
+                error:
+                  code: VALIDATION_ERROR
+                  message: Dados inválidos
+                  details:
+                    - field: dataAte
+                      message: deve ser igual ou depois de dataDe
+    AuthorizationCancelError:
+      description: Motivo com mais de 200 caracteres
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          example:
+            error:
+              code: VALIDATION_ERROR
+              message: Dados inválidos
+              details:
+                - field: motivo
+                  message: deve ter no máximo 200 caracteres
     AuthorizationReferenceNotFound:
       description: O usuário ou o ponto de acesso informado não existe
       content:
@@ -1759,7 +2048,8 @@ components:
                   code: NOT_FOUND
                   message: Ponto de acesso não encontrado
     AuthorizationNotFound:
-      description: Autorização inexistente, ou `id` que não é UUID
+      description: >-
+        Autorização inexistente, de outra pessoa (para quem não é `ADMIN`) ou `id` que não é UUID
       content:
         application/json:
           schema:

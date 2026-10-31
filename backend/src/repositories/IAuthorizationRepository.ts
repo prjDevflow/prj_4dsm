@@ -1,5 +1,5 @@
 import type { AccessPointType } from '../entities/AccessPoint';
-import type { Authorization } from '../entities/Authorization';
+import type { Authorization, EffectiveAuthorizationStatus } from '../entities/Authorization';
 import type { UserProfile } from '../entities/User';
 
 /** An authorization with the people and the place it refers to already resolved (read model). */
@@ -16,9 +16,29 @@ export interface AuthorizationDetails {
   canceladoPor: { id: string; nome: string } | null;
 }
 
+export interface AuthorizationListFilter {
+  usuarioId?: string;
+  accessPointId?: string;
+  /** The effective status, as the API exposes it. Decided in the query, not in memory. */
+  situacao?: EffectiveAuthorizationStatus;
+  /** YYYY-MM-DD. Keeps the authorizations whose period overlaps [dataDe, dataAte], ends included. */
+  dataDe?: string;
+  dataAte?: string;
+  /** The instant that decides "today" (America/Sao_Paulo) for the effective status. */
+  now: Date;
+  /** `recent`: newest first. `dataFim`: the ones that end first come first. Both break ties by id. */
+  sort: 'recent' | 'dataFim';
+  page: number;
+  pageSize: number;
+}
+
+export interface AuthorizationListResult {
+  items: AuthorizationDetails[];
+  total: number;
+}
+
 /**
  * "Active and not expired" means stored status `ATIVA` and `dataFim` today or later (usage is ignored).
- * B09 grows this port again.
  */
 export interface IAuthorizationRepository {
   /** `today` is YYYY-MM-DD in America/Sao_Paulo. */
@@ -29,4 +49,15 @@ export interface IAuthorizationRepository {
   save(authorization: Authorization): Promise<void>;
   /** The id must already be validated (a malformed id would make the database fail instead of returning null). */
   findViewById(id: string): Promise<AuthorizationDetails | null>;
+  list(filter: AuthorizationListFilter): Promise<AuthorizationListResult>;
+  /**
+   * Cancels only while the stored status is still `ATIVA`, in one statement, so two cancellations
+   * at once cannot overwrite each other. Returns whether this call was the one that cancelled.
+   */
+  cancelIfActive(input: {
+    id: string;
+    canceladoPorId: string;
+    canceladoEm: Date;
+    motivo: string | null;
+  }): Promise<boolean>;
 }

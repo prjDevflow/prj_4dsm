@@ -124,7 +124,7 @@ Legenda: **U** = unitário (doubles, sem banco) · **I** = integração (superte
 - **Prazo:** Sprint 1 (iniciar) → Sprint 2 semana 1 (fechar) · **Prioridade:** 🔴
 - **Objetivo:** o administrador cria uma autorização com os oito campos exigidos 📄.
 
-**Use cases** (`src/useCases/Authorizations/`): `CreateAuthorization`, `GetAuthorization` (reutilizado na B09). Entidade `Authorization` com fábrica `Authorization.create(...)`. Port `IAuthorizationRepository` ganha `save` e `findViewById` (read model com `usuario`, `local` e `edificio` resolvidos); o `findById` entra na B09, que cancela. A criação também trava o usuário (`IUserRepository.findByIdForShare`), antes do ponto. Providers: `IClock`, `IIdGenerator`.
+**Use cases** (`src/useCases/Authorizations/`): `CreateAuthorization`, `GetAuthorization` (reutilizado na B09). Entidade `Authorization` com fábrica `Authorization.create(...)`. Port `IAuthorizationRepository` ganha `save` e `findViewById` (read model com `usuario`, `local` e `edificio` resolvidos); o `findById` não chegou a ser preciso: a B09 cancela com `cancelIfActive`, um `UPDATE` condicional. A criação também trava o usuário (`IUserRepository.findByIdForShare`), antes do ponto. Providers: `IClock`, `IIdGenerator`.
 
 **Regras de validação**
 
@@ -171,7 +171,7 @@ Resposta 201 (reutilizada em B09 e consumida por F07, F08 e F09):
 - [x] I `POST /authorizations`: `usosPermitidos` 0 e 1001 → 422 com mensagem por campo.
 - [x] I só `ADMIN` cria (403 para os demais).
 - [x] I a resposta traz `usosRestantes`, `situacaoEfetiva`, `criadoPor` e `criadoEm`.
-- [x] I `GET /authorizations/:id` devolve o mesmo objeto. (nesta etapa só `ADMIN`; a B09 abre ao dono)
+- [x] I `GET /authorizations/:id` devolve o mesmo objeto. (na B08 só `ADMIN`; a B09 abriu ao dono)
 
 **Critérios de aceitação**
 
@@ -209,30 +209,31 @@ Resposta 201 (reutilizada em B09 e consumida por F07, F08 e F09):
 
 **Lista de testes**
 
-- [ ] U `CancelAuthorization`: grava `CANCELADA`, `canceladoPorId`, `canceladoEm` e `motivoCancelamento`.
-- [ ] U `CancelAuthorization`: cancelar duas vezes devolve o estado atual e mantém o `canceladoEm` original.
-- [ ] U `CancelAuthorization`: autorização inexistente → `NotFoundError`.
-- [ ] U `GetAuthorization`: não-admin lendo a de outro recebe `NotFoundError`; lendo a própria funciona.
-- [ ] U `ListMyAuthorizations`: usa sempre o id do token, ignora `usuarioId` vindo na query.
-- [ ] I `GET /authorizations`: um teste por filtro (`usuarioId`, `accessPointId`, `situacao`, `dataDe`, `dataAte`) e combinações.
-- [ ] I `situacao=EXPIRADA` traz as de `dataFim` passada; `ESGOTADA` as que gastaram todos os usos; seed com as quatro situações para provar a precedência.
-- [ ] I não-admin recebe 403 em `GET /authorizations` e no cancelamento.
-- [ ] I teste de vazamento: usuário A lê a autorização do usuário B por id → 404; `/me/authorizations` nunca devolve a de outra pessoa.
+- [x] U `CancelAuthorization`: grava `CANCELADA`, `canceladoPorId`, `canceladoEm` e `motivoCancelamento`.
+- [x] U `CancelAuthorization`: cancelar duas vezes devolve o estado atual e mantém o `canceladoEm` original.
+- [x] U `CancelAuthorization`: autorização inexistente → `NotFoundError`.
+- [x] U `GetAuthorization`: não-admin lendo a de outro recebe `NotFoundError`; lendo a própria funciona.
+- [x] U `ListMyAuthorizations`: usa sempre o id do token, ignora `usuarioId` vindo na query.
+- [x] I `GET /authorizations`: um teste por filtro (`usuarioId`, `accessPointId`, `situacao`, `dataDe`, `dataAte`) e combinações.
+- [x] I `situacao=EXPIRADA` traz as de `dataFim` passada; `ESGOTADA` as que gastaram todos os usos; seed com as quatro situações para provar a precedência.
+- [x] I não-admin recebe 403 em `GET /authorizations` e no cancelamento.
+- [x] I teste de vazamento: usuário A lê a autorização do usuário B por id → 404; `/me/authorizations` nunca devolve a de outra pessoa.
 - [ ] I depois do cancelamento, a validação seguinte é negada com `AUTORIZACAO_CANCELADA` (escrever quando a B15 existir).
 
 **Critérios de aceitação**
 
-- [ ] Cada filtro isolado e combinados retornam o conjunto correto (um teste por filtro).
-- [ ] O filtro `EXPIRADA` traz as de `dataFim` passada; `ESGOTADA` as que gastaram todos os usos.
+- [x] Cada filtro isolado e combinados retornam o conjunto correto (um teste por filtro).
+- [x] O filtro `EXPIRADA` traz as de `dataFim` passada; `ESGOTADA` as que gastaram todos os usos.
 - [ ] Depois do cancelamento, a tentativa de acesso seguinte é negada com `AUTORIZACAO_CANCELADA` (teste de integração com a B15, quando existir).
-- [ ] Cancelar duas vezes não gera erro nem altera `canceladoEm`.
-- [ ] `/me/authorizations` nunca devolve autorização de outra pessoa.
-- [ ] Não-admin recebe 403 em `GET /authorizations` e no cancelamento.
+- [x] Cancelar duas vezes não gera erro nem altera `canceladoEm`.
+- [x] `/me/authorizations` nunca devolve autorização de outra pessoa.
+- [x] Não-admin recebe 403 em `GET /authorizations` e no cancelamento.
 
 **Definição de pronto**
 
-- [ ] Teste de vazamento: usuário A tenta ler a autorização do usuário B por id → 404.
-- [ ] Swagger atualizado; Lucas avisado (★).
+- [x] Teste de vazamento: usuário A tenta ler a autorização do usuário B por id → 404.
+- [x] Swagger atualizado.
+- [ ] Lucas avisado (★). (contrato de `/authorizations`, `/me/authorizations` e do cancelamento publicado; falta avisar)
 
 ---
 
