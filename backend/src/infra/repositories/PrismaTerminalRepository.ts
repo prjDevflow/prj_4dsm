@@ -72,8 +72,27 @@ export class PrismaTerminalRepository implements ITerminalRepository {
     return count > 0;
   }
 
-  async updateHeartbeat(_id: string, _heartbeat: TerminalHeartbeat, _previousContactUntil: Date) {
-    return false;
+  async updateHeartbeat(id: string, heartbeat: TerminalHeartbeat, previousContactUntil: Date) {
+    // The contact check and the write are one statement: of two simultaneous heartbeats only one matches.
+    const { count } = await this.prisma.terminal.updateMany({
+      where: {
+        id,
+        OR: [{ ultimoContatoEm: null }, { ultimoContatoEm: { lte: previousContactUntil } }],
+      },
+      data: {
+        ultimoContatoEm: heartbeat.contatoEm,
+        gpsFix: heartbeat.gpsFix,
+        gpsSimulado: heartbeat.gpsSimulado,
+        firmware: heartbeat.firmware,
+        rssi: heartbeat.rssi,
+        // Leaving the columns out keeps the last known position when there is no fix.
+        ...(heartbeat.posicao && {
+          ultimaLat: heartbeat.posicao.latitude,
+          ultimaLon: heartbeat.posicao.longitude,
+        }),
+      },
+    });
+    return count > 0;
   }
 
   async list(filter: TerminalListFilter): Promise<TerminalListResult> {
