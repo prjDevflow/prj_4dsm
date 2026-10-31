@@ -31,21 +31,25 @@ aleatório com 32 caracteres ou mais serve para desenvolvimento).
 
 Variáveis do `.env`:
 
-| Variável                                            | Padrão                  | Uso                                                     |
-| --------------------------------------------------- | ----------------------- | ------------------------------------------------------- |
-| `PORT`                                              | `3000`                  | porta HTTP                                              |
-| `NODE_ENV`                                          | `development`           | `development`, `test` ou `production`                   |
-| `CORS_ORIGINS`                                      | `http://localhost:8081` | origens permitidas, separadas por vírgula               |
-| `LOG_LEVEL`                                         | `info`                  | nível de log do pino                                    |
-| `POSTGRES_USER`, `POSTGRES_PASSWORD`, `POSTGRES_DB` | `access`, —, `access`   | banco local do docker compose                           |
-| `DB_PORT`                                           | `5432`                  | porta do PostgreSQL no seu computador                   |
-| `DATABASE_URL`                                      | —                       | conexão dos comandos `npm` (dev, testes) fora do Docker |
-| `JWT_SECRET`                                        | — (obrigatória)         | segredo que assina os tokens, mínimo 32 caracteres      |
-| `JWT_EXPIRES_IN`                                    | `12h`                   | validade do token: inteiro + `s`, `m`, `h` ou `d`       |
-| `BCRYPT_COST`                                       | `10`                    | custo do bcrypt (4 a 15), na API e no seed              |
-| `LOGIN_MAX_PER_MINUTE`                              | `5`                     | tentativas de login por minuto por IP e e-mail          |
-| `TERMINAL_ONLINE_WINDOW_S`                          | `30`                    | segundos sem contato até o terminal aparecer offline    |
-| `SEED_*`                                            | ver `.env.example`      | credenciais e local do seed de desenvolvimento          |
+| Variável                                               | Padrão                  | Uso                                                     |
+| ------------------------------------------------------ | ----------------------- | ------------------------------------------------------- |
+| `PORT`                                                 | `3000`                  | porta HTTP                                              |
+| `NODE_ENV`                                             | `development`           | `development`, `test` ou `production`                   |
+| `CORS_ORIGINS`                                         | `http://localhost:8081` | origens permitidas, separadas por vírgula               |
+| `LOG_LEVEL`                                            | `info`                  | nível de log do pino                                    |
+| `POSTGRES_USER`, `POSTGRES_PASSWORD`, `POSTGRES_DB`    | `access`, —, `access`   | banco local do docker compose                           |
+| `DB_PORT`                                              | `5432`                  | porta do PostgreSQL no seu computador                   |
+| `DATABASE_URL`                                         | —                       | conexão dos comandos `npm` (dev, testes) fora do Docker |
+| `JWT_SECRET`                                           | — (obrigatória)         | segredo que assina os tokens, mínimo 32 caracteres      |
+| `JWT_EXPIRES_IN`                                       | `12h`                   | validade do token: inteiro + `s`, `m`, `h` ou `d`       |
+| `BCRYPT_COST`                                          | `10`                    | custo do bcrypt (4 a 15), na API e no seed              |
+| `LOGIN_MAX_PER_MINUTE`                                 | `5`                     | tentativas de login por minuto por IP e e-mail          |
+| `TERMINAL_ONLINE_WINDOW_S`                             | `30`                    | segundos sem contato até o terminal aparecer offline    |
+| `HEARTBEAT_MIN_INTERVAL_S`                             | `2`                     | segundos mínimos entre dois heartbeats do terminal      |
+| `QR_REFRESH_MS`, `COMMAND_POLL_MS`, `OPEN_DURATION_MS` | `10000`, `1000`, `5000` | o que o heartbeat devolve ao terminal, em milissegundos |
+| `TERMINAL_POSITION_SOURCE`                             | `GPS_COM_FALLBACK`      | origem da posição na checagem de proximidade (B15)      |
+| `GPS_MAX_AGE_MIN`                                      | `10`                    | idade máxima do GPS, em minutos, para ele valer         |
+| `SEED_*`                                               | ver `.env.example`      | credenciais e local do seed de desenvolvimento          |
 
 O `.env` nunca vai para o Git nem para a imagem Docker. Troque a senha do exemplo no seu `.env`.
 A senha e a porta da `DATABASE_URL` precisam ser as mesmas de `POSTGRES_PASSWORD` e `DB_PORT`. Se a
@@ -198,6 +202,26 @@ Só `ADMIN` (rotas em `/buildings`, `/access-points` e `/terminals`; contrato no
 - Nada é apagado: desativa-se com `PATCH` `ativo: false`. Desativar um **ponto de acesso** dá `409 LOCAL_COM_AUTORIZACOES_ATIVAS` se ele ainda tem autorização ativa e não expirada; desativar um **edifício** faz o mesmo teste nos pontos dele e, se passar, desativa todos eles junto (reativar o edifício não reativa os pontos).
 - `POST /terminals` e `POST /terminals/{id}/rotate-key` devolvem a `apiKey` **uma única vez**; o banco guarda só o SHA-256. `rotate-key` invalida a chave antiga na hora.
 - O terminal se identifica com os cabeçalhos `X-Terminal-Id` e `X-Terminal-Key` (middleware `authenticateTerminal`, em `src/main/middlewares.ts`): chave errada ou ausente dá `401`, terminal inativo dá `403`. O log oculta a chave. Teste com o terminal do seed em [docs/ambiente-dev.md](docs/ambiente-dev.md).
+
+## Canal do terminal
+
+Rotas que o terminal chama com os cabeçalhos `X-Terminal-Id` e `X-Terminal-Key` (contrato no Swagger).
+
+| Rota                       | O que faz                                                                     |
+| -------------------------- | ----------------------------------------------------------------------------- |
+| `POST /terminal/heartbeat` | informa que o terminal está vivo e onde está; devolve `serverTime` e `config` |
+
+```bash
+curl -X POST http://localhost:3000/api/v1/terminal/heartbeat \
+  -H 'X-Terminal-Id: 5eed0000-0000-4000-8000-000000000006' \
+  -H 'X-Terminal-Key: terminal-dev-key-1234567890abcdef1234567890' -H 'content-type: application/json' \
+  -d '{"latitude":-23.30512,"longitude":-45.96551,"gpsFix":true,"gpsSimulado":false,"firmware":"0.3.0","wifiRssi":-61}'
+```
+
+- O instante do contato é o relógio do servidor. Depois do heartbeat, `GET /terminals` mostra o terminal `online` (contato com menos de `TERMINAL_ONLINE_WINDOW_S`), com posição e hora do contato.
+- Com `gpsFix: false` a latitude e a longitude enviadas são ignoradas e a última posição conhecida continua gravada; com `gpsFix: true` elas são obrigatórias (`422`). `wifiRssi` vira `rssi`; `uptimeS` e `eventosPendentes` são aceitos e não guardados.
+- No máximo um heartbeat a cada `HEARTBEAT_MIN_INTERVAL_S` por terminal: antes disso `429 RATE_LIMITED`, sem gravar nada. A checagem é um `UPDATE` condicional, então heartbeats simultâneos não passam todos.
+- `config` (`qrRefreshMs`, `commandPollMs`, `aberturaMs`) vem do ambiente do servidor, para ajustar o terminal sem reprogramá-lo.
 
 ## Autorizações
 

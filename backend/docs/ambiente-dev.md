@@ -50,8 +50,18 @@ do banco.
 
 O middleware `authenticateTerminal` (B07) confere os dois cabeçalhos: chave errada, ausente ou id desconhecido dão
 `401 UNAUTHORIZED` (a mesma mensagem nos três casos); terminal inativo com a chave certa dá `403 FORBIDDEN`. As rotas
-`/terminal/*` que o usam chegam a partir da B11 (heartbeat); até lá, quem quer ver o terminal do seed pelo lado do
-administrador usa `GET /terminals` (campo `online`).
+`/terminal/*` que o usam chegam aos poucos: o heartbeat (B11) já existe; o QR, os comandos e as validações vêm nas
+etapas seguintes. O administrador vê o terminal do seed em `GET /terminals` (campo `online`).
+
+Heartbeat de teste (o terminal deve mandar a cada 10 s; menos de 2 s entre dois dá `429`):
+
+```bash
+curl -s -X POST http://localhost:3000/api/v1/terminal/heartbeat \
+  -H 'X-Terminal-Id: 5eed0000-0000-4000-8000-000000000006' \
+  -H 'X-Terminal-Key: terminal-dev-key-1234567890abcdef1234567890' -H 'content-type: application/json' \
+  -d '{"latitude":-23.30512,"longitude":-45.96551,"gpsFix":true,"gpsSimulado":false,"firmware":"0.3.0","wifiRssi":-61}'
+# {"serverTime":"2026-10-20T14:32:07Z","config":{"qrRefreshMs":10000,"commandPollMs":1000,"aberturaMs":5000}}
+```
 
 Para o administrador cadastrar um terminal novo ou trocar a chave (a chave só aparece na resposta):
 
