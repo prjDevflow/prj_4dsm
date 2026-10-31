@@ -139,6 +139,7 @@ describe('POST /api/v1/terminal/heartbeat', () => {
       ['gpsFix em texto', { gpsFix: 'true' }, 'gpsFix'],
       ['firmware ausente', { firmware: undefined }, 'firmware'],
       ['firmware com mais de 40 caracteres', { firmware: 'x'.repeat(41) }, 'firmware'],
+      ['firmware com byte NUL', { firmware: 'a\u0000b' }, 'firmware'],
       ['wifiRssi positivo', { wifiRssi: 1 }, 'wifiRssi'],
       ['wifiRssi decimal', { wifiRssi: -60.5 }, 'wifiRssi'],
       ['uptimeS negativo', { uptimeS: -1 }, 'uptimeS'],
@@ -164,6 +165,14 @@ describe('POST /api/v1/terminal/heartbeat', () => {
         'latitude',
         'longitude',
       ]);
+    });
+
+    it('ignora campos desconhecidos em vez de recusar o heartbeat', async () => {
+      const terminal = await insertTerminal({ apiKeyHash: sha256(KEY) });
+
+      const res = await heartbeat(terminal.id, body({ campoNovoDoFirmware: 'x', bateria: 87 }));
+
+      expect(res.status).toBe(200);
     });
 
     it('aceita os limites exatos das coordenadas', async () => {
