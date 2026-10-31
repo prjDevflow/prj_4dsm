@@ -44,8 +44,24 @@ export class InMemoryTerminalRepository implements ITerminalRepository {
     return true;
   }
 
-  async updateHeartbeat(_id: string, _heartbeat: TerminalHeartbeat, _previousContactUntil: Date) {
-    return false;
+  async updateHeartbeat(id: string, heartbeat: TerminalHeartbeat, previousContactUntil: Date) {
+    const terminal = this.items.get(id);
+    if (!terminal) return false;
+    // Same condition as the real conditional write: never heard from, or heard from long enough ago.
+    const { ultimoContatoEm } = terminal;
+    if (ultimoContatoEm && ultimoContatoEm.getTime() > previousContactUntil.getTime()) return false;
+    this.items.set(id, {
+      ...terminal,
+      ultimoContatoEm: heartbeat.contatoEm,
+      gpsFix: heartbeat.gpsFix,
+      gpsSimulado: heartbeat.gpsSimulado,
+      firmware: heartbeat.firmware,
+      rssi: heartbeat.rssi,
+      // Without a fix the stored position stays.
+      ultimaLat: heartbeat.posicao?.latitude ?? terminal.ultimaLat,
+      ultimaLon: heartbeat.posicao?.longitude ?? terminal.ultimaLon,
+    });
+    return true;
   }
 
   async list(filter: TerminalListFilter) {

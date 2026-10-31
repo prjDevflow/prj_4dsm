@@ -27,9 +27,22 @@ export class RegisterHeartbeatUseCase {
   ) {}
 
   async execute(
-    _terminalId: string,
-    _input: IRegisterHeartbeatDTO,
+    terminalId: string,
+    input: IRegisterHeartbeatDTO,
   ): Promise<RegisterHeartbeatResult> {
+    const now = this.clock.now();
+    await this.terminals.updateHeartbeat(
+      terminalId,
+      {
+        contatoEm: now,
+        gpsFix: input.gpsFix,
+        gpsSimulado: input.gpsSimulado,
+        firmware: input.firmware,
+        rssi: input.wifiRssi ?? null,
+        posicao: { latitude: input.latitude as number, longitude: input.longitude as number },
+      },
+      new Date(now.getTime() - this.config.minIntervalSeconds * 1000),
+    );
     return { serverTime: '', config: { qrRefreshMs: 0, commandPollMs: 0, aberturaMs: 0 } };
   }
 }
