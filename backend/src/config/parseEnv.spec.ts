@@ -153,4 +153,49 @@ describe('parseEnv', () => {
       );
     },
   );
+
+  it('deve usar os padrões do heartbeat e converter para número', () => {
+    const env = parseEnv(validSource);
+
+    expect(env).toMatchObject({
+      HEARTBEAT_MIN_INTERVAL_S: 2,
+      QR_REFRESH_MS: 10000,
+      COMMAND_POLL_MS: 1000,
+      OPEN_DURATION_MS: 5000,
+      GPS_MAX_AGE_MIN: 10,
+    });
+    expect(
+      parseEnv({ ...validSource, HEARTBEAT_MIN_INTERVAL_S: '5', OPEN_DURATION_MS: '3000' }),
+    ).toMatchObject({ HEARTBEAT_MIN_INTERVAL_S: 5, OPEN_DURATION_MS: 3000 });
+  });
+
+  it.each([
+    'HEARTBEAT_MIN_INTERVAL_S',
+    'QR_REFRESH_MS',
+    'COMMAND_POLL_MS',
+    'OPEN_DURATION_MS',
+    'GPS_MAX_AGE_MIN',
+  ])('deve rejeitar %s zero, negativo, decimal ou não numérico', (name) => {
+    for (const value of ['0', '-1', 'abc', '2.5']) {
+      expect(() => parseEnv({ ...validSource, [name]: value })).toThrow(new RegExp(name));
+    }
+  });
+
+  it('deve usar GPS_COM_FALLBACK como padrão de TERMINAL_POSITION_SOURCE e aceitar os três modos', () => {
+    expect(parseEnv(validSource).TERMINAL_POSITION_SOURCE).toBe('GPS_COM_FALLBACK');
+    for (const source of ['GPS_COM_FALLBACK', 'CADASTRO', 'GPS']) {
+      expect(
+        parseEnv({ ...validSource, TERMINAL_POSITION_SOURCE: source }).TERMINAL_POSITION_SOURCE,
+      ).toBe(source);
+    }
+  });
+
+  it.each(['gps', 'AUTO', 'GPS '])(
+    'deve rejeitar TERMINAL_POSITION_SOURCE inválido (%s)',
+    (value) => {
+      expect(() => parseEnv({ ...validSource, TERMINAL_POSITION_SOURCE: value })).toThrow(
+        /TERMINAL_POSITION_SOURCE/,
+      );
+    },
+  );
 });
