@@ -23,7 +23,7 @@ const nonNegativeInt = (defaultValue: number) =>
     .min(0, nonNegativeIntMessage)
     .default(defaultValue);
 
-const SECONDS_PER_UNIT ={ s: 1, m: 60, h: 3600, d: 86400 } as const;
+const SECONDS_PER_UNIT = { s: 1, m: 60, h: 3600, d: 86400 } as const;
 
 function durationToSeconds(value: string) {
   const unit = value.slice(-1) as keyof typeof SECONDS_PER_UNIT;
