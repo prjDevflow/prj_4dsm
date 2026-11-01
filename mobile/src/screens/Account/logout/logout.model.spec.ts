@@ -1,3 +1,4 @@
+import { QueryClient } from '@tanstack/react-query';
 import { act, renderHook } from '@testing-library/react-native';
 import * as SecureStore from 'expo-secure-store';
 import { useSessionStore } from '@/context/SessionStore';
@@ -21,9 +22,8 @@ describe('useLogoutModel', () => {
   });
 
   it('confirmar apaga o token, fecha a sessão e limpa o cache', async () => {
-    const wrapper = createWrapper();
-    const { result } = await renderHook(() => useLogoutModel(), { wrapper });
-    const clear = jest.spyOn(result.current.queryClient, 'clear');
+    const clear = jest.spyOn(QueryClient.prototype, 'clear');
+    const { result } = await renderHook(() => useLogoutModel(), { wrapper: createWrapper() });
 
     await act(() => result.current.onRequestLogout());
     await act(() => result.current.onConfirmLogout());

@@ -35,11 +35,24 @@ const answerMe = (usuario: Usuario | null) =>
     ),
   );
 
-// renderRouter turns on Jest's fake timers; with them the real request (MSW over Node's fetch)
-// never settles before axios's 10 s timeout fires in fake time. Back to real timers after mounting.
+// renderRouter turns on Jest's fake timers, and a real request (MSW over Node's fetch) started
+// under them never settles. The opening reads the saved token as soon as the app mounts, so that
+// first read waits until the real timers are back.
 const renderApp = async (initialUrl = '/') => {
+  const getItem = SecureStore.getItemAsync as jest.Mock;
+  const readToken = getItem.getMockImplementation()!;
+  let release = () => {};
+  const realTimersBack = new Promise<void>((resolve) => {
+    release = resolve;
+  });
+  getItem.mockImplementationOnce(async (key: string) => {
+    await realTimersBack;
+    return readToken(key);
+  });
+
   const result = await renderRouter('src/app', { initialUrl });
   jest.useRealTimers();
+  release();
   return result;
 };
 

@@ -23,6 +23,11 @@ jest.mock('expo-secure-store', () => {
   };
 });
 
+// Network state: online by default; tests override useNetInfo when they need offline.
+jest.mock('@react-native-community/netinfo', () =>
+  jest.requireActual('@react-native-community/netinfo/jest/netinfo-mock.js'),
+);
+
 // Fonts (Atkinson and the icon font) count as loaded: there are no font files under Jest.
 jest.mock('expo-font', () => ({
   ...jest.requireActual('expo-font'),

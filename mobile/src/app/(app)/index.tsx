@@ -1,2 +1,2 @@
-// T03 (person) or T14 (admin), by profile. Provisional until F04.
-export { ProvisionalHomePage as default } from '@/screens/Home/provisional/page';
+// T03 (person) or T14 (admin), by profile.
+export { HomePage as default } from '@/screens/Home/page';
