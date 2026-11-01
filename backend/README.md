@@ -332,6 +332,11 @@ novo em `.github/workflows/` (ex.: `mobile-ci.yml`) com `name` próprio, rode em
 use o mesmo padrão de detecção de mudanças da sua pasta e termine com um job de passagem de nome único
 (ex.: `mobile-ci`) para ser o check obrigatório da sua parte.
 
+O [`mobile-ci.yml`](../.github/workflows/mobile-ci.yml) ("Mobile CI") segue outro caminho: filtra por
+`paths` (`mobile/**` e `docs/app-mobile/**`), então o workflow nem começa em PRs que não mexem no app. O
+preço é que, se o `mobile-ci` virar check obrigatório, um PR fora desses caminhos ficaria esperando um
+check que nunca roda; nesse caso, troque o `paths` pela detecção de mudanças do `ci.yml`.
+
 ## Scripts
 
 | Script       | O que faz                                                                    |
