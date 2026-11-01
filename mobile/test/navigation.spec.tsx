@@ -1,10 +1,12 @@
-import { fireEvent, screen } from '@testing-library/react-native';
+import { act, fireEvent, screen, within } from '@testing-library/react-native';
+import * as SecureStore from 'expo-secure-store';
 import { router } from 'expo-router';
 import { renderRouter } from 'expo-router/testing-library';
 import { http, HttpResponse } from 'msw';
 import { useSessionStore } from '@/context/SessionStore';
-import { sampleAdmin, sampleCondomino, sampleVisitante } from '@/service/fakes/sampleData';
+import { TOKEN_KEY } from '@/context/tokenStorage';
 import type { Usuario } from '@/lib/types/auth';
+import { sampleAdmin, sampleCondomino, sampleVisitante } from '@/service/fakes/sampleData';
 import { API_URL } from '@test/msw/handlers';
 import { server } from '@test/msw/server';
 
@@ -21,69 +23,169 @@ const answerLogin = (usuario: Usuario) =>
     ),
   );
 
+const answerMe = (usuario: Usuario | null) =>
+  server.use(
+    http.get(`${API_URL}/auth/me`, () =>
+      usuario
+        ? HttpResponse.json(usuario)
+        : HttpResponse.json(
+            { error: { code: 'UNAUTHORIZED', message: 'Token ausente, inválido ou expirado' } },
+            { status: 401 },
+          ),
+    ),
+  );
+
 // renderRouter turns on Jest's fake timers; with them the real request (MSW over Node's fetch)
 // never settles before axios's 10 s timeout fires in fake time. Back to real timers after mounting.
-const renderApp = async (initialUrl: string) => {
+const renderApp = async (initialUrl = '/') => {
   const result = await renderRouter('src/app', { initialUrl });
   jest.useRealTimers();
   return result;
 };
 
-const login = async (email: string) => {
-  await fireEvent.changeText(screen.getByLabelText('E-mail'), email);
+const login = async (usuario: Usuario) => {
+  answerLogin(usuario);
+  await fireEvent.changeText(await screen.findByLabelText('E-mail'), usuario.email);
   await fireEvent.changeText(screen.getByLabelText('Senha'), 'Senha-Dev-2026');
   await fireEvent.press(screen.getByRole('button', { name: 'Entrar' }));
 };
 
-describe('navegação por sessão', () => {
-  beforeEach(() => useSessionStore.setState({ token: null, usuario: null, expired: false }));
+const pressLast = async (name: string) => {
+  const buttons = await screen.findAllByRole('button', { name });
+  await fireEvent.press(buttons[buttons.length - 1]);
+};
 
-  it('sem sessão, o app abre no login', async () => {
-    await renderApp('/');
+const loginScreen = () => screen.findByRole('header', { name: 'Entre com sua conta' });
 
-    expect(await screen.findByRole('header', { name: 'Entre com sua conta' })).toBeOnTheScreen();
+describe('sessão e navegação por perfil', () => {
+  beforeEach(async () => {
+    await SecureStore.deleteItemAsync(TOKEN_KEY);
+    useSessionStore.setState({ token: null, usuario: null, expired: false });
+  });
+
+  it('sem token salvo, a abertura leva ao login', async () => {
+    await renderApp();
+
+    expect(await loginScreen()).toBeOnTheScreen();
     expect(screen).toHavePathname('/login');
   });
 
-  it('o administrador entra e cai no início do administrador, sem voltar ao login', async () => {
-    answerLogin(sampleAdmin);
-    await renderApp('/');
-
-    await login('admin@dev.local');
+  it('já logado, abre direto no início do perfil, sem pedir senha', async () => {
+    await SecureStore.setItemAsync(TOKEN_KEY, 'token-salvo');
+    answerMe(sampleAdmin);
+    await renderApp();
 
     expect(await screen.findByRole('header', { name: 'Administração' })).toBeOnTheScreen();
-    expect(screen).toHavePathname('/');
+    expect(screen.queryByLabelText('Senha')).toBeNull();
+  });
+
+  it('token vencido leva ao login com o aviso de sessão expirada', async () => {
+    await SecureStore.setItemAsync(TOKEN_KEY, 'token-vencido');
+    answerMe(null);
+    await renderApp();
+
+    expect(await loginScreen()).toBeOnTheScreen();
+    expect(screen.getByText('Sua sessão expirou. Entre novamente.')).toBeOnTheScreen();
+    expect(await SecureStore.getItemAsync(TOKEN_KEY)).toBeNull();
+  });
+
+  it('o administrador vê os blocos de administração e o "Abrir catraca"', async () => {
+    await renderApp();
+    await login(sampleAdmin);
+
+    expect(await screen.findByRole('header', { name: 'Administração' })).toBeOnTheScreen();
+    for (const area of [
+      'Autorizações',
+      'Usuários',
+      'Locais e terminais',
+      'Tags NFC',
+      'Histórico',
+    ]) {
+      expect(screen.getByRole('button', { name: new RegExp(`^${area},`) })).toBeOnTheScreen();
+    }
+    expect(screen.getByRole('button', { name: 'Abrir catraca' })).toBeOnTheScreen();
     expect(router.canGoBack()).toBe(false);
   });
 
   it.each([sampleCondomino, sampleVisitante])(
-    'condômino e visitante caem no início da pessoa ($perfil)',
+    'condômino e visitante veem o início da pessoa, sem blocos de administração ($perfil)',
     async (usuario) => {
-      answerLogin(usuario);
-      await renderApp('/');
+      await renderApp();
+      await login(usuario);
 
-      await login(usuario.email);
-
-      expect(await screen.findByRole('header', { name: 'Início' })).toBeOnTheScreen();
+      expect(
+        await screen.findByRole('header', { name: `Olá, ${usuario.nome.split(' ')[0]}` }),
+      ).toBeOnTheScreen();
+      expect(screen.getByRole('button', { name: 'Abrir catraca' })).toBeOnTheScreen();
       expect(screen.queryByRole('header', { name: 'Administração' })).toBeNull();
+      expect(screen.queryByRole('button', { name: /^Usuários,/ })).toBeNull();
     },
   );
 
-  it('"Sair" volta ao login', async () => {
-    answerLogin(sampleVisitante);
-    await renderApp('/');
-    await login('visitante@dev.local');
+  it('condômino que abre um endereço do administrador volta ao início', async () => {
+    await SecureStore.setItemAsync(TOKEN_KEY, 'token-salvo');
+    answerMe(sampleCondomino);
+    await renderApp('/admin/usuarios');
 
-    await fireEvent.press(await screen.findByRole('button', { name: 'Sair' }));
-
-    expect(await screen.findByRole('header', { name: 'Entre com sua conta' })).toBeOnTheScreen();
-    expect(screen).toHavePathname('/login');
+    expect(await screen.findByRole('header', { name: 'Olá, Condômino' })).toBeOnTheScreen();
+    expect(screen.queryByRole('header', { name: 'Usuários' })).toBeNull();
   });
 
-  it('com sessão aberta, o endereço do login leva ao início', async () => {
-    useSessionStore.setState({ token: 't', usuario: sampleCondomino });
-    await renderApp('/login');
+  it('"Sair" só desloga depois de confirmar, e o voltar não retorna ao início', async () => {
+    await renderApp();
+    await login(sampleVisitante);
+    await screen.findByRole('header', { name: 'Olá, Visitante' });
 
-    expect(await screen.findByRole('header', { name: 'Início' })).toBeOnTheScreen();
+    await fireEvent.press(screen.getByRole('button', { name: 'Sair' }));
+    expect(screen.getByRole('header', { name: 'Deseja sair?' })).toBeOnTheScreen();
+    await fireEvent.press(screen.getByRole('button', { name: 'Cancelar' }));
+    expect(screen.getByRole('header', { name: 'Olá, Visitante' })).toBeOnTheScreen();
+    expect(useSessionStore.getState().usuario).not.toBeNull();
+
+    await fireEvent.press(screen.getByRole('button', { name: 'Sair' }));
+    await pressLast('Sair');
+
+    expect(await loginScreen()).toBeOnTheScreen();
+    expect(await SecureStore.getItemAsync(TOKEN_KEY)).toBeNull();
+    expect(router.canGoBack()).toBe(false);
+  });
+
+  it('trocar de administrador para visitante não deixa nada do anterior', async () => {
+    await renderApp();
+    await login(sampleAdmin);
+    await screen.findByRole('header', { name: 'Administração' });
+    await fireEvent.press(screen.getByRole('button', { name: 'Sair' }));
+    await pressLast('Sair');
+    await loginScreen();
+
+    await login(sampleVisitante);
+
+    expect(await screen.findByRole('header', { name: 'Olá, Visitante' })).toBeOnTheScreen();
+    expect(screen.queryByText('Administrador (dev)')).toBeNull();
+    expect(screen.queryByRole('header', { name: 'Administração' })).toBeNull();
+  });
+
+  it('um 401 em tela protegida leva ao login com o aviso', async () => {
+    await renderApp();
+    await login(sampleCondomino);
+    await screen.findByRole('header', { name: 'Olá, Condômino' });
+
+    await act(() => useSessionStore.getState().expireSession());
+
+    expect(await loginScreen()).toBeOnTheScreen();
+    expect(
+      within(screen.getByRole('alert')).getByText('Sua sessão expirou. Entre novamente.'),
+    ).toBeOnTheScreen();
+  });
+
+  it('"Minha conta" mostra os dados de quem está logado', async () => {
+    await renderApp();
+    await login(sampleCondomino);
+    await screen.findByRole('header', { name: 'Olá, Condômino' });
+
+    await fireEvent.press(screen.getByRole('button', { name: 'Minha conta' }));
+
+    expect(await screen.findByRole('header', { name: 'Minha conta' })).toBeOnTheScreen();
+    expect(screen.getByText('condomino@dev.local')).toBeOnTheScreen();
   });
 });
