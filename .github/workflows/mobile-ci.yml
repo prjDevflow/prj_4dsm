@@ -1,0 +1,72 @@
+# Mobile CI: lint, typecheck, format and tests with coverage of the Expo app.
+#
+# Runs only when the app changes. `docs/app-mobile/**` is in the filter because theme.spec.ts reads
+# docs/app-mobile/design/tokens.md. Backend-only pull requests never start this workflow.
+#
+# If `mobile-ci` becomes a required check in the ruleset, a pull request that does not touch the
+# paths below stays "pending" forever (GitHub does not create the check). In that case, replace the
+# `paths` filter with the change detection used by ci.yml.
+name: Mobile CI
+
+on:
+  push:
+    paths:
+      - 'mobile/**'
+      - 'docs/app-mobile/**'
+      - '.github/workflows/mobile-ci.yml'
+  pull_request:
+    paths:
+      - 'mobile/**'
+      - 'docs/app-mobile/**'
+      - '.github/workflows/mobile-ci.yml'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: mobile-ci-${{ github.event.pull_request.number || github.ref }}
+  # Never cancel runs on main/develop: each commit keeps its own result.
+  cancel-in-progress: ${{ !contains(fromJSON('["refs/heads/main", "refs/heads/develop"]'), github.ref) }}
+
+jobs:
+  mobile-ci:
+    name: mobile-ci
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    defaults:
+      run:
+        working-directory: mobile
+    steps:
+      - name: Baixar o repositório
+        uses: actions/checkout@v7
+
+      - name: Instalar dependências
+        uses: actions/setup-node@v7
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: mobile/package-lock.json
+
+      - name: Instalar pacotes (npm ci)
+        run: npm ci
+
+      - name: Lint (inclui as fronteiras de camada)
+        run: npm run lint
+
+      - name: Typecheck
+        run: npm run typecheck
+
+      - name: Formatação
+        run: npm run format:check
+
+      - name: Testes com cobertura
+        run: npm run test:cov -- --ci
+
+      - name: Publicar o relatório de cobertura
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: mobile-coverage
+          path: mobile/coverage
+          if-no-files-found: warn
+          retention-days: 14
