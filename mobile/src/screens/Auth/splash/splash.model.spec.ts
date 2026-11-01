@@ -16,11 +16,13 @@ describe('useSplashModel', () => {
     useSessionStore.setState({ token: null, usuario: null, expired: false });
   });
 
-  it('começa carregando', async () => {
-    const { result } = await renderModel(new FakeGetMeService());
+  it('mostra "Carregando…" enquanto o /auth/me não responde', async () => {
+    await SecureStore.setItemAsync(TOKEN_KEY, 'token-salvo');
+    const { result } = await renderHook(() =>
+      useSplashModel({ getMeService: { exec: () => new Promise(() => {}) } }),
+    );
 
     expect(result.current.status).toBe('checking');
-    await waitFor(() => expect(result.current.status).toBe('ready'));
   });
 
   it('sem token salvo, libera o app sem usuário e sem chamar /auth/me', async () => {
