@@ -110,8 +110,9 @@ as duas rotas voltam para o início.
 | `npm run format` / `npm run format:check` | Prettier                                                 |
 | `npm run mock`                            | Mock da API na porta 4010                                |
 
-O CI (`.github/workflows/ci.yml`, job `mobile`) roda `lint`, `typecheck`, `format:check` e `test:cov`
-em todo push e PR que mexe em `mobile/**`.
+O CI (`.github/workflows/mobile-ci.yml`, job `mobile-ci`) roda `lint`, `typecheck`, `format:check` e
+`test:cov` em todo push e PR que mexe em `mobile/**` ou em `docs/app-mobile/**` (o teste do tema lê o
+`tokens.md`). PRs que só mexem no backend não disparam esse workflow.
 
 ## Estrutura
 
