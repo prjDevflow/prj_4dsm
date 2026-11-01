@@ -201,4 +201,44 @@ describe('sessão e navegação por perfil', () => {
     expect(await screen.findByRole('header', { name: 'Minha conta' })).toBeOnTheScreen();
     expect(screen.getByText('condomino@dev.local')).toBeOnTheScreen();
   });
+
+  it('os atalhos da pessoa abrem as telas "Em breve", e o voltar retorna ao início', async () => {
+    await renderApp();
+    await login(sampleVisitante);
+    await screen.findByRole('header', { name: 'Olá, Visitante' });
+
+    for (const [button, title] of [
+      ['Minhas autorizações', 'Minhas autorizações'],
+      ['Meu histórico', 'Meu histórico'],
+      ['Abrir catraca', 'Abrir catraca'],
+    ]) {
+      await fireEvent.press(screen.getByRole('button', { name: button }));
+      expect(await screen.findByRole('header', { name: title })).toBeOnTheScreen();
+      expect(screen.getByText('Em breve')).toBeOnTheScreen();
+      await fireEvent.press(screen.getByRole('button', { name: 'Voltar' }));
+      expect(await screen.findByRole('header', { name: 'Olá, Visitante' })).toBeOnTheScreen();
+    }
+  });
+
+  it('os blocos do administrador abrem as áreas "Em breve"', async () => {
+    await renderApp();
+    await login(sampleAdmin);
+    await screen.findByRole('header', { name: 'Administração' });
+
+    await fireEvent.press(screen.getByRole('button', { name: /^Usuários,/ }));
+    expect(await screen.findByRole('header', { name: 'Usuários' })).toBeOnTheScreen();
+    expect(screen.getByText('Esta tela chega na etapa F05 do app.')).toBeOnTheScreen();
+
+    await fireEvent.press(screen.getByRole('button', { name: 'Voltar' }));
+    await fireEvent.press(await screen.findByRole('button', { name: 'Abrir catraca' }));
+    expect(await screen.findByText('Esta tela chega na etapa F10 do app.')).toBeOnTheScreen();
+  });
+
+  it('endereço de área que não existe volta ao início', async () => {
+    await SecureStore.setItemAsync(TOKEN_KEY, 'token-salvo');
+    answerMe(sampleCondomino);
+    await renderApp('/em-breve/qualquer-coisa');
+
+    expect(await screen.findByRole('header', { name: 'Olá, Condômino' })).toBeOnTheScreen();
+  });
 });
