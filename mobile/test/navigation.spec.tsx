@@ -6,10 +6,12 @@ import { http, HttpResponse } from 'msw';
 import { useSessionStore } from '@/context/SessionStore';
 import { TOKEN_KEY } from '@/context/tokenStorage';
 import type { Usuario } from '@/lib/types/auth';
+import { FakeLocationDirectory } from '@/service/fakes/FakeLocationDirectory';
 import { FakeUserDirectory } from '@/service/fakes/FakeUserDirectory';
 import { sampleAdmin, sampleCondomino, sampleVisitante } from '@/service/fakes/sampleData';
 import { API_URL } from '@test/msw/handlers';
 import { server } from '@test/msw/server';
+import { locationsHandlers } from '@test/msw/locationsHandlers';
 import { usersHandlers } from '@test/msw/usersHandlers';
 
 // Each test walks through several real screens; a slow machine passes Jest's default of 5 s.
@@ -230,9 +232,9 @@ describe('sessão e navegação por perfil', () => {
     await login(sampleAdmin);
     await screen.findByRole('header', { name: 'Administração' });
 
-    await fireEvent.press(screen.getByRole('button', { name: /^Locais e terminais,/ }));
-    expect(await screen.findByRole('header', { name: 'Locais e terminais' })).toBeOnTheScreen();
-    expect(screen.getByText('Esta tela chega na etapa F06 do app.')).toBeOnTheScreen();
+    await fireEvent.press(screen.getByRole('button', { name: /^Tags NFC,/ }));
+    expect(await screen.findByRole('header', { name: 'Tags NFC' })).toBeOnTheScreen();
+    expect(screen.getByText('Esta tela chega na etapa F13 do app.')).toBeOnTheScreen();
 
     await fireEvent.press(screen.getByRole('button', { name: 'Voltar' }));
     await fireEvent.press(await screen.findByRole('button', { name: 'Abrir catraca' }));
@@ -339,5 +341,108 @@ describe('administração de usuários (F05)', () => {
 
     expect(await screen.findByRole('header', { name: 'Usuários' })).toBeOnTheScreen();
     expect(router.canGoBack()).toBe(true);
+  });
+});
+
+describe('locais e terminais (F06)', () => {
+  beforeEach(async () => {
+    await SecureStore.deleteItemAsync(TOKEN_KEY);
+    useSessionStore.setState({ token: null, usuario: null, expired: false });
+    server.use(...locationsHandlers(new FakeLocationDirectory()));
+  });
+
+  const openLocations = async () => {
+    await renderApp();
+    await login(sampleAdmin);
+    await fireEvent.press(await screen.findByRole('button', { name: /^Locais e terminais,/ }));
+    expect(await screen.findByRole('header', { name: 'Locais e terminais' })).toBeOnTheScreen();
+  };
+
+  const type = async (values: Record<string, string>) => {
+    for (const [label, value] of Object.entries(values)) {
+      await fireEvent.changeText(await screen.findByLabelText(label), value);
+    }
+  };
+
+  it('cria edifício, ponto de acesso e terminal em sequência, e a chave aparece uma vez', async () => {
+    await openLocations();
+
+    // Edifício
+    await fireEvent.press(await screen.findByRole('button', { name: 'Novo edifício' }));
+    await type({
+      Nome: 'Bloco B',
+      Endereço: 'Rua das Acácias, 200',
+      Latitude: '-23,3',
+      Longitude: '-45,9',
+    });
+    await fireEvent.press(screen.getByRole('button', { name: 'Salvar' }));
+
+    // Ponto de acesso, a partir do cartão do edifício novo
+    await fireEvent.press(
+      await screen.findByRole('button', { name: 'Adicionar local ao Bloco B' }),
+    );
+    await fireEvent.press(await screen.findByRole('radio', { name: 'Catraca' }));
+    await type({
+      Nome: 'Catraca do Bloco B',
+      Identificação: 'CAT-B1',
+      Latitude: '-23,3',
+      Longitude: '-45,9',
+    });
+    await fireEvent.press(screen.getByRole('button', { name: 'Salvar' }));
+    expect(
+      await screen.findByRole('button', { name: 'Catraca do Bloco B, Catraca, CAT-B1, Ativo' }),
+    ).toBeOnTheScreen();
+
+    // Terminal
+    await fireEvent.press(screen.getByRole('button', { name: /^Terminais,/ }));
+    await fireEvent.press(await screen.findByRole('button', { name: 'Novo terminal' }));
+    await type({ Nome: 'Terminal do Bloco B' });
+    await fireEvent.press(screen.getByRole('button', { name: 'Ponto de acesso' }));
+    await fireEvent.press(
+      await screen.findByRole('radio', { name: 'Catraca do Bloco B, Bloco B' }),
+    );
+    await fireEvent.press(screen.getByRole('button', { name: 'Salvar' }));
+
+    expect(await screen.findByRole('header', { name: 'Chave do terminal' })).toBeOnTheScreen();
+    expect(screen.getByLabelText('Chave do Terminal do Bloco B').props.value).toMatch(
+      /^[A-Za-z0-9_-]{43}$/,
+    );
+
+    await fireEvent.press(screen.getByRole('button', { name: 'Concluir' }));
+    expect(await screen.findByRole('header', { name: 'Terminais' })).toBeOnTheScreen();
+    expect(
+      await screen.findByRole('button', {
+        name: /^Terminal do Bloco B, Catraca do Bloco B, Bloco B, Nunca conectado, Offline$/,
+      }),
+    ).toBeOnTheScreen();
+    expect(screen.queryByLabelText('Chave do Terminal do Bloco B')).toBeNull();
+  });
+
+  it('desativar um local com autorização ativa mostra a mensagem do card', async () => {
+    await openLocations();
+
+    await fireEvent.press(
+      await screen.findByRole('button', { name: 'Catraca Social, Catraca, CAT-01, Ativo' }),
+    );
+    await fireEvent.press(await screen.findByRole('switch', { name: 'Ativo' }));
+    await fireEvent.press(screen.getByRole('button', { name: 'Salvar' }));
+
+    expect(
+      await screen.findByText('Este local ainda tem autorizações ativas. Cancele-as antes.'),
+    ).toBeOnTheScreen();
+    expect(screen.getByRole('header', { name: 'Editar local' })).toBeOnTheScreen();
+  });
+
+  it('o detalhe do terminal gera uma chave nova só depois de confirmar', async () => {
+    await openLocations();
+    await fireEvent.press(screen.getByRole('button', { name: /^Terminais,/ }));
+    await fireEvent.press(await screen.findByRole('button', { name: /^Terminal Social,/ }));
+
+    await fireEvent.press(await screen.findByRole('button', { name: 'Gerar nova chave' }));
+    await pressLast('Gerar nova chave');
+
+    expect(await screen.findByRole('header', { name: 'Chave do terminal' })).toBeOnTheScreen();
+    await fireEvent.press(screen.getByRole('button', { name: 'Concluir' }));
+    expect(await screen.findByRole('header', { name: 'Terminal Social' })).toBeOnTheScreen();
   });
 });
