@@ -1,4 +1,4 @@
-import { fireEvent, render, screen } from '@testing-library/react-native';
+import { act, fireEvent, render, renderHook, screen, waitFor } from '@testing-library/react-native';
 import { FakeLocationDirectory } from '@/service/fakes/FakeLocationDirectory';
 import {
   FakeListAccessPointsService,
@@ -52,5 +52,26 @@ describe('Terminais (T20)', () => {
 
     expect(navigation.onOpen).toHaveBeenCalledWith(expect.any(String));
     expect(navigation.onNew).toHaveBeenCalled();
+  });
+
+  it('puxar para atualizar busca os terminais de novo; sem terminal, explica', async () => {
+    const directory = new FakeLocationDirectory({ now: () => now });
+    const services = {
+      listTerminalsService: new FakeListTerminalsService(directory),
+      listAccessPointsService: new FakeListAccessPointsService(directory),
+      listBuildingsService: new FakeListBuildingsService(directory),
+    };
+    const { result } = await renderHook(
+      () => useTerminalsListModel({ ...services, now: () => now }),
+      {
+        wrapper: createWrapper(),
+      },
+    );
+    await waitFor(() => expect(result.current.status).toBe('ready'));
+
+    await act(() => result.current.onRefresh());
+
+    expect(services.listTerminalsService.calls).toHaveLength(2);
+    expect(result.current.refreshing).toBe(false);
   });
 });

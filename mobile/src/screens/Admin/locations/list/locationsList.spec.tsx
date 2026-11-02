@@ -1,4 +1,12 @@
-import { fireEvent, render, screen, within } from '@testing-library/react-native';
+import {
+  act,
+  fireEvent,
+  render,
+  renderHook,
+  screen,
+  waitFor,
+  within,
+} from '@testing-library/react-native';
 import { ApiError } from '@/service/ApiError';
 import { FakeLocationDirectory } from '@/service/fakes/FakeLocationDirectory';
 import {
@@ -116,5 +124,24 @@ describe('Locais e terminais (T17)', () => {
     await fireEvent.press(screen.getByRole('button', { name: 'Tentar novamente' }));
 
     expect(await screen.findByText('Edifício Central')).toBeOnTheScreen();
+  });
+
+  it('puxar para atualizar busca as três listas de novo', async () => {
+    const directory = new FakeLocationDirectory();
+    const services = {
+      listBuildingsService: new FakeListBuildingsService(directory),
+      listAccessPointsService: new FakeListAccessPointsService(directory),
+      listTerminalsService: new FakeListTerminalsService(directory),
+    };
+    const { result } = await renderHook(() => useLocationsListModel(services), {
+      wrapper: createWrapper(),
+    });
+    await waitFor(() => expect(result.current.status).toBe('ready'));
+
+    await act(() => result.current.onRefresh());
+
+    expect(services.listBuildingsService.calls).toHaveLength(2);
+    expect(services.listTerminalsService.calls).toHaveLength(2);
+    expect(result.current.refreshing).toBe(false);
   });
 });
