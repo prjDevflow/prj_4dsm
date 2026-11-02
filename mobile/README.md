@@ -45,8 +45,9 @@ O app abre no **login** (T02). Com a API real e o seed do backend, use:
 | Visitante     | `visitante@dev.local` | `Usuario-Dev-2026` | início da pessoa        |
 
 São as senhas públicas do `backend/.env.example`, só para desenvolvimento. A sessão fica guardada: ao
-reabrir o app, a abertura (T01) confere o token com `GET /auth/me` e leva direto ao início. Os blocos do
-administrador e os atalhos da pessoa abrem telas "Em breve" até as etapas seguintes.
+reabrir o app, a abertura (T01) confere o token com `GET /auth/me` e leva direto ao início. O bloco
+"Usuários" do administrador abre a lista e o cadastro de usuários (F05). Os outros blocos e os atalhos da
+pessoa abrem telas "Em breve" até as etapas seguintes.
 
 ## Apontar para a API real ou para o mock
 
@@ -77,8 +78,11 @@ EXPO_PUBLIC_FAKE_SERVICES=getHealth,loginUser
 ```
 
 Os nomes aceitos são as chaves de `createServices` em [src/service/container.ts](src/service/container.ts).
-Hoje: `getHealth`, `loginUser` e `getMe`. O login falso aceita os mesmos três usuários e senhas do seed, e
-o `getMe` falso reconhece o token que ele devolve.
+Hoje: `getHealth`, `loginUser`, `getMe` e `users`. O login falso aceita os mesmos três usuários e senhas do
+seed, e o `getMe` falso reconhece o token que ele devolve. `users` troca juntos os quatro serviços de
+`/users` (listar, obter, cadastrar e alterar): eles dividem uma lista em memória com os usuários do seed e
+mais 22 pessoas (para a rolagem infinita aparecer) e seguem as regras da API, como e-mail único e "o
+administrador não desativa a si mesmo".
 
 ## Tema e componentes
 

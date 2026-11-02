@@ -32,22 +32,22 @@ No PATCH, envie **só os campos que mudaram**, e nunca o `email`.
 
 **Lista de testes**
 
-- [ ] U schema: cada mensagem de campo; senha obrigatória na criação e opcional na edição; confirmação diferente impede o envio.
-- [ ] U model da lista: busca com atraso de 400 ms, filtro de perfil e inativos combinados na consulta; carrega a página seguinte.
-- [ ] U model do formulário: 409 `EMAIL_JA_CADASTRADO` vira erro no campo E-mail; `details` do 422 vão para os campos certos.
-- [ ] U model do formulário: PATCH só com os campos alterados e sem `email`.
-- [ ] U serviços (MSW): parâmetros da consulta e corpos de POST e PATCH.
+- [x] U schema: cada mensagem de campo; senha obrigatória na criação e opcional na edição; confirmação diferente impede o envio.
+- [x] U model da lista: busca com atraso de 400 ms, filtro de perfil e inativos combinados na consulta; carrega a página seguinte.
+- [x] U model do formulário: 409 `EMAIL_JA_CADASTRADO` vira erro no campo E-mail; `details` do 422 vão para os campos certos.
+- [x] U model do formulário: PATCH só com os campos alterados e sem `email`.
+- [x] U serviços (MSW): parâmetros da consulta e corpos de POST e PATCH.
 
 **Critérios de aceitação**
 
-- [ ] Usuário criado aparece na lista logo em seguida (invalidação da consulta).
-- [ ] E-mail repetido mostra o erro no campo E-mail.
-- [ ] Desativar a si mesmo mostra a mensagem amigável.
-- [ ] Busca, filtro e paginação funcionam juntos.
+- [x] Usuário criado aparece na lista logo em seguida (invalidação da consulta).
+- [x] E-mail repetido mostra o erro no campo E-mail.
+- [x] Desativar a si mesmo mostra a mensagem amigável.
+- [x] Busca, filtro e paginação funcionam juntos.
 
 **Definição de pronto**
 
-- [ ] Testado com a API real (seed).
+- [x] Testado com a API real (seed).
 
 ---
 
