@@ -49,6 +49,7 @@ describe('Detalhe do terminal (T21)', () => {
     expect(screen.getByText('Online')).toBeOnTheScreen();
     expect(screen.getByText('Visto agora')).toBeOnTheScreen();
     expect(screen.getByText('Catraca Social, Edifício Central')).toBeOnTheScreen();
+    expect(screen.getByText('-23,30512, -45,96551')).toBeOnTheScreen();
     expect(screen.getByLabelText('Nome')).toHaveProp('value', 'Terminal Social');
     expect(screen.getByRole('switch', { name: 'Ativo' })).toBeChecked();
     expect(
@@ -74,7 +75,8 @@ describe('Detalhe do terminal (T21)', () => {
     await fireEvent.press(await screen.findByRole('button', { name: 'Gerar nova chave' }));
 
     expect(screen.getByText('A chave antiga deixará de funcionar. Continuar?')).toBeOnTheScreen();
-    await fireEvent.press(screen.getByRole('button', { name: 'Voltar' }));
+    const back = screen.getAllByRole('button', { name: 'Voltar' });
+    await fireEvent.press(back[back.length - 1]); // the dialog's, not the header's
     expect(rotateTerminalKeyService.calls).toHaveLength(0);
   });
 

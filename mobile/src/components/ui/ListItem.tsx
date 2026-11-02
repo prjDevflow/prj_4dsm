@@ -8,6 +8,8 @@ import { Text } from './Text';
 type ListItemProps = {
   title: string;
   subtitle?: string;
+  /** Third line, in bold support text ("Visto há 12 min"). */
+  meta?: string;
   /** One badge, or several side by side (profile and "Inativo", for example). */
   badge?: StatusBadgeProps | StatusBadgeProps[];
   /** Left side: initials in a circle, an icon in a shape... */
@@ -23,6 +25,7 @@ const STACK_FONT_SCALE = 1.3;
 export const ListItem = ({
   title,
   subtitle,
+  meta,
   badge,
   leading,
   onPress,
@@ -32,7 +35,7 @@ export const ListItem = ({
   // With a large system font the badge goes below the texts instead of squeezing them.
   const stacked = useWindowDimensions().fontScale >= STACK_FONT_SCALE;
   const badges = badge === undefined ? [] : Array.isArray(badge) ? badge : [badge];
-  const label = [title, subtitle, ...badges.map(badgeLabel)].filter(Boolean).join(', ');
+  const label = [title, subtitle, meta, ...badges.map(badgeLabel)].filter(Boolean).join(', ');
 
   const content = (
     <>
@@ -54,6 +57,15 @@ export const ListItem = ({
                 color="textoApoio"
               >
                 {subtitle}
+              </Text>
+            ) : null}
+            {meta ? (
+              <Text
+                variant={theme.scale === 'admin' ? 'adminApoio' : 'pessoaApoio'}
+                color="textoApoio"
+                style={{ fontFamily: theme.fontFamily.bold }}
+              >
+                {meta}
               </Text>
             ) : null}
           </View>

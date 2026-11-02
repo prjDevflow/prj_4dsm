@@ -9,3 +9,9 @@ export const terminalFormSchema = z.object({
 
 export type TerminalFormValues = z.input<typeof terminalFormSchema>;
 export type TerminalFormOutput = z.output<typeof terminalFormSchema>;
+
+/** T21 detail: only the name and the active switch change. */
+export const terminalEditSchema = z.object({ nome: nomeField, ativo: z.boolean() });
+
+export type TerminalEditValues = z.input<typeof terminalEditSchema>;
+export type TerminalEditOutput = z.output<typeof terminalEditSchema>;
