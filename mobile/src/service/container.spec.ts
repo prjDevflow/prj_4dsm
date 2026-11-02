@@ -15,6 +15,14 @@ import { GetUserService } from './implementations/GetUserService';
 import { ListUsersService } from './implementations/ListUsersService';
 import { LoginUserService } from './implementations/LoginUserService';
 import { UpdateUserService } from './implementations/UpdateUserService';
+import { FakeClipboardService, FakeCurrentPositionService } from './fakes/FakeDeviceServices';
+import {
+  FakeListBuildingsService,
+  FakeRotateTerminalKeyService,
+} from './fakes/FakeLocationServices';
+import { ClipboardService, CurrentPositionService } from './implementations/DeviceServices';
+import { ListBuildingsService } from './implementations/LocationServices';
+import { RotateTerminalKeyService } from './implementations/TerminalServices';
 
 describe('createServices', () => {
   it('usa o serviço real quando ele não está na lista de falsos', () => {
@@ -47,5 +55,23 @@ describe('createServices', () => {
     expect(fake.getUser).toBeInstanceOf(FakeGetUserService);
     expect(fake.createUser).toBeInstanceOf(FakeCreateUserService);
     expect(fake.updateUser).toBeInstanceOf(FakeUpdateUserService);
+  });
+
+  it('locais e terminais são reais por padrão e falsos com "locations" na lista', () => {
+    expect(createServices([]).listBuildings).toBeInstanceOf(ListBuildingsService);
+    expect(createServices([]).rotateTerminalKey).toBeInstanceOf(RotateTerminalKeyService);
+    expect(createServices(['locations']).listBuildings).toBeInstanceOf(FakeListBuildingsService);
+    expect(createServices(['locations']).rotateTerminalKey).toBeInstanceOf(
+      FakeRotateTerminalKeyService,
+    );
+  });
+
+  it('localização e área de transferência do aparelho têm falsos próprios', () => {
+    expect(createServices([]).currentPosition).toBeInstanceOf(CurrentPositionService);
+    expect(createServices([]).clipboard).toBeInstanceOf(ClipboardService);
+    expect(createServices(['currentPosition', 'clipboard']).currentPosition).toBeInstanceOf(
+      FakeCurrentPositionService,
+    );
+    expect(createServices(['clipboard']).clipboard).toBeInstanceOf(FakeClipboardService);
   });
 });
