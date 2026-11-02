@@ -1,9 +1,6 @@
 import { Controller } from 'react-hook-form';
-import { StyleSheet, View } from 'react-native';
+import { StyleSheet } from 'react-native';
 import {
-  Alert,
-  Button,
-  Dialog,
   ErrorState,
   Header,
   LoadingState,
@@ -16,6 +13,7 @@ import {
 } from '@/components/ui';
 import { perfilLabel } from '@/lib/perfil';
 import type { Perfil } from '@/lib/types/auth';
+import { DiscardDialog, FormFooter } from '@/screens/Shared/form/FormFooter';
 import { ThemeProvider } from '@/theme';
 import type { useUserFormModel } from './userForm.model';
 
@@ -76,28 +74,12 @@ export const UserFormView = ({
       <ScreenContainer
         header={header}
         footer={
-          <>
-            {/* In the footer, the error stays in sight however far the form is scrolled. */}
-            {apiError ? <Alert tone="erro" message={apiError} /> : null}
-            <View style={styles.actions}>
-              <View style={styles.action}>
-                <Button
-                  variant="contorno"
-                  label="Cancelar"
-                  onPress={onCancel}
-                  disabled={isSaving}
-                />
-              </View>
-              <View style={styles.action}>
-                <Button
-                  label="Salvar"
-                  loadingLabel="Salvando…"
-                  loading={isSaving}
-                  onPress={onSubmit}
-                />
-              </View>
-            </View>
-          </>
+          <FormFooter
+            apiError={apiError}
+            isSaving={isSaving}
+            onCancel={onCancel}
+            onSave={onSubmit}
+          />
         }
         contentStyle={styles.content}
       >
@@ -222,15 +204,10 @@ export const UserFormView = ({
         ) : null}
       </ScreenContainer>
 
-      <Dialog
+      <DiscardDialog
         visible={discardDialogVisible}
-        title="Descartar alterações?"
-        message="O que você preencheu será perdido."
-        cancelLabel="Continuar editando"
-        confirmLabel="Descartar"
-        destructive
-        onCancel={onKeepEditing}
-        onConfirm={onDiscard}
+        onKeepEditing={onKeepEditing}
+        onDiscard={onDiscard}
       />
     </ThemeProvider>
   );
@@ -238,6 +215,4 @@ export const UserFormView = ({
 
 const styles = StyleSheet.create({
   content: { gap: 20 },
-  actions: { flexDirection: 'row', gap: 16 },
-  action: { flex: 1 },
 });

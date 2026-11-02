@@ -2,7 +2,6 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useForm } from 'react-hook-form';
-import { BackHandler } from 'react-native';
 import { useToast } from '@/components/ui';
 import type { CreateUserBody, UpdateUserBody, UsuarioCompleto } from '@/lib/types/users';
 import type { ApiError } from '@/service/ApiError';
@@ -11,6 +10,8 @@ import type {
   IGetUserService,
   IUpdateUserService,
 } from '@/service/IUserService';
+import { applyFieldErrors } from '@/screens/Shared/form/applyFieldErrors';
+import { useDiscardGuard } from '@/screens/Shared/form/useDiscardGuard';
 import { loadErrorMessage as loadErrorText, saveError } from '../users.messages';
 import { usersQueryKeys } from '../usersQueryKeys';
 import { changedFields, toCreateBody, toFormValues } from './userForm.mappers';
@@ -54,7 +55,6 @@ export const useUserFormModel = ({
   });
   const { isDirty } = form.formState;
   const [apiError, setApiError] = useState<string | null>(null);
-  const [discardDialogVisible, setDiscardDialogVisible] = useState(false);
   const inFlight = useRef(false);
 
   const userQuery = useQuery<UsuarioCompleto, ApiError>({
@@ -93,13 +93,7 @@ export const useUserFormModel = ({
     },
     onError: (error, { body }) => {
       const { fields, banner } = saveError(error, body);
-      Object.entries(fields).forEach(([name, message], index) =>
-        form.setError(
-          name as keyof UserFormValues,
-          { type: 'server', message },
-          { shouldFocus: index === 0 },
-        ),
-      );
+      applyFieldErrors(form.setError, fields);
       setApiError(banner);
     },
     onSettled: () => {
@@ -125,21 +119,6 @@ export const useUserFormModel = ({
     save.mutate({ body });
   };
 
-  const onCancel = () => (isDirty ? setDiscardDialogVisible(true) : onClose());
-
-  // Android's back button asks too, like "Cancelar" and the arrow.
-  const onCancelRef = useRef(onCancel);
-  useEffect(() => {
-    onCancelRef.current = onCancel;
-  });
-  useEffect(() => {
-    const subscription = BackHandler.addEventListener('hardwareBackPress', () => {
-      onCancelRef.current();
-      return true;
-    });
-    return () => subscription.remove();
-  }, []);
-
   const status: UserFormStatus =
     mode === 'create' || user
       ? 'ready'
@@ -160,12 +139,7 @@ export const useUserFormModel = ({
     isSaving: save.isPending,
     apiError,
     isDirty,
-    discardDialogVisible,
-    onCancel,
-    onKeepEditing: () => setDiscardDialogVisible(false),
-    onDiscard: () => {
-      setDiscardDialogVisible(false);
-      onClose();
-    },
+    // "Cancelar", the arrow and Android's back button ask before losing changes.
+    ...useDiscardGuard(isDirty, onClose),
   };
 };
