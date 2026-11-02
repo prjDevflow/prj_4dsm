@@ -54,7 +54,8 @@ export const useTerminalsListModel = ({
   const terminals = useTerminalsQuery(listTerminalsService, REFRESH_MS);
   const accessPoints = useAccessPointsQuery(listAccessPointsService);
   const buildings = useBuildingsQuery(listBuildingsService);
-  const now = useNow(clock);
+  // The clock is read as often as the list is fetched, so "Visto há" never lags behind it.
+  const now = useNow(clock, REFRESH_MS);
   const [refreshing, setRefreshing] = useState(false);
   const queries = [terminals, accessPoints, buildings];
 

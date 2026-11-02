@@ -79,7 +79,7 @@ export const useTerminalDetailModel = ({
   const [rotating, setRotating] = useState(false);
   const inFlight = useRef(false);
   const key = useIssuedKey(clipboardService);
-  const now = useNow(clock);
+  const now = useNow(clock, REFRESH_MS);
 
   const terminalQuery = useQuery<Terminal, ApiError>({
     queryKey: locationsQueryKeys.terminal(terminalId),
