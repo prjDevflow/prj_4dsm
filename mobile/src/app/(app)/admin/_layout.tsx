@@ -9,6 +9,9 @@ export default function AdminLayout() {
   return (
     <Stack screenOptions={{ headerShown: false, contentStyle: { backgroundColor: colors.fundo } }}>
       <Stack.Protected guard={isAdmin} redirectTo="/">
+        <Stack.Screen name="users/index" />
+        <Stack.Screen name="users/new" />
+        <Stack.Screen name="users/[id]" />
         <Stack.Screen name="[area]" />
       </Stack.Protected>
     </Stack>

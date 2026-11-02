@@ -12,7 +12,6 @@ const areas: Record<string, ComingSoonArea> = {
     admin: false,
   },
   'meu-historico': { title: 'Meu histórico', step: 'F12', icon: 'history', admin: false },
-  usuarios: { title: 'Usuários', step: 'F05', icon: 'group', admin: true },
   locais: { title: 'Locais e terminais', step: 'F06', icon: 'apartment', admin: true },
   autorizacoes: { title: 'Autorizações', step: 'F08', icon: 'confirmation_number', admin: true },
   tags: { title: 'Tags NFC', step: 'F13', icon: 'nfc', admin: true },

@@ -35,7 +35,7 @@ describe('UserFormView (T16)', () => {
     expect(screen.getByRole('header', { name: 'Novo usuário' })).toBeOnTheScreen();
     expect(screen.getByLabelText('Nome completo')).toBeOnTheScreen();
     expect(screen.getByLabelText('E-mail')).toHaveProp('editable', true);
-    const perfil = screen.getByRole('radiogroup', { name: 'Perfil' });
+    const perfil = screen.getByLabelText('Perfil');
     for (const name of ['Administrador', 'Condômino', 'Visitante']) {
       expect(within(perfil).getByRole('radio', { name })).not.toBeChecked();
     }
@@ -100,8 +100,8 @@ describe('UserFormView (T16)', () => {
     const { rendered } = renderForm(sampleCondomino.id);
     await rendered;
 
-    expect(await screen.findByRole('header', { name: 'Editar usuário' })).toBeOnTheScreen();
-    expect(screen.getByLabelText('Nome completo')).toHaveProp('value', sampleCondomino.nome);
+    expect(await screen.findByLabelText('Nome completo')).toHaveProp('value', sampleCondomino.nome);
+    expect(screen.getByRole('header', { name: 'Editar usuário' })).toBeOnTheScreen();
     expect(screen.getByLabelText('E-mail')).toHaveProp('editable', false);
     expect(screen.getByRole('radio', { name: 'Condômino' })).toBeChecked();
     expect(screen.getByLabelText('Nova senha (opcional)')).toBeOnTheScreen();

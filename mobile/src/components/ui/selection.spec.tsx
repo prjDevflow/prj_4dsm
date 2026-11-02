@@ -29,7 +29,8 @@ describe('RadioGroup', () => {
   it('é um grupo com o rótulo, e cada opção é um rádio de 48 de altura', async () => {
     await render(<ControlledRadio />);
 
-    expect(screen.getByRole('radiogroup', { name: 'Perfil' })).toBeOnTheScreen();
+    // The group is not focusable itself (each option is): it is found by its label.
+    expect(screen.getByLabelText('Perfil')).toHaveProp('accessibilityRole', 'radiogroup');
     for (const { label } of perfis) {
       const radio = screen.getByRole('radio', { name: label });
       expect(radio).not.toBeChecked();

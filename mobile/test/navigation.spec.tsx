@@ -1,4 +1,4 @@
-import { act, fireEvent, screen, within } from '@testing-library/react-native';
+import { act, fireEvent, screen, waitFor, within } from '@testing-library/react-native';
 import * as SecureStore from 'expo-secure-store';
 import { router } from 'expo-router';
 import { renderRouter } from 'expo-router/testing-library';
@@ -316,7 +316,10 @@ describe('administração de usuários (F05)', () => {
 
     expect(await screen.findByText('Alterações salvas.')).toBeOnTheScreen();
     await screen.findByRole('header', { name: 'Usuários' });
-    expect(screen.queryByRole('button', { name: rowName('Condômino (dev)') })).toBeNull();
+    // The list refetches in the background: the old page shows for a moment.
+    await waitFor(() =>
+      expect(screen.queryByRole('button', { name: rowName('Condômino (dev)') })).toBeNull(),
+    );
 
     await fireEvent.press(screen.getByRole('switch', { name: 'Mostrar usuários inativos' }));
     expect(

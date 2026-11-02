@@ -8,7 +8,8 @@ import { Text } from './Text';
 type ListItemProps = {
   title: string;
   subtitle?: string;
-  badge?: StatusBadgeProps;
+  /** One badge, or several side by side (profile and "Inativo", for example). */
+  badge?: StatusBadgeProps | StatusBadgeProps[];
   /** Left side: initials in a circle, an icon in a shape... */
   leading?: ReactNode;
   /** Shows the chevron and makes the row a button. */
@@ -30,7 +31,8 @@ export const ListItem = ({
   const theme = useTheme();
   // With a large system font the badge goes below the texts instead of squeezing them.
   const stacked = useWindowDimensions().fontScale >= STACK_FONT_SCALE;
-  const label = [title, subtitle, badge && badgeLabel(badge)].filter(Boolean).join(', ');
+  const badges = badge === undefined ? [] : Array.isArray(badge) ? badge : [badge];
+  const label = [title, subtitle, ...badges.map(badgeLabel)].filter(Boolean).join(', ');
 
   const content = (
     <>
@@ -55,7 +57,13 @@ export const ListItem = ({
               </Text>
             ) : null}
           </View>
-          {badge ? <StatusBadge {...badge} /> : null}
+          {badges.length > 0 ? (
+            <View style={styles.badges}>
+              {badges.map((item) => (
+                <StatusBadge key={badgeLabel(item)} {...item} />
+              ))}
+            </View>
+          ) : null}
         </View>
         {onPress ? <Icon name="chevron_right" color={theme.colors.textoApoio} /> : null}
       </View>
@@ -95,6 +103,7 @@ const styles = StyleSheet.create({
   main: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: 12 },
   mainStacked: { flex: 1, alignItems: 'flex-start', gap: 6 },
   texts: { gap: 2 },
+  badges: { flexDirection: 'row', flexWrap: 'wrap', gap: 6 },
   fill: { flex: 1 },
   pressed: { opacity: 0.7 },
 });

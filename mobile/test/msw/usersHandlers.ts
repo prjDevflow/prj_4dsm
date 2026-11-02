@@ -1,4 +1,4 @@
-import { http, HttpResponse } from 'msw';
+import { http, HttpResponse, type JsonBodyType } from 'msw';
 import type { Perfil } from '@/lib/types/auth';
 import type { CreateUserBody, UpdateUserBody } from '@/lib/types/users';
 import { ApiError } from '@/service/ApiError';
@@ -6,7 +6,7 @@ import type { FakeUserDirectory } from '@/service/fakes/FakeUserDirectory';
 import { API_URL } from './handlers';
 
 // Answers /users like the API (B06), keeping the users in the given directory.
-const answer = (run: () => unknown, status = 200) => {
+const answer = (run: () => JsonBodyType, status = 200) => {
   try {
     return HttpResponse.json(run(), { status });
   } catch (error) {
