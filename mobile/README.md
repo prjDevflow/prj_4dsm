@@ -45,9 +45,12 @@ O app abre no **login** (T02). Com a API real e o seed do backend, use:
 | Visitante     | `visitante@dev.local` | `Usuario-Dev-2026` | início da pessoa        |
 
 São as senhas públicas do `backend/.env.example`, só para desenvolvimento. A sessão fica guardada: ao
-reabrir o app, a abertura (T01) confere o token com `GET /auth/me` e leva direto ao início. O bloco
-"Usuários" do administrador abre a lista e o cadastro de usuários (F05). Os outros blocos e os atalhos da
-pessoa abrem telas "Em breve" até as etapas seguintes.
+reabrir o app, a abertura (T01) confere o token com `GET /auth/me` e leva direto ao início. Os blocos
+"Usuários" (F05) e "Locais e terminais" (F06) do administrador abrem as telas de cadastro. Os outros
+blocos e os atalhos da pessoa abrem telas "Em breve" até as etapas seguintes.
+
+A chave de um terminal novo (ou gerada de novo) aparece uma vez só, na tela "Chave do terminal". Ela não
+fica guardada no app: anote ou use "Copiar chave" antes de tocar em "Concluir".
 
 ## Apontar para a API real ou para o mock
 
@@ -62,7 +65,7 @@ destino é trocar a linha do `.env` e reiniciar o Expo com `npx expo start --cle
 
 O mock (`npm run mock`) é o Prism lendo o `../backend/openapi.yaml` e devolvendo os exemplos do
 contrato, no mesmo prefixo `/api/v1` da API real. Ele só conhece as rotas que já estão no
-`openapi.yaml` (hoje: health, auth e users).
+`openapi.yaml` (hoje: health, auth, users, locais, terminais e autorizações).
 
 Sem a variável, o app para com a mensagem "EXPO_PUBLIC_API_URL não definida". Variáveis `EXPO_PUBLIC_*`
 vão dentro do app: nunca coloque segredos nelas.
@@ -83,6 +86,10 @@ seed, e o `getMe` falso reconhece o token que ele devolve. `users` troca juntos 
 `/users` (listar, obter, cadastrar e alterar): eles dividem uma lista em memória com os usuários do seed e
 mais 22 pessoas (para a rolagem infinita aparecer) e seguem as regras da API, como e-mail único e "o
 administrador não desativa a si mesmo".
+
+`locations` faz o mesmo com edifícios, pontos de acesso e terminais: começa com os locais do Figma, e a
+"Catraca Social" tem autorização ativa (para ver a recusa ao desativá-la). `currentPosition` (localização
+do aparelho) e `clipboard` (área de transferência) também têm falsos, usados nos testes.
 
 ## Tema e componentes
 
