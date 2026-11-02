@@ -1,5 +1,5 @@
 import { Controller } from 'react-hook-form';
-import { StyleSheet } from 'react-native';
+import { StyleSheet, View } from 'react-native';
 import {
   Alert,
   Button,
@@ -75,11 +75,28 @@ export const UserFormView = ({
     <ThemeProvider scale="admin">
       <ScreenContainer
         header={header}
-        footerDirection="row"
         footer={
           <>
-            <Button variant="contorno" label="Cancelar" onPress={onCancel} disabled={isSaving} />
-            <Button label="Salvar" loadingLabel="Salvando…" loading={isSaving} onPress={onSubmit} />
+            {/* In the footer, the error stays in sight however far the form is scrolled. */}
+            {apiError ? <Alert tone="erro" message={apiError} /> : null}
+            <View style={styles.actions}>
+              <View style={styles.action}>
+                <Button
+                  variant="contorno"
+                  label="Cancelar"
+                  onPress={onCancel}
+                  disabled={isSaving}
+                />
+              </View>
+              <View style={styles.action}>
+                <Button
+                  label="Salvar"
+                  loadingLabel="Salvando…"
+                  loading={isSaving}
+                  onPress={onSubmit}
+                />
+              </View>
+            </View>
           </>
         }
         contentStyle={styles.content}
@@ -203,8 +220,6 @@ export const UserFormView = ({
             )}
           />
         ) : null}
-
-        {apiError ? <Alert tone="erro" message={apiError} /> : null}
       </ScreenContainer>
 
       <Dialog
@@ -223,4 +238,6 @@ export const UserFormView = ({
 
 const styles = StyleSheet.create({
   content: { gap: 20 },
+  actions: { flexDirection: 'row', gap: 16 },
+  action: { flex: 1 },
 });

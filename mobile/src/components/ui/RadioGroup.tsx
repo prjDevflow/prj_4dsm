@@ -1,4 +1,4 @@
-import { Pressable, StyleSheet, View } from 'react-native';
+import { Keyboard, Pressable, StyleSheet, View } from 'react-native';
 import { useTheme } from '@/theme';
 import { FieldLabel, FieldMessage, fieldStyles } from './Field';
 import { Text } from './Text';
@@ -45,7 +45,11 @@ export const RadioGroup = <T extends string>({
               accessibilityHint={error}
               accessibilityState={{ checked, disabled }}
               disabled={disabled}
-              onPress={() => onChange(option.value)}
+              onPress={() => {
+                // Choosing an option ends the typing: the keyboard would cover the rest of the form.
+                Keyboard.dismiss();
+                onChange(option.value);
+              }}
               style={({ pressed }) => [
                 styles.option,
                 { minHeight: theme.sizes.touchMin },

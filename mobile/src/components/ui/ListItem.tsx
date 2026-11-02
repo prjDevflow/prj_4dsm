@@ -58,7 +58,7 @@ export const ListItem = ({
             ) : null}
           </View>
           {badges.length > 0 ? (
-            <View style={styles.badges}>
+            <View style={stacked ? styles.badgesRow : styles.badgesColumn}>
               {badges.map((item) => (
                 <StatusBadge key={badgeLabel(item)} {...item} />
               ))}
@@ -103,7 +103,9 @@ const styles = StyleSheet.create({
   main: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: 12 },
   mainStacked: { flex: 1, alignItems: 'flex-start', gap: 6 },
   texts: { gap: 2 },
-  badges: { flexDirection: 'row', flexWrap: 'wrap', gap: 6 },
+  // Beside the texts the badges pile up, leaving the width to the e-mail; below them, side by side.
+  badgesColumn: { alignItems: 'flex-end', gap: 6 },
+  badgesRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 6 },
   fill: { flex: 1 },
   pressed: { opacity: 0.7 },
 });
