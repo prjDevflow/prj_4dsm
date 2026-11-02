@@ -180,6 +180,23 @@ describe('NavRow', () => {
     });
     expect(onPress).toHaveBeenCalledTimes(1);
   });
+
+  it('aceita um selo antes da seta, lido junto ("1 offline")', async () => {
+    await render(
+      <NavRow
+        icon="tablet_android"
+        label="Terminais"
+        detail="4 terminais, 1 offline"
+        badge={{ tone: 'aviso', label: '1 offline' }}
+        onPress={jest.fn()}
+      />,
+    );
+
+    expect(
+      screen.getByRole('button', { name: 'Terminais, 4 terminais, 1 offline, 1 offline' }),
+    ).toBeOnTheScreen();
+    expect(screen.getByTestId('status-badge')).toHaveStyle({ backgroundColor: colors.aviso });
+  });
 });
 
 describe('ProgressBar', () => {
