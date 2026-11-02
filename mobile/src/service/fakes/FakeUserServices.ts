@@ -18,14 +18,17 @@ import { FakeUserDirectory } from './FakeUserDirectory';
 // One directory for the whole app in fake mode, so a created user shows up in the list.
 const sharedDirectory = new FakeUserDirectory();
 
-/** Records each call in `calls`; willFail makes every next call fail with the given error. */
+/**
+ * Records each call in `calls`; willFail makes every next call fail with the given error
+ * (null goes back to answering from the directory).
+ */
 abstract class FakeUserService<Call> {
   readonly calls: Call[] = [];
   private failure: ApiError | null = null;
 
   constructor(protected readonly directory: FakeUserDirectory = sharedDirectory) {}
 
-  willFail(error: ApiError) {
+  willFail(error: ApiError | null) {
     this.failure = error;
   }
 
