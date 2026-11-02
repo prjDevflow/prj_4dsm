@@ -15,6 +15,7 @@ export { ProgressBar } from './ProgressBar';
 export { RadioGroup, type RadioOption } from './RadioGroup';
 export { ScreenContainer } from './ScreenContainer';
 export { SearchField } from './SearchField';
+export { SegmentedField } from './SegmentedField';
 export { SelectField, type SelectOption } from './SelectField';
 export { EmptyState, ErrorState, LoadingState, OfflineBanner } from './states';
 export {
