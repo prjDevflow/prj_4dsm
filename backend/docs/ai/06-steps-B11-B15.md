@@ -10,7 +10,7 @@ Ordem de construção sugerida dentro do bloco: B11 e B12 (independentes) → B1
 
 ### B11 — Heartbeat e posição do terminal (parte do RF11)
 
-- **Depende de:** B07 · **Libera:** B15 (posição de referência); **Pedro (I05, I09) ★**
+- **Depende de:** B07 · **Libera:** B15 (posição de referência); **Matheus (I05, I09) ★**
 - **Prazo:** Sprint 2, semana 1 · **Prioridade:** 🔴
 - **Objetivo:** o backend sabe se cada terminal está vivo e onde está, e ajusta parâmetros do terminal sem reprogramá-lo.
 
@@ -48,13 +48,13 @@ Ordem de construção sugerida dentro do bloco: B11 e B12 (independentes) → B1
 **Definição de pronto**
 
 - [x] Testes de integração e unitários da função de posição.
-- [ ] Pedro avisado para testar com o terminal de desenvolvimento (★).
+- [ ] Matheus avisado para testar com o terminal de desenvolvimento (★).
 
 ---
 
 ### B12 — Emissão do QR Code (RF12)
 
-- **Depende de:** B07 · **Libera:** B15; **Pedro (I06) ★**; Lucas e Pedro (QR de teste)
+- **Depende de:** B07 · **Libera:** B15; **Matheus (I06) ★**; Pedro e Matheus (QR de teste)
 - **Prazo:** Sprint 2, semana 1 · **Prioridade:** 🔴
 - **Objetivo:** o backend gera o QR do terminal 📄; o código é substituído a cada 10 s.
 
@@ -134,13 +134,13 @@ Ordem de construção sugerida dentro do bloco: B11 e B12 (independentes) → B1
 **Definição de pronto**
 
 - [ ] Testes unitários do recorder e de integração das duas situações de falha.
-- [ ] Tabela "campo × quando é nulo" em `docs/eventos-campos.md` para o Lucas (F12) saber o que esperar.
+- [ ] Tabela "campo × quando é nulo" em `docs/eventos-campos.md` para o Pedro (F12) saber o que esperar.
 
 ---
 
 ### B14 — Canal de comandos para o terminal (parte de RF15 e RF16)
 
-- **Depende de:** B04, B07 · **Libera:** B15; **Pedro (I08) ★**
+- **Depende de:** B04, B07 · **Libera:** B15; **Matheus (I08) ★**
 - **Prazo:** Sprint 2, semana 2 · **Prioridade:** 🔴
 - **Objetivo:** o backend diz ao terminal "abra" ou "negue" depois de validar o acesso pelo app.
 
@@ -178,13 +178,13 @@ Ordem de construção sugerida dentro do bloco: B11 e B12 (independentes) → B1
 **Definição de pronto**
 
 - [ ] Testes de ordem, expiração, isolamento entre terminais e `ack`.
-- [ ] Pedro avisado do formato exato (seção 4.5 do arquivo 03) e do endpoint de teste de desenvolvimento, se existir.
+- [ ] Matheus avisado do formato exato (seção 4.5 do arquivo 03) e do endpoint de teste de desenvolvimento, se existir.
 
 ---
 
 ### B15 — Validação de acesso por QR Code (RF13, RF15, RF16, RF17)
 
-- **Depende de:** B08, B11, B12, B13, B14 · **Libera:** B17 (reaproveita o avaliador); **Lucas (F11) ★**; teste ponta a ponta com Pedro
+- **Depende de:** B08, B11, B12, B13, B14 · **Libera:** B17 (reaproveita o avaliador); **Pedro (F11) ★**; teste ponta a ponta com Matheus
 - **Prazo:** Sprint 2, semana 2 · **Prioridade:** 🔴 — **é o núcleo do sistema**
 - **Objetivo:** o app envia o QR lido e a posição do celular; o backend decide, consome o uso, registra o evento e manda o comando ao terminal.
 
@@ -270,4 +270,4 @@ Integração (as colunas U e I da seção 9.1 do arquivo 03):
 - [ ] Os 15 casos de teste da seção 9.1 do arquivo 03 estão automatizados.
 - [ ] O Swagger traz um exemplo para cada um dos 10 motivos de negação do QR (as 11 verificações usam 10 códigos).
 - [ ] Teste manual completo com o terminal virtual ou o físico.
-- [ ] Lucas avisado (★).
+- [ ] Pedro avisado (★).

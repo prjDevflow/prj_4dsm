@@ -1,6 +1,6 @@
 # 03 — Domínio, requisitos do backend e contrato da API
 
-Carregue este arquivo ao mexer em qualquer endpoint, DTO, código de erro, regra de negócio, modelo de dados ou variável de ambiente. O contrato vale para os três (Eduardo, Lucas e Pedro): não altere sem alinhar.
+Carregue este arquivo ao mexer em qualquer endpoint, DTO, código de erro, regra de negócio, modelo de dados ou variável de ambiente. O contrato vale para os três (Eduardo, Pedro e Matheus): não altere sem alinhar.
 
 Legenda: 📄 exigência do documento oficial do desafio · 💡 decisão ou sugestão do time · ★ entrega que destrava outra pessoa.
 

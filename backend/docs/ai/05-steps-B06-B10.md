@@ -8,7 +8,7 @@ Legenda: **U** = unitário (doubles, sem banco) · **I** = integração (superte
 
 ### B06 — Usuários (RF01)
 
-- **Depende de:** B05 · **Libera:** B08, B16; Lucas (F05)
+- **Depende de:** B05 · **Libera:** B08, B16; Pedro (F05)
 - **Prazo:** Sprint 1, **19/10** · **Prioridade:** 🔴
 - **Objetivo:** o administrador cadastra, edita e desativa usuários dos três perfis.
 
@@ -66,7 +66,7 @@ Legenda: **U** = unitário (doubles, sem banco) · **I** = integração (superte
 
 ### B07 — Locais de acesso e terminais (RF02 e parte do RF11)
 
-- **Depende de:** B05 · **Libera:** B08; B11, B12; **Pedro (I05) ★**; Lucas (F06)
+- **Depende de:** B05 · **Libera:** B08; B11, B12; **Matheus (I05) ★**; Pedro (F06)
 - **Prazo:** Sprint 1, **19/10** · **Prioridade:** 🔴
 - **Objetivo:** cadastrar edifícios, pontos de acesso e terminais, e autenticar o terminal por chave.
 
@@ -114,13 +114,13 @@ Legenda: **U** = unitário (doubles, sem banco) · **I** = integração (superte
 
 - [x] O terminal de desenvolvimento do seed (B04) autentica com a chave de dev.
 - [x] Testes do middleware `authenticateTerminal` (chave certa, errada, terminal inativo, ausência de cabeçalho).
-- [ ] Pedro avisado da chave de dev e de como testar com `curl` (★). (o roteiro está em `docs/ambiente-dev.md`; falta avisar)
+- [ ] Matheus avisado da chave de dev e de como testar com `curl` (★). (o roteiro está em `docs/ambiente-dev.md`; falta avisar)
 
 ---
 
 ### B08 — Criar autorização (RF03)
 
-- **Depende de:** B06, B07 · **Libera:** B09, B15; Lucas (F07)
+- **Depende de:** B06, B07 · **Libera:** B09, B15; Pedro (F07)
 - **Prazo:** Sprint 1 (iniciar) → Sprint 2 semana 1 (fechar) · **Prioridade:** 🔴
 - **Objetivo:** o administrador cria uma autorização com os oito campos exigidos 📄.
 
@@ -190,7 +190,7 @@ Resposta 201 (reutilizada em B09 e consumida por F07, F08 e F09):
 
 ### B09 — Consultar, cancelar e "minhas autorizações" (RF04, RF05, RF08)
 
-- **Depende de:** B08 · **Libera:** Lucas (F08, F09)
+- **Depende de:** B08 · **Libera:** Pedro (F08, F09)
 - **Prazo:** Sprint 2, semana 1 · **Prioridade:** 🔴
 - **Objetivo:** o administrador consulta e cancela autorizações; o usuário vê apenas as próprias.
 
@@ -233,13 +233,13 @@ Resposta 201 (reutilizada em B09 e consumida por F07, F08 e F09):
 
 - [x] Teste de vazamento: usuário A tenta ler a autorização do usuário B por id → 404.
 - [x] Swagger atualizado.
-- [ ] Lucas avisado (★). (contrato de `/authorizations`, `/me/authorizations` e do cancelamento publicado; falta avisar)
+- [ ] Pedro avisado (★). (contrato de `/authorizations`, `/me/authorizations` e do cancelamento publicado; falta avisar)
 
 ---
 
 ### B10 — Deploy em nuvem e entrega contínua (RNF09, RP11)
 
-- **Depende de:** B03, B05 · **Libera:** Lucas e Pedro (URL de homologação com HTTPS); I14
+- **Depende de:** B03, B05 · **Libera:** Pedro e Matheus (URL de homologação com HTTPS); I14
 - **Prazo:** Sprint 2, semana 1 · **Prioridade:** 🔴
 - **Objetivo:** cada merge na `develop` publica o backend em homologação automaticamente, depois do CI verde.
 
@@ -248,7 +248,7 @@ Resposta 201 (reutilizada em B09 e consumida por F07, F08 e F09):
 - Escolher o serviço de hospedagem de containers (**conferir planos gratuitos e limites vigentes**). ⚠️ Alguns planos gratuitos suspendem o serviço sem uso e demoram a acordar, o que prejudica o terminal. Teste isso antes de decidir.
 - `cd.yml`: roda só se o CI passou → build da imagem Docker → publica no registry → deploy → `prisma migrate deploy` → chama `/health` e falha se não estiver `ok`.
 - Variáveis e segredos no serviço e nos *secrets* do repositório (`DATABASE_URL`, `JWT_SECRET`, ...).
-- HTTPS pelo certificado do serviço; informar o Pedro sobre a cadeia que o ESP32 precisa.
+- HTTPS pelo certificado do serviço; informar o Matheus sobre a cadeia que o ESP32 precisa.
 - Documentar rollback (voltar para a imagem anterior). Publicar a URL em `docs/ambiente-dev.md`.
 
 **Lista de verificação**
@@ -270,4 +270,4 @@ Resposta 201 (reutilizada em B09 e consumida por F07, F08 e F09):
 **Definição de pronto**
 
 - [ ] Demonstração: commit pequeno → pipeline → versão nova no ar.
-- [ ] Lucas e Pedro testaram com a URL real.
+- [ ] Pedro e Matheus testaram com a URL real.
