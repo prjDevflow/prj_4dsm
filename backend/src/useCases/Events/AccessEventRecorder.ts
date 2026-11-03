@@ -1,4 +1,4 @@
-import type { NewDeniedEvent } from '../../entities/AccessEvent';
+import { AccessEvent, type NewDeniedEvent } from '../../entities/AccessEvent';
 import type { IClock } from '../../providers/IClock';
 import type { IIdGenerator } from '../../providers/IIdGenerator';
 import type { ILogger } from '../../providers/ILogger';
@@ -15,7 +15,12 @@ export class AccessEventRecorder {
     private logger: ILogger,
   ) {}
 
-  async recordDenied(_input: RecordDeniedInput): Promise<void> {
-    throw new Error('não implementado');
+  async recordDenied(input: RecordDeniedInput): Promise<void> {
+    const event = AccessEvent.denied({
+      ...input,
+      id: this.ids.next(),
+      ocorridoEm: this.clock.now(),
+    });
+    await this.events.append(event);
   }
 }
