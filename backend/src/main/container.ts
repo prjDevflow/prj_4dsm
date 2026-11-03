@@ -5,6 +5,7 @@ import { PrismaAccessPointRepository } from '../infra/repositories/PrismaAccessP
 import { PrismaAuthorizationRepository } from '../infra/repositories/PrismaAuthorizationRepository';
 import { PrismaBuildingRepository } from '../infra/repositories/PrismaBuildingRepository';
 import { PrismaLocationUnitOfWork } from '../infra/repositories/PrismaLocationUnitOfWork';
+import { PrismaQrCredentialRepository } from '../infra/repositories/PrismaQrCredentialRepository';
 import { PrismaTerminalRepository } from '../infra/repositories/PrismaTerminalRepository';
 import { PrismaUserRepository } from '../infra/repositories/PrismaUserRepository';
 import { BcryptHashProvider } from '../infra/providers/BcryptHashProvider';
@@ -25,6 +26,7 @@ import type { IAccessPointRepository } from '../repositories/IAccessPointReposit
 import type { IAuthorizationRepository } from '../repositories/IAuthorizationRepository';
 import type { IBuildingRepository } from '../repositories/IBuildingRepository';
 import type { ILocationUnitOfWork } from '../repositories/ILocationUnitOfWork';
+import type { IQrCredentialRepository } from '../repositories/IQrCredentialRepository';
 import type { ITerminalRepository } from '../repositories/ITerminalRepository';
 import type { IUserRepository } from '../repositories/IUserRepository';
 
@@ -50,5 +52,6 @@ export const container = {
   accessPoints: new PrismaAccessPointRepository(prisma) as IAccessPointRepository,
   terminals: new PrismaTerminalRepository(prisma) as ITerminalRepository,
   authorizations: new PrismaAuthorizationRepository(prisma) as IAuthorizationRepository,
+  qrCredentials: new PrismaQrCredentialRepository(prisma) as IQrCredentialRepository,
   locationUnitOfWork: new PrismaLocationUnitOfWork(prisma) as ILocationUnitOfWork,
 };

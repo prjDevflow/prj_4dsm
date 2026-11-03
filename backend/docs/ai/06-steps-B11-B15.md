@@ -58,41 +58,42 @@ Ordem de construção sugerida dentro do bloco: B11 e B12 (independentes) → B1
 - **Prazo:** Sprint 2, semana 1 · **Prioridade:** 🔴
 - **Objetivo:** o backend gera o QR do terminal 📄; o código é substituído a cada 10 s.
 
-**Use cases** (`src/useCases/TerminalChannel/`): `IssueQrCredential` (com Controller), `PurgeExpiredCredentials` (rodado por um job). Ports: `IQrCredentialRepository` (`save`, `findByTokenHash`, `findLastIssuedAt(terminalId)`, `deleteExpiredBefore`), `ISecureRandom`, `IHashProvider.sha256`, `IClock`.
+**Use cases** (`src/useCases/TerminalChannel/`): `IssueQrCredential` (com Controller), `PurgeExpiredCredentials` (rodado por um job). Ports: `IQrCredentialRepository` (`saveIfIdle`, `findByTokenHash`, `deleteExpiredBefore`; o `save` + `findLastIssuedAt` do plano original viraram o `saveIfIdle` atômico, ver STATUS, decisão de 2026-10-31), `ISecureRandom`, `IHashProvider.sha256`, `IClock`.
 
 **Regras**
 
 - Gera 16 bytes aleatórios, codifica em base64url (22 caracteres), grava o **SHA-256** do token, `terminalId`, `emitidoEm`, `expiraEm = emitidoEm + QR_TTL_SECONDS (10) + QR_TOLERANCE_SECONDS (5)`. Devolve `payload = "ACS1:" + token`, `emitidoEm`, `expiraEm`, `renovarEmMs` (10000).
 - O QR anterior continua válido até a **própria** expiração (no máximo 15 s). Dois QRs válidos por poucos segundos é intencional.
-- Limite de 1 QR a cada 5 s por terminal (429), usando `findLastIssuedAt` e o `IClock`.
+- Limite de 1 QR a cada 5 s por terminal (429), usando o `IClock` e o `saveIfIdle`, que confere a última emissão e grava na mesma transação, com trava consultiva por terminal (pedidos simultâneos emitem um só).
 - Job a cada minuto (`infra/jobs`, iniciado em `server.ts`, nunca em `app.ts`) apaga credenciais vencidas há mais de 1 hora.
 - Script de desenvolvimento `npm run dev:qr`: emite um QR para o terminal de dev e imprime o `payload`. **Recusa rodar** com `NODE_ENV=production`. Documentar em `docs/ambiente-dev.md`.
 
 **Lista de testes**
 
-- [ ] U `IssueQrCredential`: o token tem 22 caracteres e o payload bate com `^ACS1:[A-Za-z0-9_-]{22}$`.
-- [ ] U `IssueQrCredential`: grava só o hash; nenhum campo salvo contém o token em claro.
-- [ ] U `IssueQrCredential`: dois pedidos geram tokens diferentes (com `FixedRandom` em sequência).
-- [ ] U `IssueQrCredential`: `expiraEm` menos `emitidoEm` é 15 s por padrão e muda quando a configuração muda.
-- [ ] U `IssueQrCredential`: pedido com menos de 5 s do anterior lança 429; com 5 s exatos passa.
-- [ ] U `PurgeExpiredCredentials`: apaga só as vencidas há mais de 1 hora (limites com `FakeClock`).
-- [ ] I `POST /terminal/qr`: terminal inativo ou chave errada não recebe QR (403 e 401).
-- [ ] I resposta traz `payload`, `emitidoEm`, `expiraEm` e `renovarEmMs`.
-- [ ] I a linha em `qr_credentials` tem `tokenHash` de 64 caracteres hexadecimais.
+- [x] U `IssueQrCredential`: o token tem 22 caracteres e o payload bate com `^ACS1:[A-Za-z0-9_-]{22}$`.
+- [x] U `IssueQrCredential`: grava só o hash; nenhum campo salvo contém o token em claro.
+- [x] U `IssueQrCredential`: dois pedidos geram tokens diferentes (com `FixedRandom` em sequência).
+- [x] U `IssueQrCredential`: `expiraEm` menos `emitidoEm` é 15 s por padrão e muda quando a configuração muda.
+- [x] U `IssueQrCredential`: pedido com menos de 5 s do anterior lança 429; com 5 s exatos passa.
+- [x] I (acrescentado) oito `POST /terminal/qr` simultâneos do mesmo terminal: um 200, sete 429 e uma só linha; vinte `saveIfIdle` simultâneos gravam uma só.
+- [x] U `PurgeExpiredCredentials`: apaga só as vencidas há mais de 1 hora (limites com `FakeClock`).
+- [x] I `POST /terminal/qr`: terminal inativo ou chave errada não recebe QR (403 e 401).
+- [x] I resposta traz `payload`, `emitidoEm`, `expiraEm` e `renovarEmMs`.
+- [x] I a linha em `qr_credentials` tem `tokenHash` de 64 caracteres hexadecimais.
 
 **Critérios de aceitação**
 
-- [ ] O token tem 22 caracteres e o payload bate com `^ACS1:[A-Za-z0-9_-]{22}$`.
-- [ ] O token em claro **não** é gravado; só o hash.
-- [ ] Dois pedidos seguidos geram tokens diferentes.
-- [ ] `expiraEm - emitidoEm` é 15 s por padrão e muda se as variáveis mudarem.
-- [ ] Pedido com menos de 5 s do anterior → 429.
-- [ ] Terminal inativo ou chave errada não recebe QR.
+- [x] O token tem 22 caracteres e o payload bate com `^ACS1:[A-Za-z0-9_-]{22}$`.
+- [x] O token em claro **não** é gravado; só o hash.
+- [x] Dois pedidos seguidos geram tokens diferentes.
+- [x] `expiraEm - emitidoEm` é 15 s por padrão e muda se as variáveis mudarem.
+- [x] Pedido com menos de 5 s do anterior → 429.
+- [x] Terminal inativo ou chave errada não recebe QR.
 
 **Definição de pronto**
 
-- [ ] Testes de unicidade, hash, expiração e limite.
-- [ ] `dev:qr` documentado em `docs/ambiente-dev.md`.
+- [x] Testes de unicidade, hash, expiração e limite.
+- [x] `dev:qr` documentado em `docs/ambiente-dev.md`.
 
 ---
 
