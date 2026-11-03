@@ -31,7 +31,7 @@ import type {
 import { FakeLocationDirectory } from './FakeLocationDirectory';
 
 // One directory for the whole app in fake mode, so a new building shows up in the list.
-const sharedDirectory = new FakeLocationDirectory();
+export const sharedLocationDirectory = new FakeLocationDirectory();
 
 /**
  * Records each call in `calls`; willFail makes every next call fail with the given error
@@ -41,7 +41,7 @@ abstract class FakeLocationService<Call> {
   readonly calls: Call[] = [];
   private failure: ApiError | null = null;
 
-  constructor(protected readonly directory: FakeLocationDirectory = sharedDirectory) {}
+  constructor(protected readonly directory: FakeLocationDirectory = sharedLocationDirectory) {}
 
   willFail(error: ApiError | null) {
     this.failure = error;

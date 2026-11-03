@@ -1,6 +1,7 @@
 import { env } from '@/lib/env';
 import { FakeGetHealthService } from './fakes/FakeGetHealthService';
 import { FakeGetMeService } from './fakes/FakeGetMeService';
+import { FakeCreateAuthorizationService } from './fakes/FakeAuthorizationServices';
 import { FakeClipboardService, FakeCurrentPositionService } from './fakes/FakeDeviceServices';
 import {
   FakeCreateAccessPointService,
@@ -22,6 +23,7 @@ import {
   FakeListUsersService,
   FakeUpdateUserService,
 } from './fakes/FakeUserServices';
+import { CreateAuthorizationService } from './implementations/AuthorizationServices';
 import { CreateUserService } from './implementations/CreateUserService';
 import { ClipboardService, CurrentPositionService } from './implementations/DeviceServices';
 import { GetHealthService } from './implementations/GetHealthService';
@@ -81,6 +83,9 @@ export const createServices = (fakeServices: string[]) => {
     rotateTerminalKey: fakeLocations
       ? new FakeRotateTerminalKeyService()
       : new RotateTerminalKeyService(),
+    createAuthorization: isFake('authorizations')
+      ? new FakeCreateAuthorizationService()
+      : new CreateAuthorizationService(),
     currentPosition: isFake('currentPosition')
       ? new FakeCurrentPositionService()
       : new CurrentPositionService(),
