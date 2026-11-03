@@ -266,6 +266,7 @@ Integração (as colunas U e I da seção 9.1 do arquivo 03):
 - [ ] Distância testada com valores conhecidos (99 m passa e 101 m não, com o limite padrão).
 - [ ] Usuário inativo com token válido recebe `USUARIO_INATIVO` e o evento é gravado.
 - [ ] Meta de desempenho: resposta abaixo de 500 ms no ambiente local.
+- [ ] (vindo da B13) Falha de gravação do evento na aprovação: o uso **não** é consumido e a resposta é 500; falha na gravação do evento numa negação: a resposta continua sendo a negação correta.
 
 **Definição de pronto**
 
