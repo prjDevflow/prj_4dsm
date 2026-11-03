@@ -43,7 +43,20 @@ export interface NewDeniedEvent extends NewAccessEventBase {
 }
 
 export const AccessEvent = {
-  approved(_input: NewApprovedEvent): AccessEvent {
-    throw new Error('não implementado');
+  approved(input: NewApprovedEvent): AccessEvent {
+    return {
+      id: input.id,
+      ocorridoEm: input.ocorridoEm,
+      terminalId: input.terminalId ?? null,
+      accessPointId: input.accessPointId ?? null,
+      usuarioId: input.usuarioId ?? null,
+      authorizationId: input.authorizationId ?? null,
+      metodo: input.metodo,
+      resultado: 'AUTORIZADO',
+      motivo: null,
+      distanciaM: input.distanciaM ?? null,
+      clientEventId: null,
+      detalhes: null,
+    };
   },
 };
