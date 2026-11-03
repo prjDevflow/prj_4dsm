@@ -168,6 +168,6 @@ Depois de cancelar: aviso curto e o selo muda para "Cancelada" na lista e no det
 
 **Definição de pronto**
 
-- [x] Testado com a API real. (emulador em 03/11, em 100% e 200%: filtros sozinhos e combinados, paginação, as quatro situações, cancelamento com motivo pelo app, sem motivo direto na API, e dois administradores cancelando a mesma)
+- [x] Testado com a API real. (emulador em 03/11, em 100% e 200%: filtros sozinhos e combinados, paginação, puxar para atualizar, as quatro situações, cancelamento com e sem motivo e dois administradores cancelando a mesma)
 
 ---
