@@ -132,7 +132,7 @@ Não há campo "situação": toda autorização nasce ativa. Sem pessoas ou loca
 
 **Definição de pronto**
 
-- [x] Autorização criada pelo app aparece no Swagger com os mesmos valores. (conferido pela API, a mesma do Swagger: Bruna Lopes, Catraca do Bloco B, 03/11 a 09/11/2026, 08:00 às 18:00, 3 usos, ATIVA)
+- [x] Autorização criada pelo app aparece no Swagger com os mesmos valores. (conferido pelo Pedro no Swagger em 03/11: Bruna Lopes, Catraca do Bloco B, 03/11 a 09/11/2026, 08:00 às 18:00, 3 usos, ATIVA)
 
 ---
 
