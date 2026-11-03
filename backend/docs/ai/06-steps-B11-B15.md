@@ -115,26 +115,26 @@ Ordem de construção sugerida dentro do bloco: B11 e B12 (independentes) → B1
 
 **Lista de testes**
 
-- [ ] U `AccessEventRecorder`: para cada código de motivo do contrato (`it.each` sobre a lista completa) grava **exatamente um** evento `NEGADO` com o motivo.
-- [ ] U `AccessEventRecorder`: se o repositório lançar erro, registra no log (com contexto) e **não** propaga; a negação segue.
-- [ ] U `AccessEvent.approved`: monta o evento com `metodo`, `distanciaM` e `detalhes` sem token, chave ou senha.
-- [ ] U credencial desconhecida: `terminalId` nulo e `detalhes` com prefixo do hash de no máximo 8 caracteres, sem o token.
-- [ ] U `InMemoryAccessGrantRepository.commitApproval` com falha injetada no evento: o uso **não** é consumido e a credencial **não** é marcada (all-or-nothing).
-- [ ] I falha de gravação do evento na aprovação (falha injetada dentro da transação): resposta 500 e `usosRealizados` intacto.
-- [ ] I falha de gravação do evento numa negação: a resposta continua sendo a negação correta.
-- [ ] I não existe rota que edite ou apague eventos (`PATCH` e `DELETE` em `/access-events/:id` → 404).
+- [x] U `AccessEventRecorder`: para cada código de motivo do contrato (`it.each` sobre a lista completa, 13 códigos) grava **exatamente um** evento `NEGADO` com o motivo.
+- [x] U `AccessEventRecorder`: se o repositório lançar erro, registra no log (com contexto) e **não** propaga; a negação segue.
+- [x] U `AccessEvent.approved`: monta o evento com `metodo`, `distanciaM` e `detalhes` sem token, chave ou senha.
+- [x] U credencial desconhecida: `terminalId` nulo e `detalhes` com prefixo do hash de no máximo 8 caracteres, sem o token.
+- [ ] ➡️ B15 · U `InMemoryAccessGrantRepository.commitApproval` com falha injetada no evento: o uso **não** é consumido e a credencial **não** é marcada (all-or-nothing). _O port nasce na B15 (decisão de 2026-11-03)._
+- [ ] ➡️ B15 · I falha de gravação do evento na aprovação (falha injetada dentro da transação): resposta 500 e `usosRealizados` intacto. _Precisa da rota e do `commitApproval`._
+- [x] I falha de gravação do evento numa negação: a negação segue (provado no recorder com falha real do PostgreSQL; a resposta HTTP é conferida na B15).
+- [x] I não existe rota que edite ou apague eventos (`PATCH` e `DELETE` em `/access-events/:id` → 404).
 
 **Critérios de aceitação**
 
-- [ ] Um teste para cada motivo da seção 4.4 do arquivo 03 confirma que **exatamente um** evento foi criado.
-- [ ] Simular falha de gravação na aprovação: o uso **não** é consumido e a resposta é 500.
-- [ ] Simular falha de gravação na negação: a resposta continua sendo a negação correta.
-- [ ] Nenhum evento guarda token, chave ou senha.
+- [x] Um teste para cada motivo da seção 4.4 do arquivo 03 confirma que **exatamente um** evento foi criado.
+- [ ] ➡️ B15 · Simular falha de gravação na aprovação: o uso **não** é consumido e a resposta é 500.
+- [x] Simular falha de gravação na negação: a negação segue (no recorder; a resposta HTTP é conferida na B15).
+- [x] Nenhum evento guarda token, chave ou senha.
 
 **Definição de pronto**
 
-- [ ] Testes unitários do recorder e de integração das duas situações de falha.
-- [ ] Tabela "campo × quando é nulo" em `docs/eventos-campos.md` para o Pedro (F12) saber o que esperar.
+- [ ] Testes unitários do recorder e de integração das duas situações de falha. _Negação feita; aprovação ➡️ B15._
+- [x] Tabela "campo × quando é nulo" em `docs/eventos-campos.md` para o Pedro (F12) saber o que esperar.
 
 ---
 
@@ -243,6 +243,7 @@ Unidade, `ValidateQrAccess` (um teste por linha):
 - [ ] U toda negação grava **um** evento `NEGADO` e, com terminal identificado, **um** comando `NEGAR`; nenhuma consome credencial ou uso.
 - [ ] U `commitApproval` devolvendo `CREDENCIAL_REUTILIZADA` ou `USOS_ESGOTADOS` (corrida perdida) vira a negação correspondente, com evento.
 - [ ] U `commitApproval` lançando erro → a exceção sobe (500) e nenhum comando `ABRIR` existe.
+- [ ] U (vindo da B13) `InMemoryAccessGrantRepository.commitApproval` com falha injetada no evento: o uso **não** é consumido e a credencial **não** é marcada (all-or-nothing).
 
 Integração (as colunas U e I da seção 9.1 do arquivo 03):
 
@@ -253,6 +254,7 @@ Integração (as colunas U e I da seção 9.1 do arquivo 03):
 - [ ] I caso 14: sem token → 401 (sem evento, ver ADR).
 - [ ] I payload fora do padrão → 422; coordenadas fora da faixa → 422; 11ª validação no minuto → 429.
 - [ ] I resposta em menos de 500 ms no ambiente local (medir no teste e registrar).
+- [ ] I (vindo da B13) falha de gravação do evento na aprovação (falha injetada dentro da transação): resposta 500 e `usosRealizados` intacto; falha na gravação do evento numa negação: a resposta continua sendo a negação correta.
 
 **Critérios de aceitação**
 
