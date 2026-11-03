@@ -128,7 +128,7 @@ Não há campo "situação": toda autorização nasce ativa. Sem pessoas ou loca
 **Critérios de aceitação**
 
 - [x] Não dá para escolher data final antes da inicial nem horário final igual ou antes do inicial.
-- [ ] Depois de criar, a autorização aparece na lista com "Ativa" e o visitante a vê na T04. (criada pelo app aparece na API com "Ativa"; a lista é a F08 e a T04 é a F09)
+- [ ] Depois de criar, a autorização aparece na lista com "Ativa" e o visitante a vê na T04. (na lista, conferido em 03/11 com a F08 contra a API real: aparece no topo com "Ativa"; falta a T04, que é a F09)
 
 **Definição de pronto**
 
@@ -156,18 +156,18 @@ Depois de cancelar: aviso curto e o selo muda para "Cancelada" na lista e no det
 
 **Lista de testes**
 
-- [ ] U model da lista: cada filtro vira o parâmetro certo, sozinho e combinado; "Limpar filtros" zera.
-- [ ] U model do detalhe: botão de cancelar só com `situacaoEfetiva = ATIVA`.
-- [ ] U model do cancelamento: envia o motivo (ou nada); atualiza lista e detalhe; segundo cancelamento não mostra erro.
-- [ ] U schema do motivo: 200 caracteres passam, 201 não.
+- [x] U model da lista: cada filtro vira o parâmetro certo, sozinho e combinado; "Limpar filtros" zera.
+- [x] U model do detalhe: botão de cancelar só com `situacaoEfetiva = ATIVA`.
+- [x] U model do cancelamento: envia o motivo (ou nada); atualiza lista e detalhe; segundo cancelamento não mostra erro.
+- [x] U schema do motivo: 200 caracteres passam, 201 não.
 
 **Critérios de aceitação**
 
-- [ ] A confirmação sempre aparece antes de cancelar.
-- [ ] Depois do cancelamento, a próxima leitura do QR com essa autorização é negada com "Sua autorização foi cancelada. Procure a administração." (cenário 3 do M4).
+- [x] A confirmação sempre aparece antes de cancelar.
+- [ ] Depois do cancelamento, a próxima leitura do QR com essa autorização é negada com "Sua autorização foi cancelada. Procure a administração." (cenário 3 do M4). (depende da B15, que ainda não existe, e da F11; em 03/11 a API já devolve a autorização como CANCELADA)
 
 **Definição de pronto**
 
-- [ ] Testado com a API real.
+- [x] Testado com a API real. (emulador em 03/11, em 100% e 200%: filtros sozinhos e combinados, paginação, as quatro situações, cancelamento com motivo pelo app, sem motivo direto na API, e dois administradores cancelando a mesma)
 
 ---
