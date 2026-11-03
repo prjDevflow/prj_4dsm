@@ -46,3 +46,16 @@ export interface CreateAuthorizationBody {
   horaFim: string;
   usosPermitidos: number;
 }
+
+/** GET /authorizations: the filters left undefined are not sent. */
+export interface ListAuthorizationsParams {
+  usuarioId?: string;
+  accessPointId?: string;
+  /** The effective state, computed by the server. */
+  situacao?: SituacaoEfetiva;
+  /** "YYYY-MM-DD": keeps the ones whose period overlaps dataDe to dataAte. */
+  dataDe?: string;
+  dataAte?: string;
+  page: number;
+  pageSize: number;
+}

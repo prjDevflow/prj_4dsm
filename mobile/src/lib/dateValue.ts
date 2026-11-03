@@ -28,3 +28,12 @@ export const fromTime = (time: string) => {
   date.setHours(hours, minutes, 0, 0);
   return date;
 };
+
+/** "2026-10-20" → "20/10", for lists where the year only adds noise. */
+export const formatShortDate = (isoDate: string) => formatIsoDate(isoDate).slice(0, 5);
+
+/** Instant of the API (UTC) → "19/10/2026 às 09:05", in the phone's local time. */
+export const formatDateTime = (instant: string) => {
+  const date = new Date(instant);
+  return `${formatIsoDate(toIsoDate(date))} às ${toTime(date)}`;
+};

@@ -6,7 +6,7 @@ import { http, HttpResponse } from 'msw';
 import { useSessionStore } from '@/context/SessionStore';
 import { TOKEN_KEY } from '@/context/tokenStorage';
 import type { Usuario } from '@/lib/types/auth';
-import { FakeCreateAuthorizationService } from '@/service/fakes/FakeAuthorizationServices';
+import { FakeAuthorizationDirectory } from '@/service/fakes/FakeAuthorizationDirectory';
 import { FakeLocationDirectory } from '@/service/fakes/FakeLocationDirectory';
 import { FakeUserDirectory } from '@/service/fakes/FakeUserDirectory';
 import { sampleAdmin, sampleCondomino, sampleVisitante } from '@/service/fakes/sampleData';
@@ -450,18 +450,18 @@ describe('locais e terminais (F06)', () => {
 });
 
 describe('nova autorização (F07)', () => {
-  let service: FakeCreateAuthorizationService;
+  let authorizations: FakeAuthorizationDirectory;
 
   beforeEach(async () => {
     await SecureStore.deleteItemAsync(TOKEN_KEY);
     useSessionStore.setState({ token: null, usuario: null, expired: false });
     const users = new FakeUserDirectory();
     const locations = new FakeLocationDirectory();
-    service = new FakeCreateAuthorizationService({ users, locations });
+    authorizations = new FakeAuthorizationDirectory({ users, locations });
     server.use(
       ...usersHandlers(users, sampleAdmin.id),
       ...locationsHandlers(locations),
-      ...authorizationsHandlers(service),
+      ...authorizationsHandlers(authorizations, sampleAdmin),
     );
   });
 
@@ -483,12 +483,11 @@ describe('nova autorização (F07)', () => {
 
     expect(await screen.findByText('Autorização criada.')).toBeOnTheScreen();
     expect(await screen.findByRole('header', { name: 'Autorizações' })).toBeOnTheScreen();
-    expect(service.created).toEqual([
-      expect.objectContaining({
-        usuario: expect.objectContaining({ nome: 'Maria Souza' }),
-        local: expect.objectContaining({ nome: 'Catraca Social' }),
-        situacaoEfetiva: 'ATIVA',
-      }),
-    ]);
+    expect(authorizations.list({ page: 1, pageSize: 1 }).data[0]).toMatchObject({
+      usuario: { nome: 'Maria Souza' },
+      local: { nome: 'Catraca Social' },
+      criadoPor: { id: sampleAdmin.id },
+      situacaoEfetiva: 'ATIVA',
+    });
   });
 });
