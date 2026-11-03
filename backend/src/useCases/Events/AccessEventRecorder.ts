@@ -15,12 +15,27 @@ export class AccessEventRecorder {
     private logger: ILogger,
   ) {}
 
+  /**
+   * Never throws: a denial must reach the person even when the event cannot be stored. The failure is
+   * logged with the context of the attempt (never the credential hash or token) so it can be found.
+   */
   async recordDenied(input: RecordDeniedInput): Promise<void> {
-    const event = AccessEvent.denied({
-      ...input,
-      id: this.ids.next(),
-      ocorridoEm: this.clock.now(),
-    });
-    await this.events.append(event);
+    try {
+      const event = AccessEvent.denied({
+        ...input,
+        id: this.ids.next(),
+        ocorridoEm: this.clock.now(),
+      });
+      await this.events.append(event);
+    } catch (error) {
+      this.logger.error('Falha ao gravar o evento de acesso negado', {
+        motivo: input.motivo,
+        metodo: input.metodo,
+        terminalId: input.terminalId ?? null,
+        accessPointId: input.accessPointId ?? null,
+        usuarioId: input.usuarioId ?? null,
+        erro: error instanceof Error ? error.message : String(error),
+      });
+    }
   }
 }
