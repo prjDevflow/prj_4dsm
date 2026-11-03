@@ -31,7 +31,19 @@ describe('AccessEvent.approved', () => {
 });
 
 describe('AccessEvent.denied', () => {
-  it.todo('deve montar um evento NEGADO com o motivo, deixando distância e autorização nulas');
+  it('deve montar um evento NEGADO com o motivo, deixando distância e autorização nulas', () => {
+    const event = AccessEvent.denied({ ...base, motivo: 'FORA_DO_PERIODO' });
+
+    expect(event).toEqual({
+      ...base,
+      authorizationId: null,
+      resultado: 'NEGADO',
+      motivo: 'FORA_DO_PERIODO',
+      distanciaM: null,
+      clientEventId: null,
+      detalhes: null,
+    });
+  });
 });
 
 describe('detalhes do evento', () => {

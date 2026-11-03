@@ -59,4 +59,7 @@ export const AccessEvent = {
       detalhes: null,
     };
   },
+  denied(_input: NewDeniedEvent): AccessEvent {
+    throw new Error('não implementado');
+  },
 };
