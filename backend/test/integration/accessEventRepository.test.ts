@@ -102,5 +102,52 @@ describe('PrismaAccessEventRepository', () => {
 
       expect(await prisma.accessEvent.count()).toBe(0);
     });
+
+    it('roda dentro de uma transação: um erro depois do append desfaz a gravação', async () => {
+      const event = AccessEvent.denied({
+        id: newId(),
+        ocorridoEm: T0,
+        metodo: 'QR',
+        motivo: 'CREDENCIAL_EXPIRADA',
+      });
+
+      await expect(
+        prisma.$transaction(async (tx) => {
+          await new PrismaAccessEventRepository(tx).append(event);
+          throw new Error('falha depois do evento');
+        }),
+      ).rejects.toThrow('falha depois do evento');
+
+      expect(await prisma.accessEvent.count()).toBe(0);
+    });
+
+    it('roda dentro de uma transação: o append que falha desfaz a escrita anterior', async () => {
+      const user = await insertUser();
+      const valid = AccessEvent.denied({
+        id: newId(),
+        ocorridoEm: T0,
+        metodo: 'QR',
+        usuarioId: user.id,
+        motivo: 'CREDENCIAL_EXPIRADA',
+      });
+      const invalid = AccessEvent.denied({
+        id: newId(),
+        ocorridoEm: T0,
+        metodo: 'QR',
+        terminalId: newId(),
+        motivo: 'DISTANTE_DO_TERMINAL',
+      });
+
+      await expectViolation(
+        prisma.$transaction(async (tx) => {
+          const inTransaction = new PrismaAccessEventRepository(tx);
+          await inTransaction.append(valid);
+          await inTransaction.append(invalid);
+        }),
+        'access_events_terminalId_fkey',
+      );
+
+      expect(await prisma.accessEvent.count()).toBe(0);
+    });
   });
 });

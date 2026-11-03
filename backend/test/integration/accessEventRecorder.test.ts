@@ -62,4 +62,27 @@ describe('AccessEventRecorder com PostgreSQL', () => {
       usuarioId: user.id,
     });
   });
+
+  it('mantém o hash da credencial fora do log mesmo quando o erro vem do Prisma', async () => {
+    const logger = new SpyLogger();
+    const recorder = new AccessEventRecorder(
+      new PrismaAccessEventRepository(prisma),
+      container.ids,
+      container.clock,
+      logger,
+    );
+    const hash = 'fedcba9876543210'.repeat(4);
+
+    await recorder.recordDenied({
+      metodo: 'QR',
+      motivo: 'CREDENCIAL_INVALIDA',
+      terminalId: newId(),
+      credencialHash: hash,
+    });
+
+    expect(logger.of('error')).toHaveLength(1);
+    const logged = JSON.stringify(logger.entries);
+    expect(logged).not.toContain(hash);
+    expect(logged).not.toContain(hash.slice(0, 8));
+  });
 });
