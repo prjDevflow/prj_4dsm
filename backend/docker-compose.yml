@@ -80,6 +80,14 @@ services:
       JWT_EXPIRES_IN: ${JWT_EXPIRES_IN:-}
       BCRYPT_COST: ${BCRYPT_COST:-}
       LOGIN_MAX_PER_MINUTE: ${LOGIN_MAX_PER_MINUTE:-}
+      # Terminais e heartbeat (B07, B11). O teste dockerComposeEnv.spec.ts exige toda variável do parseEnv aqui.
+      TERMINAL_ONLINE_WINDOW_S: ${TERMINAL_ONLINE_WINDOW_S:-}
+      HEARTBEAT_MIN_INTERVAL_S: ${HEARTBEAT_MIN_INTERVAL_S:-}
+      QR_REFRESH_MS: ${QR_REFRESH_MS:-}
+      COMMAND_POLL_MS: ${COMMAND_POLL_MS:-}
+      OPEN_DURATION_MS: ${OPEN_DURATION_MS:-}
+      TERMINAL_POSITION_SOURCE: ${TERMINAL_POSITION_SOURCE:-}
+      GPS_MAX_AGE_MIN: ${GPS_MAX_AGE_MIN:-}
     ports:
       - '${PORT:-3000}:3000'
     depends_on:
