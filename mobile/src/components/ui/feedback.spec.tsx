@@ -49,6 +49,16 @@ describe('Dialog', () => {
     destructive: true,
   };
 
+  it('mostra o conteúdo extra entre a mensagem e os botões', async () => {
+    await render(
+      <Dialog {...props} onConfirm={jest.fn()} onCancel={jest.fn()}>
+        <Text>Motivo (opcional)</Text>
+      </Dialog>,
+    );
+
+    expect(screen.getByText('Motivo (opcional)')).toBeOnTheScreen();
+  });
+
   it('confirmar chama onConfirm e cancelar chama onCancel', async () => {
     const onConfirm = jest.fn();
     const onCancel = jest.fn();
