@@ -42,6 +42,19 @@ export interface NewDeniedEvent extends NewAccessEventBase {
   motivo: DenialReason;
 }
 
+/** How much of an unknown credential's hash is kept: enough to correlate attempts, not to look it up. */
+export const CREDENTIAL_HASH_PREFIX_LENGTH = 8;
+
+/** Built from named fields only, so nothing else the caller holds (token, key, password) can leak in. */
+function buildDetails(input: NewAccessEventBase): Record<string, unknown> | null {
+  const details: Record<string, unknown> = {};
+  if (input.precisaoMetros != null) details.precisaoMetros = input.precisaoMetros;
+  if (input.credencialHash != null) {
+    details.credencialHashPrefixo = input.credencialHash.slice(0, CREDENTIAL_HASH_PREFIX_LENGTH);
+  }
+  return Object.keys(details).length > 0 ? details : null;
+}
+
 export const AccessEvent = {
   approved(input: NewApprovedEvent): AccessEvent {
     return {
@@ -56,7 +69,7 @@ export const AccessEvent = {
       motivo: null,
       distanciaM: input.distanciaM ?? null,
       clientEventId: null,
-      detalhes: null,
+      detalhes: buildDetails(input),
     };
   },
   denied(input: NewDeniedEvent): AccessEvent {

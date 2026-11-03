@@ -47,7 +47,22 @@ describe('AccessEvent.denied', () => {
 });
 
 describe('detalhes do evento', () => {
-  it.todo('deve ignorar token, chave e senha que venham junto da entrada');
+  it('deve ignorar token, chave e senha que venham junto da entrada', () => {
+    // A variable, not a literal: the type check would reject extra fields in a literal.
+    const input = {
+      ...base,
+      motivo: 'CREDENCIAL_INVALIDA' as const,
+      precisaoMetros: 5,
+      token: 'q3F8k2Zr1pLw9XbTn0YhVA',
+      apiKey: 'chave-do-terminal',
+      senha: 'Senha-Valida-123',
+    };
+
+    const event = AccessEvent.denied(input);
+
+    expect(event.detalhes).toEqual({ precisaoMetros: 5 });
+    expect(JSON.stringify(event)).not.toMatch(/q3F8k2Zr1pLw9XbTn0YhVA|chave-do-terminal|Senha-Valida/);
+  });
   it('deve guardar só 8 caracteres do hash de uma credencial desconhecida, com terminal e ponto nulos', () => {
     const hash = 'abcdef0123456789'.repeat(4);
 
