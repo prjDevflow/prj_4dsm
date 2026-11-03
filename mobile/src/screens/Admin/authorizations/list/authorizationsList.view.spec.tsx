@@ -77,6 +77,17 @@ describe('Autorizações (T23)', () => {
     expect(screen.queryByRole('button', { name: /^Maria Souza,/ })).toBeNull();
   });
 
+  it('com o teclado aberto na busca, o toque na opção não é engolido pela lista', async () => {
+    const { rendered } = renderList();
+    await rendered;
+
+    // The select is inside the list in the React tree, even though it opens in its own window.
+    expect(await screen.findByTestId('authorizations-list')).toHaveProp(
+      'keyboardShouldPersistTaps',
+      'handled',
+    );
+  });
+
   it('o filtro de situação tem os cinco botões, com "Todas" marcado', async () => {
     const { listAuthorizationsService, rendered } = renderList();
     await rendered;

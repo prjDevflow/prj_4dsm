@@ -1,7 +1,7 @@
 import {
   formatDateTime,
   formatIsoDate,
-  formatShortDate,
+  formatPeriod,
   fromIsoDate,
   fromTime,
   toIsoDate,
@@ -25,9 +25,13 @@ describe('dateValue', () => {
     expect([date.getFullYear(), date.getMonth(), date.getDate()]).toEqual([2026, 9, 20]);
   });
 
-  it('mostra a data da lista sem o ano', () => {
-    expect(formatShortDate('2026-10-20')).toBe('20/10');
-    expect(formatShortDate('2027-01-05')).toBe('05/01');
+  it('mostra o período da lista sem o ano', () => {
+    expect(formatPeriod('2026-10-20', '2026-10-25')).toBe('20/10 a 25/10');
+    expect(formatPeriod('2026-01-05', '2026-01-05')).toBe('05/01 a 05/01');
+  });
+
+  it('o período que atravessa o ano leva o ano: "28/10 a 28/10" pareceria um dia só', () => {
+    expect(formatPeriod('2026-10-28', '2027-10-28')).toBe('28/10/2026 a 28/10/2027');
   });
 
   it('mostra um instante da API (UTC) na hora do aparelho', () => {

@@ -18,7 +18,7 @@ import {
   Text,
   type SelectOption,
 } from '@/components/ui';
-import { formatShortDate } from '@/lib/dateValue';
+import { formatPeriod } from '@/lib/dateValue';
 import type { Autorizacao } from '@/lib/types/authorizations';
 import { colors, ThemeProvider, useTheme } from '@/theme';
 import type { SituacaoFilter, useAuthorizationsListModel } from './authorizationsList.model';
@@ -68,7 +68,7 @@ const PersonTrigger = ({ selected, open }: PersonTriggerProps) => {
 };
 
 const periodLine = ({ dataInicio, dataFim, horaInicio, horaFim }: Autorizacao) =>
-  `${formatShortDate(dataInicio)} a ${formatShortDate(dataFim)} · ${horaInicio} às ${horaFim}`;
+  `${formatPeriod(dataInicio, dataFim)} · ${horaInicio} às ${horaFim}`;
 
 // T23 Autorizações (Figma "Passe").
 export const AuthorizationsListView = ({
@@ -211,6 +211,7 @@ export const AuthorizationsListView = ({
           contentStyle={styles.content}
         >
           <FlatList
+            testID="authorizations-list"
             data={status === 'ready' ? authorizations : []}
             keyExtractor={(authorization) => authorization.id}
             renderItem={({ item }) => (
@@ -231,6 +232,8 @@ export const AuthorizationsListView = ({
             ListFooterComponent={footer}
             onEndReached={onEndReached}
             onEndReachedThreshold={0.5}
+            keyboardShouldPersistTaps="handled"
+            keyboardDismissMode="on-drag"
             contentContainerStyle={styles.list}
             refreshControl={
               <RefreshControl
