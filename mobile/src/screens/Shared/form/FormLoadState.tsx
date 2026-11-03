@@ -6,6 +6,7 @@ type FormLoadStateProps = {
   loadingLabel: string;
   /** "Edifício não encontrado." */
   notFoundTitle: string;
+  notFoundMessage?: string;
   /** "Não foi possível carregar o edifício." */
   errorTitle: string;
   errorMessage: string;
@@ -18,6 +19,7 @@ export const FormLoadState = ({
   status,
   loadingLabel,
   notFoundTitle,
+  notFoundMessage = 'Ele pode ter sido removido. Volte para a lista e confira.',
   errorTitle,
   errorMessage,
   onRetry,
@@ -28,7 +30,7 @@ export const FormLoadState = ({
   ) : status === 'notFound' ? (
     <ErrorState
       title={notFoundTitle}
-      message="Ele pode ter sido removido. Volte para a lista e confira."
+      message={notFoundMessage}
       icon="search_off"
       tone="neutro"
       retryLabel="Voltar para a lista"

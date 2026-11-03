@@ -1,4 +1,5 @@
-import { Modal, StyleSheet, View } from 'react-native';
+import type { ReactNode } from 'react';
+import { KeyboardAvoidingView, Modal, Platform, StyleSheet, View } from 'react-native';
 import { useReducedMotion, useTheme } from '@/theme';
 import { Button } from './Button';
 import { Text } from './Text';
@@ -16,6 +17,8 @@ type DialogProps = {
   destructive?: boolean;
   confirmLoading?: boolean;
   confirmLoadingLabel?: string;
+  /** Between the message and the buttons (an optional reason, for example). */
+  children?: ReactNode;
 };
 
 export const Dialog = ({
@@ -29,6 +32,7 @@ export const Dialog = ({
   destructive = false,
   confirmLoading = false,
   confirmLoadingLabel,
+  children,
 }: DialogProps) => {
   const theme = useTheme();
   const reducedMotion = useReducedMotion();
@@ -41,7 +45,10 @@ export const Dialog = ({
       animationType={reducedMotion ? 'none' : 'fade'}
       onRequestClose={onCancel}
     >
-      <View style={[styles.scrim, { backgroundColor: theme.colors.veu }]}>
+      <KeyboardAvoidingView
+        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+        style={[styles.scrim, { backgroundColor: theme.colors.veu }]}
+      >
         <View
           accessibilityViewIsModal
           style={[
@@ -56,6 +63,7 @@ export const Dialog = ({
             {title}
           </Text>
           {message ? <Text color="textoApoio">{message}</Text> : null}
+          {children}
           <View style={styles.actions}>
             <Button
               variant="texto"
@@ -74,7 +82,7 @@ export const Dialog = ({
             />
           </View>
         </View>
-      </View>
+      </KeyboardAvoidingView>
     </Modal>
   );
 };

@@ -4,6 +4,7 @@ import { colors } from '@/theme';
 import { Alert } from './Alert';
 import { Dialog } from './Dialog';
 import { EmptyState, ErrorState, LoadingState, OfflineBanner } from './states';
+import { Text } from './Text';
 import { ToastProvider, useToast } from './Toast';
 
 describe('Alert', () => {
