@@ -55,24 +55,31 @@ function buildDetails(input: NewAccessEventBase): Record<string, unknown> | null
   return Object.keys(details).length > 0 ? details : null;
 }
 
+function build(
+  input: NewAccessEventBase,
+  outcome: Pick<AccessEvent, 'resultado' | 'motivo'>,
+): AccessEvent {
+  return {
+    id: input.id,
+    ocorridoEm: input.ocorridoEm,
+    terminalId: input.terminalId ?? null,
+    accessPointId: input.accessPointId ?? null,
+    usuarioId: input.usuarioId ?? null,
+    authorizationId: input.authorizationId ?? null,
+    metodo: input.metodo,
+    ...outcome,
+    distanciaM: input.distanciaM ?? null,
+    clientEventId: null,
+    detalhes: buildDetails(input),
+  };
+}
+
 export const AccessEvent = {
   approved(input: NewApprovedEvent): AccessEvent {
-    return {
-      id: input.id,
-      ocorridoEm: input.ocorridoEm,
-      terminalId: input.terminalId ?? null,
-      accessPointId: input.accessPointId ?? null,
-      usuarioId: input.usuarioId ?? null,
-      authorizationId: input.authorizationId ?? null,
-      metodo: input.metodo,
-      resultado: 'AUTORIZADO',
-      motivo: null,
-      distanciaM: input.distanciaM ?? null,
-      clientEventId: null,
-      detalhes: buildDetails(input),
-    };
+    return build(input, { resultado: 'AUTORIZADO', motivo: null });
   },
+
   denied(input: NewDeniedEvent): AccessEvent {
-    return { ...AccessEvent.approved(input), resultado: 'NEGADO', motivo: input.motivo };
+    return build(input, { resultado: 'NEGADO', motivo: input.motivo });
   },
 };
