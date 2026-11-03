@@ -8,7 +8,13 @@ import { ScreenContainer } from './ScreenContainer';
 import { Text } from './Text';
 import { TextField } from './TextField';
 
-export type SelectOption<T extends string> = { value: T; label: string; description?: string };
+export type SelectOption<T extends string> = {
+  value: T;
+  label: string;
+  description?: string;
+  /** Options with a group show under a title per group ("Edifício Central"), in the given order. */
+  group?: string;
+};
 
 type SelectFieldProps<T extends string> = {
   label: string;
@@ -101,36 +107,50 @@ export const SelectField = <T extends string>({
             keyExtractor={(option) => option.value}
             keyboardShouldPersistTaps="handled"
             ListEmptyComponent={<Text color="textoApoio">Nenhuma opção encontrada.</Text>}
-            renderItem={({ item }) => {
+            renderItem={({ item, index }) => {
               const checked = item.value === value;
+              const startsGroup =
+                item.group !== undefined && visibleOptions[index - 1]?.group !== item.group;
               return (
-                <Pressable
-                  accessibilityRole="radio"
-                  accessibilityLabel={item.label}
-                  accessibilityHint={item.description}
-                  accessibilityState={{ checked }}
-                  onPress={() => choose(item)}
-                  style={({ pressed }) => [
-                    styles.option,
-                    { borderBottomColor: theme.colors.contornoSuave },
-                    pressed && { backgroundColor: theme.colors.superficieAlta },
-                  ]}
-                >
-                  <View style={styles.optionTexts}>
-                    <Text variant={theme.scale === 'admin' ? 'adminItem' : 'pessoaCorpoForte'}>
-                      {item.label}
+                <>
+                  {startsGroup ? (
+                    <Text
+                      variant={theme.scale === 'admin' ? 'adminRotulo' : 'pessoaRotulo'}
+                      color="textoApoio"
+                      accessibilityRole="header"
+                      style={styles.group}
+                    >
+                      {item.group}
                     </Text>
-                    {item.description ? (
-                      <Text
-                        variant={theme.scale === 'admin' ? 'adminApoio' : 'pessoaApoio'}
-                        color="textoApoio"
-                      >
-                        {item.description}
+                  ) : null}
+                  <Pressable
+                    accessibilityRole="radio"
+                    accessibilityLabel={item.label}
+                    accessibilityHint={item.description}
+                    accessibilityState={{ checked }}
+                    onPress={() => choose(item)}
+                    style={({ pressed }) => [
+                      styles.option,
+                      { borderBottomColor: theme.colors.contornoSuave },
+                      pressed && { backgroundColor: theme.colors.superficieAlta },
+                    ]}
+                  >
+                    <View style={styles.optionTexts}>
+                      <Text variant={theme.scale === 'admin' ? 'adminItem' : 'pessoaCorpoForte'}>
+                        {item.label}
                       </Text>
-                    ) : null}
-                  </View>
-                  {checked ? <Icon name="check" color={theme.colors.primaria} /> : null}
-                </Pressable>
+                      {item.description ? (
+                        <Text
+                          variant={theme.scale === 'admin' ? 'adminApoio' : 'pessoaApoio'}
+                          color="textoApoio"
+                        >
+                          {item.description}
+                        </Text>
+                      ) : null}
+                    </View>
+                    {checked ? <Icon name="check" color={theme.colors.primaria} /> : null}
+                  </Pressable>
+                </>
               );
             }}
           />
@@ -152,4 +172,5 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
   },
   optionTexts: { flex: 1, gap: 2 },
+  group: { paddingTop: 20, paddingBottom: 4 },
 });

@@ -6,10 +6,20 @@ type FormFooterProps = {
   isSaving: boolean;
   onCancel: () => void;
   onSave: () => unknown;
+  /** "Salvar" by default; "Criar autorização" on T24. */
+  saveLabel?: string;
+  savingLabel?: string;
 };
 
 /** "Cancelar" and "Salvar", with the error strip above them: in sight however far the form scrolled. */
-export const FormFooter = ({ apiError, isSaving, onCancel, onSave }: FormFooterProps) => (
+export const FormFooter = ({
+  apiError,
+  isSaving,
+  onCancel,
+  onSave,
+  saveLabel = 'Salvar',
+  savingLabel = 'Salvando…',
+}: FormFooterProps) => (
   <>
     {apiError ? <Alert tone="erro" message={apiError} /> : null}
     <View style={styles.actions}>
@@ -17,7 +27,7 @@ export const FormFooter = ({ apiError, isSaving, onCancel, onSave }: FormFooterP
         <Button variant="contorno" label="Cancelar" onPress={onCancel} disabled={isSaving} />
       </View>
       <View style={styles.action}>
-        <Button label="Salvar" loadingLabel="Salvando…" loading={isSaving} onPress={onSave} />
+        <Button label={saveLabel} loadingLabel={savingLabel} loading={isSaving} onPress={onSave} />
       </View>
     </View>
   </>

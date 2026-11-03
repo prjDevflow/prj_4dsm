@@ -37,8 +37,11 @@ const renderForm = ({ users = new FakeUserDirectory() } = {}) => {
   return { ...services, navigation, rendered: render(<Screen />, { wrapper: createWrapper() }) };
 };
 
+// Like a person in a long list: types the name in the search of the select, then picks it.
 const choose = async (field: string, option: string) => {
   await fireEvent.press(await screen.findByRole('button', { name: field }));
+  const search = screen.queryByLabelText('Buscar');
+  if (search) await fireEvent.changeText(search, option.split(',')[0]);
   await fireEvent.press(await screen.findByRole('radio', { name: option }));
 };
 
@@ -80,10 +83,13 @@ describe('Nova autorização (T24)', () => {
     await rendered;
 
     await fireEvent.press(await screen.findByRole('button', { name: 'Pessoa' }));
-
+    await fireEvent.changeText(screen.getByLabelText('Buscar'), 'Maria Souza');
     expect(await screen.findByRole('radio', { name: 'Maria Souza, Condômino' })).toBeOnTheScreen();
+
     // Eduarda Martins is inactive in the sample.
+    await fireEvent.changeText(screen.getByLabelText('Buscar'), 'Eduarda');
     expect(screen.queryByRole('radio', { name: /^Eduarda Martins/ })).toBeNull();
+    expect(screen.getByText('Nenhuma opção encontrada.')).toBeOnTheScreen();
   });
 
   it('o local só oferece pontos ativos, agrupados por edifício', async () => {

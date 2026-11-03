@@ -473,6 +473,7 @@ describe('nova autorização (F07)', () => {
     expect(await screen.findByRole('header', { name: 'Nova autorização' })).toBeOnTheScreen();
 
     await fireEvent.press(await screen.findByRole('button', { name: 'Pessoa' }));
+    await fireEvent.changeText(await screen.findByLabelText('Buscar'), 'Maria Souza');
     await fireEvent.press(await screen.findByRole('radio', { name: 'Maria Souza, Condômino' }));
     await fireEvent.press(screen.getByRole('button', { name: 'Local de acesso' }));
     await fireEvent.press(
