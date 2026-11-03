@@ -14,6 +14,15 @@ const positiveInt = (defaultValue: number) =>
     .min(1, positiveIntMessage)
     .default(defaultValue);
 
+const nonNegativeIntMessage = 'deve ser um número inteiro maior ou igual a zero';
+
+const nonNegativeInt = (defaultValue: number) =>
+  z.coerce
+    .number({ error: nonNegativeIntMessage })
+    .int(nonNegativeIntMessage)
+    .min(0, nonNegativeIntMessage)
+    .default(defaultValue);
+
 const SECONDS_PER_UNIT = { s: 1, m: 60, h: 3600, d: 86400 } as const;
 
 function durationToSeconds(value: string) {
@@ -80,6 +89,12 @@ const EnvSchema = z.object({
   QR_REFRESH_MS: positiveInt(10000),
   COMMAND_POLL_MS: positiveInt(1000),
   OPEN_DURATION_MS: positiveInt(5000),
+  // QR emission (B12): life of a code is TTL + tolerance; one issue per terminal per interval (seconds);
+  // codes expired for longer than the purge window (hours) are deleted.
+  QR_TTL_SECONDS: positiveInt(10),
+  QR_TOLERANCE_SECONDS: nonNegativeInt(5),
+  QR_ISSUE_MIN_INTERVAL_S: positiveInt(5),
+  QR_PURGE_AFTER_HOURS: positiveInt(1),
   // Where the proximity check takes the terminal position from, and how old a GPS reading may be (minutes).
   TERMINAL_POSITION_SOURCE: z
     .enum(['GPS_COM_FALLBACK', 'CADASTRO', 'GPS'], {
