@@ -122,3 +122,6 @@ export function parseEnv(source: Record<string, string | undefined>): Env {
 
   return result.data;
 }
+
+// Every variable the API reads; the docker-compose test checks that all of them are forwarded.
+export const ENV_KEYS = Object.keys(EnvSchema.shape) as (keyof Env)[];
