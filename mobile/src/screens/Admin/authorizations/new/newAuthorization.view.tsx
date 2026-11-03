@@ -7,6 +7,7 @@ import {
   Button,
   Card,
   DateField,
+  FieldRow,
   Header,
   NumberStepper,
   ScreenContainer,
@@ -186,69 +187,61 @@ export const NewAuthorizationView = ({
               fullWidth={false}
             />
           </View>
-          <View style={styles.row}>
-            <View style={styles.cell}>
-              <Controller
-                control={form.control}
-                name="dataInicio"
-                render={({ field, fieldState }) => (
-                  <DateField
-                    label="Data inicial"
-                    value={field.value}
-                    onChange={field.onChange}
-                    error={fieldState.error?.message}
-                  />
-                )}
-              />
-            </View>
-            <View style={styles.cell}>
-              <Controller
-                control={form.control}
-                name="dataFim"
-                render={({ field, fieldState }) => (
-                  <DateField
-                    label="Data final"
-                    value={field.value}
-                    onChange={field.onChange}
-                    error={fieldState.error?.message}
-                    minimumDate={minEndDate}
-                  />
-                )}
-              />
-            </View>
-          </View>
+          <FieldRow>
+            <Controller
+              control={form.control}
+              name="dataInicio"
+              render={({ field, fieldState }) => (
+                <DateField
+                  label="Data inicial"
+                  value={field.value}
+                  onChange={field.onChange}
+                  error={fieldState.error?.message}
+                />
+              )}
+            />
+            <Controller
+              control={form.control}
+              name="dataFim"
+              render={({ field, fieldState }) => (
+                <DateField
+                  label="Data final"
+                  value={field.value}
+                  onChange={field.onChange}
+                  error={fieldState.error?.message}
+                  minimumDate={minEndDate}
+                />
+              )}
+            />
+          </FieldRow>
         </View>
 
-        <View style={styles.row}>
-          <View style={styles.cell}>
-            <Controller
-              control={form.control}
-              name="horaInicio"
-              render={({ field, fieldState }) => (
-                <TimeField
-                  label="Horário inicial"
-                  value={field.value}
-                  onChange={field.onChange}
-                  error={fieldState.error?.message}
-                />
-              )}
-            />
-          </View>
-          <View style={styles.cell}>
-            <Controller
-              control={form.control}
-              name="horaFim"
-              render={({ field, fieldState }) => (
-                <TimeField
-                  label="Horário final"
-                  value={field.value}
-                  onChange={field.onChange}
-                  error={fieldState.error?.message}
-                />
-              )}
-            />
-          </View>
-        </View>
+        <FieldRow>
+          <Controller
+            control={form.control}
+            name="horaInicio"
+            render={({ field, fieldState }) => (
+              <TimeField
+                label="Horário inicial"
+                value={field.value}
+                onChange={field.onChange}
+                error={fieldState.error?.message}
+              />
+            )}
+          />
+          <Controller
+            control={form.control}
+            name="horaFim"
+            render={({ field, fieldState }) => (
+              <TimeField
+                label="Horário final"
+                value={field.value}
+                onChange={field.onChange}
+                error={fieldState.error?.message}
+              />
+            )}
+          />
+        </FieldRow>
 
         <Controller
           control={form.control}
@@ -281,9 +274,6 @@ const styles = StyleSheet.create({
   content: { gap: 20 },
   block: { gap: 12 },
   shortcuts: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
-  // With a large system font the two fields wrap one under the other.
-  row: { flexDirection: 'row', flexWrap: 'wrap', gap: 12 },
-  cell: { flexGrow: 1, flexBasis: 140 },
   missing: { gap: 4, alignItems: 'flex-start' },
   summary: { flexDirection: 'row', gap: 12, alignItems: 'flex-start' },
 });

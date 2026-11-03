@@ -1,6 +1,6 @@
 import { Controller, type Control } from 'react-hook-form';
 import { Platform, StyleSheet, View } from 'react-native';
-import { Alert, Button, Text, TextField } from '@/components/ui';
+import { Alert, Button, FieldRow, Text, TextField } from '@/components/ui';
 
 export type CoordinateValues = { latitude: string; longitude: string };
 
@@ -33,41 +33,37 @@ export const CoordinateFields = ({
       onPress={onUseCurrentLocation}
     />
     {locationError ? <Alert tone="aviso" message={locationError} /> : null}
-    <View style={styles.row}>
+    <FieldRow>
       {(
         [
           ['latitude', 'Latitude', 'Entre -90 e 90'],
           ['longitude', 'Longitude', 'Entre -180 e 180'],
         ] as const
       ).map(([name, label, help]) => (
-        <View key={name} style={styles.cell}>
-          <Controller
-            control={control}
-            name={name}
-            render={({ field, fieldState }) => (
-              <TextField
-                ref={field.ref}
-                label={label}
-                help={help}
-                value={field.value}
-                onChangeText={field.onChange}
-                onBlur={field.onBlur}
-                error={fieldState.error?.message}
-                keyboardType={keyboardType}
-                autoCorrect={false}
-                maxLength={20}
-              />
-            )}
-          />
-        </View>
+        <Controller
+          key={name}
+          control={control}
+          name={name}
+          render={({ field, fieldState }) => (
+            <TextField
+              ref={field.ref}
+              label={label}
+              help={help}
+              value={field.value}
+              onChangeText={field.onChange}
+              onBlur={field.onBlur}
+              error={fieldState.error?.message}
+              keyboardType={keyboardType}
+              autoCorrect={false}
+              maxLength={20}
+            />
+          )}
+        />
       ))}
-    </View>
+    </FieldRow>
   </View>
 );
 
 const styles = StyleSheet.create({
   block: { gap: 12 },
-  // With a large system font the two fields wrap one under the other.
-  row: { flexDirection: 'row', flexWrap: 'wrap', gap: 12 },
-  cell: { flexGrow: 1, flexBasis: 140 },
 });
