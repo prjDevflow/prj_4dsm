@@ -48,6 +48,37 @@ describe('AccessEvent.denied', () => {
 
 describe('detalhes do evento', () => {
   it.todo('deve ignorar token, chave e senha que venham junto da entrada');
-  it.todo('deve guardar só 8 caracteres do hash de uma credencial desconhecida, com terminal e ponto nulos');
-  it.todo('deve deixar detalhes nulo quando não há precisão nem hash');
+  it('deve guardar só 8 caracteres do hash de uma credencial desconhecida, com terminal e ponto nulos', () => {
+    const hash = 'abcdef0123456789'.repeat(4);
+
+    const event = AccessEvent.denied({
+      ...base,
+      terminalId: null,
+      accessPointId: null,
+      motivo: 'CREDENCIAL_INVALIDA',
+      credencialHash: hash,
+    });
+
+    expect(event.terminalId).toBeNull();
+    expect(event.accessPointId).toBeNull();
+    expect(event.detalhes).toEqual({ credencialHashPrefixo: 'abcdef01' });
+    expect(JSON.stringify(event)).not.toContain(hash);
+  });
+
+  it('deve guardar o hash inteiro quando ele tem menos de 8 caracteres', () => {
+    const event = AccessEvent.denied({ ...base, motivo: 'CREDENCIAL_INVALIDA', credencialHash: 'abc' });
+
+    expect(event.detalhes).toEqual({ credencialHashPrefixo: 'abc' });
+  });
+
+  it('deve guardar a precisão do GPS do celular em detalhes', () => {
+    const event = AccessEvent.approved({ ...base, precisaoMetros: 12.5 });
+
+    expect(event.detalhes).toEqual({ precisaoMetros: 12.5 });
+  });
+
+  it('deve deixar detalhes nulo quando não há precisão nem hash', () => {
+    expect(AccessEvent.approved(base).detalhes).toBeNull();
+    expect(AccessEvent.denied({ ...base, motivo: 'SEM_AUTORIZACAO' }).detalhes).toBeNull();
+  });
 });
