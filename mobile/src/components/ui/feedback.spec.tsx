@@ -60,6 +60,23 @@ describe('Dialog', () => {
     expect(screen.getByText('Motivo (opcional)')).toBeOnTheScreen();
   });
 
+  it('o conteúdo rola e os botões ficam fora da rolagem, sempre ao alcance com o teclado aberto', async () => {
+    await render(
+      <Dialog {...props} onConfirm={jest.fn()} onCancel={jest.fn()}>
+        <Text>Motivo (opcional)</Text>
+      </Dialog>,
+    );
+
+    const content = screen.getByTestId('dialog-content');
+
+    expect(within(content).getByText('Motivo (opcional)')).toBeOnTheScreen();
+    expect(within(content).getByText('Isso não pode ser desfeito.')).toBeOnTheScreen();
+    expect(within(content).queryByRole('button', { name: 'Cancelar' })).toBeNull();
+    expect(screen.getByRole('button', { name: 'Cancelar' })).toBeOnTheScreen();
+    // A tap on the buttons must act, not just close the keyboard.
+    expect(content).toHaveProp('keyboardShouldPersistTaps', 'handled');
+  });
+
   it('confirmar chama onConfirm e cancelar chama onCancel', async () => {
     const onConfirm = jest.fn();
     const onCancel = jest.fn();

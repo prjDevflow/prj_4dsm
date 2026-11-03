@@ -1,5 +1,5 @@
 import type { ReactNode } from 'react';
-import { KeyboardAvoidingView, Modal, Platform, StyleSheet, View } from 'react-native';
+import { KeyboardAvoidingView, Modal, Platform, ScrollView, StyleSheet, View } from 'react-native';
 import { useReducedMotion, useTheme } from '@/theme';
 import { Button } from './Button';
 import { Text } from './Text';
@@ -56,14 +56,22 @@ export const Dialog = ({
             { backgroundColor: theme.colors.superficieAlta, borderRadius: theme.radius.dialogo },
           ]}
         >
-          <Text
-            variant={theme.scale === 'admin' ? 'adminTitulo' : 'pessoaDestaque'}
-            accessibilityRole="header"
+          {/* Only the text scrolls: with a large font and the keyboard open, the buttons stay reachable. */}
+          <ScrollView
+            testID="dialog-content"
+            style={styles.content}
+            contentContainerStyle={styles.contentInner}
+            keyboardShouldPersistTaps="handled"
           >
-            {title}
-          </Text>
-          {message ? <Text color="textoApoio">{message}</Text> : null}
-          {children}
+            <Text
+              variant={theme.scale === 'admin' ? 'adminTitulo' : 'pessoaDestaque'}
+              accessibilityRole="header"
+            >
+              {title}
+            </Text>
+            {message ? <Text color="textoApoio">{message}</Text> : null}
+            {children}
+          </ScrollView>
           <View style={styles.actions}>
             <Button
               variant="texto"
@@ -89,7 +97,10 @@ export const Dialog = ({
 
 const styles = StyleSheet.create({
   scrim: { flex: 1, justifyContent: 'center', padding: 24 },
-  box: { padding: 24, gap: 16 },
+  box: { padding: 24, gap: 16, flexShrink: 1 },
+  // No flexGrow: a short dialog keeps the height of its text, and a long one shrinks to fit.
+  content: { flexGrow: 0 },
+  contentInner: { gap: 16 },
   actions: {
     flexDirection: 'row',
     flexWrap: 'wrap',
