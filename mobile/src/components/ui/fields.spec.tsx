@@ -151,6 +151,27 @@ describe('SelectField', () => {
     { value: 'VISITANTE', label: 'Visitante' },
   ];
 
+  it('opções com grupo aparecem embaixo de um título por grupo, na ordem dada', async () => {
+    await render(
+      <SelectField
+        label="Local de acesso"
+        options={[
+          { value: 'a', label: 'Catraca do Anexo', group: 'Edifício Anexo' },
+          { value: 'b', label: 'Catraca Social', group: 'Edifício Central' },
+          { value: 'c', label: 'Portaria Principal', group: 'Edifício Central' },
+        ]}
+        value={null}
+        onChange={jest.fn()}
+      />,
+    );
+
+    await fireEvent.press(screen.getByRole('button', { name: 'Local de acesso' }));
+
+    expect(screen.getByRole('header', { name: 'Edifício Anexo' })).toBeOnTheScreen();
+    expect(screen.getAllByRole('header', { name: 'Edifício Central' })).toHaveLength(1);
+    expect(screen.getByRole('radio', { name: 'Portaria Principal' })).toBeOnTheScreen();
+  });
+
   it('mostra o rótulo e a opção escolhida', async () => {
     await render(
       <SelectField label="Perfil" options={options} value="CONDOMINO" onChange={jest.fn()} />,
