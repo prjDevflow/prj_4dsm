@@ -1,8 +1,11 @@
 import { AccessEvent } from '../../../entities/AccessEvent';
 import type { QrDenialReason } from '../../../entities/DenialReason';
 import { AccessEvaluator } from '../../../entities/rules/AccessEvaluator';
-import { haversineDistanceM } from '../../../entities/rules/haversineDistanceM';
-import type { PositionSource } from '../../../entities/rules/resolveReferencePosition';
+import { haversineDistanceM, type GeoPoint } from '../../../entities/rules/haversineDistanceM';
+import {
+  resolveReferencePosition,
+  type PositionSource,
+} from '../../../entities/rules/resolveReferencePosition';
 import { TerminalCommand } from '../../../entities/TerminalCommand';
 import type { IClock } from '../../../providers/IClock';
 import type { IHashProvider } from '../../../providers/IHashProvider';
@@ -57,6 +60,15 @@ export type QrAccessDecision =
   | { granted: false; reason: QrDenialReason };
 
 const PAYLOAD_PREFIX = 'ACS1:';
+
+/** The phone's position, or null when it is missing or cannot exist on Earth. */
+function readPosition(input: ValidateQrAccessInput): GeoPoint | null {
+  const { latitude, longitude } = input;
+  if (typeof latitude !== 'number' || typeof longitude !== 'number') return null;
+  if (!Number.isFinite(latitude) || !Number.isFinite(longitude)) return null;
+  if (Math.abs(latitude) > 90 || Math.abs(longitude) > 180) return null;
+  return { latitude, longitude };
+}
 
 /** What is known about the attempt when it is denied; it grows as the checks go on. */
 interface Attempt {
@@ -141,8 +153,27 @@ export class ValidateQrAccessUseCase {
     if (!evaluation.granted) return this.deny(evaluation.reason, located, now);
     const { authorization } = evaluation;
 
-    const phone = { latitude: input.latitude as number, longitude: input.longitude as number };
-    const distanceM = haversineDistanceM(phone, accessPoint);
+    // From here on the authorization is known, and the events of the denials below carry it.
+    const withAuthorization: Attempt = { ...located, authorizationId: authorization.id };
+
+    // 10. The phone must say where it is. A position out of range is as good as none.
+    const phone = readPosition(input);
+    if (!phone) return this.deny('LOCALIZACAO_INVALIDA', withAuthorization, now);
+
+    // 11. Not farther than the limit from where the terminal is (null: `GPS` mode without a usable GPS).
+    const reference = resolveReferencePosition(terminal, accessPoint, now, {
+      source: this.config.positionSource,
+      gpsMaxAgeMinutes: this.config.gpsMaxAgeMinutes,
+    });
+    if (!reference) return this.deny('LOCALIZACAO_INVALIDA', withAuthorization, now);
+    const distanceM = haversineDistanceM(phone, reference);
+    if (distanceM > this.config.maxDistanceM) {
+      return this.deny(
+        'DISTANTE_DO_TERMINAL',
+        { ...withAuthorization, distanciaM: distanceM },
+        now,
+      );
+    }
 
     const result = await this.accessGrants.commitApproval({
       credentialId: credential.id,
