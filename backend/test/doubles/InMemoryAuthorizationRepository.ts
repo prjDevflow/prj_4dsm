@@ -74,6 +74,28 @@ export class InMemoryAuthorizationRepository implements IAuthorizationRepository
     return true;
   }
 
+  /**
+   * Not part of the port: consumes one use as the approval does, only while the status is `ATIVA` and
+   * a use is left. Returns the uses left afterwards, or null when nothing was consumed.
+   */
+  consumeUseIfAvailable(id: string) {
+    const current = this.items.get(id);
+    if (!current || current.situacao !== 'ATIVA') return null;
+    if (current.usosRealizados >= current.usosPermitidos) return null;
+    const usosRealizados = current.usosRealizados + 1;
+    this.items.set(id, { ...current, usosRealizados });
+    return current.usosPermitidos - usosRealizados;
+  }
+
+  /** Not part of the port: the state to go back to when an approval fails halfway. */
+  snapshot() {
+    return new Map(this.items);
+  }
+
+  restore(snapshot: Map<string, Authorization>) {
+    this.items = new Map(snapshot);
+  }
+
   async hasActiveNonExpiredForAccessPoint(accessPointId: string, today: string) {
     return [...this.items.values()].some(
       (a) => a.accessPointId === accessPointId && a.situacao === 'ATIVA' && a.dataFim >= today,

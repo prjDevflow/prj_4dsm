@@ -63,6 +63,18 @@ export class InMemoryTerminalCommandRepository implements ITerminalCommandReposi
     return deleted;
   }
 
+  /**
+   * Not part of the port: the state to go back to when an approval fails halfway. The id counter is
+   * not restored, like a serial column: a rolled back insert still used its number.
+   */
+  snapshot() {
+    return new Map(this.items);
+  }
+
+  restore(snapshot: Map<number, TerminalCommand>) {
+    this.items = new Map(snapshot);
+  }
+
   /** Everything stored, for assertions. */
   all() {
     return [...this.items.values()].map((item) => ({ ...item }));
