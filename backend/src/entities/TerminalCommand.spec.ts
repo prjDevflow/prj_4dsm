@@ -18,9 +18,29 @@ describe('TerminalCommand.open', () => {
     });
   });
 
-  it.todo('deve mudar expiraEm quando o ttl muda');
+  it('deve mudar expiraEm quando o ttl muda', () => {
+    const command = TerminalCommand.open({ terminalId, now, ttlSeconds: 30, aberturaMs: 5000 });
+
+    expect(command.expiraEm).toEqual(new Date('2026-10-20T14:32:37Z'));
+  });
 });
 
 describe('TerminalCommand.deny', () => {
-  it.todo('deve montar um comando NEGAR com o motivo, sem aberturaMs, e validade de ttlSeconds');
+  it('deve montar um comando NEGAR com o motivo, sem aberturaMs, e validade de ttlSeconds', () => {
+    const command = TerminalCommand.deny({
+      terminalId,
+      motivo: 'DISTANTE_DO_TERMINAL',
+      now,
+      ttlSeconds: 10,
+    });
+
+    expect(command).toEqual({
+      terminalId,
+      tipo: 'NEGAR',
+      motivo: 'DISTANTE_DO_TERMINAL',
+      aberturaMs: null,
+      criadoEm: now,
+      expiraEm: new Date('2026-10-20T14:32:17Z'),
+    });
+  });
 });
