@@ -1,3 +1,5 @@
+import type { DenialReason } from './DenialReason';
+
 export type CommandType = 'ABRIR' | 'NEGAR';
 
 export interface TerminalCommand {
@@ -12,3 +14,34 @@ export interface TerminalCommand {
   entregueEm: Date | null;
   executadoEm: Date | null;
 }
+
+/** A command before it is stored: the database assigns the `id`, and it is neither delivered nor executed. */
+export type NewTerminalCommand = Omit<TerminalCommand, 'id' | 'entregueEm' | 'executadoEm'>;
+
+export interface NewOpenCommand {
+  terminalId: string;
+  now: Date;
+  /** `COMMAND_TTL_SECONDS`: how long the terminal may still receive the command. */
+  ttlSeconds: number;
+  /** `OPEN_DURATION_MS`. */
+  aberturaMs: number;
+}
+
+export interface NewDenyCommand {
+  terminalId: string;
+  motivo: DenialReason;
+  now: Date;
+  ttlSeconds: number;
+}
+
+export const TerminalCommand = {
+  open(input: NewOpenCommand): NewTerminalCommand {
+    void input;
+    throw new Error('não implementado');
+  },
+
+  deny(input: NewDenyCommand): NewTerminalCommand {
+    void input;
+    throw new Error('não implementado');
+  },
+};
