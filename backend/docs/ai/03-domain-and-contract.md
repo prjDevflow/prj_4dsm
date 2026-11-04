@@ -150,7 +150,7 @@ Sucesso do QR: `"Acesso autorizado. Pode passar."`
 ```
 
 ```json
-// GET /terminal/commands?after=41   (só comandos com menos de 10 s de vida)
+// GET /terminal/commands?after=41   (só comandos com até 10 s de vida, inclusive; limit 1 a 100, padrão 10)
 { "commands": [ { "id": 42, "tipo": "ABRIR", "aberturaMs": 5000, "criadoEm": "..." },
                 { "id": 43, "tipo": "NEGAR", "motivo": "DISTANTE_DO_TERMINAL", "criadoEm": "..." } ] }
 
@@ -251,6 +251,7 @@ Os CHECK vão em SQL na migração. Eventos são somente inserção.
 | `TERMINAL_POSITION_SOURCE`, `GPS_MAX_AGE_MIN` | GPS_COM_FALLBACK, 10 | posição de referência |
 | `TERMINAL_ONLINE_WINDOW_S` | 30 | online ou offline |
 | `COMMAND_TTL_SECONDS`, `OPEN_DURATION_MS` | 10, 5000 | comandos |
+| `COMMAND_PURGE_AFTER_HOURS` | 1 | limpeza de comandos vencidos |
 | `QR_REFRESH_MS`, `COMMAND_POLL_MS` | 10000, 1000 | enviados no heartbeat |
 | `ENROLL_MODE_SECONDS`, `NFC_DEBOUNCE_SECONDS` | 60, 3 | NFC |
 | `SEED_ADMIN_EMAIL`, `SEED_ADMIN_PASSWORD` | — | seed |
