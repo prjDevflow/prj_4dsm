@@ -47,7 +47,7 @@ export const AccessEvaluator = {
     const withUses = inWindow.filter((a) => a.usosRealizados < a.usosPermitidos);
     if (withUses.length === 0) return denied('USOS_ESGOTADOS');
 
-    const [chosen] = [...withUses].sort(byEarliestEnd);
-    return { granted: true, authorization: chosen! };
+    const chosen = withUses.reduce((best, a) => (byEarliestEnd(a, best) < 0 ? a : best));
+    return { granted: true, authorization: chosen };
   },
 };
