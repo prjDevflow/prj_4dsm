@@ -50,8 +50,8 @@ do banco.
 
 O middleware `authenticateTerminal` (B07) confere os dois cabeçalhos: chave errada, ausente ou id desconhecido dão
 `401 UNAUTHORIZED` (a mesma mensagem nos três casos); terminal inativo com a chave certa dá `403 FORBIDDEN`. As rotas
-`/terminal/*` que o usam chegam aos poucos: o heartbeat (B11), o QR (B12) e os comandos (B14) já existem; a validação
-de acesso vem na B15. O administrador vê o terminal do seed em `GET /terminals` (campo `online`).
+`/terminal/*` que o usam são o heartbeat (B11), o QR (B12) e os comandos (B14). A validação de acesso (B15) é do app e usa
+o token do usuário. O administrador vê o terminal do seed em `GET /terminals` (campo `online`).
 
 Heartbeat de teste (o terminal deve mandar a cada 10 s; menos de 2 s entre dois dá `429`):
 
@@ -72,7 +72,7 @@ npm run dev:qr
 # QR emitido para o terminal 5eed0000-0000-4000-8000-000000000006, válido até 2026-10-20T14:32:22.000Z.
 ```
 
-- O QR vale 15 s e é de uso único; use-o logo (a validação por QR chega na B15). Um pedido com menos de 5 s do anterior
+- O QR vale 15 s e é de uso único; use-o logo (veja a validação por QR mais abaixo). Um pedido com menos de 5 s do anterior
   dá `QR Code pedido com muita frequência. Aguarde alguns segundos`, igual à rota.
 - Para ver o QR como imagem: `npm run --silent dev:qr 2>/dev/null | qrencode -t ANSIUTF8` (precisa do `qrencode`).
 - **O comando recusa rodar com `NODE_ENV=production`** (no ambiente ou no `.env`): ele emite credenciais válidas, é só
@@ -102,8 +102,9 @@ curl -s -o /dev/null -w '%{http_code}\n' -X POST "${H[@]}" http://localhost:3000
 - **Um comando vale 10 s** (`COMMAND_TTL_SECONDS`) depois de criado; passado isso ele nunca é entregue, para um `ABRIR`
   não abrir a catraca minutos depois. A lista vazia (`{"commands":[]}`) é a resposta normal quando não há nada novo.
 - O `ack` de um comando de outro terminal, ou de um id que não existe, dá `404`; repetir o `ack` dá `204` de novo.
-- Quem cria os comandos é a validação de acesso (B15); até lá a API não tem rota que os crie. Para testar o terminal
-  antes, insira um na mão (vale 10 s; rode e consulte logo em seguida):
+- Quem cria os comandos é a validação de acesso (B15, abaixo): `ABRIR` quando aprova e `NEGAR` com o motivo quando
+  nega. Para testar só o terminal, sem passar por ela, ainda dá para inserir um na mão (vale 10 s; rode e consulte
+  logo em seguida):
 
 ```bash
 docker compose exec db psql -U access -d access -c "INSERT INTO terminal_commands (\"terminalId\", tipo, \"aberturaMs\", \"criadoEm\", \"expiraEm\") VALUES ('5eed0000-0000-4000-8000-000000000006', 'ABRIR', 5000, now(), now() + interval '10 seconds')"
@@ -111,6 +112,39 @@ docker compose exec db psql -U access -d access -c "INSERT INTO terminal_command
 
 - Os comandos vencidos há mais de 1 hora (`COMMAND_PURGE_AFTER_HOURS`) são apagados por um job a cada minuto, que sobe com
   o servidor (`npm run dev`, `npm start`).
+
+Validação de acesso por QR (B15). É o que o app faz depois de ler o QR Code: `POST /access/qr/validate`, com o token
+do usuário. O visitante do seed tem uma autorização de 100 usos nesta catraca (00:00 a 23:59), então o fluxo todo roda
+com os dados do seed e do `dev:qr`:
+
+```bash
+B=http://localhost:3000/api/v1
+TOKEN=$(curl -s -X POST $B/auth/login -H 'content-type: application/json' \
+  -d '{"email":"visitante@dev.local","senha":"Usuario-Dev-2026"}' | sed 's/.*"accessToken":"\([^"]*\)".*/\1/')
+QR=$(npm run --silent dev:qr 2>/dev/null)      # o QR vale 15 s: valide logo
+
+curl -s -X POST $B/access/qr/validate -H "Authorization: Bearer $TOKEN" -H 'content-type: application/json' \
+  -d "{\"payload\":\"$QR\",\"latitude\":-23.30512,\"longitude\":-45.96551,\"precisaoMetros\":12.5}"
+# 200 {"resultado":"AUTORIZADO","mensagem":"Acesso autorizado. Pode passar.","local":{"nome":"Catraca de Testes"},
+#      "usosRestantes":99,"distanciaM":0,"ocorridoEm":"2026-10-20T14:32:07Z"}
+
+# o mesmo QR de novo, ou um QR com o celular a mais de 100 m, dá 403 com o motivo e o texto para mostrar:
+# 403 {"error":{"code":"CREDENCIAL_REUTILIZADA","message":"Este QR Code já foi usado. Aguarde o próximo e leia de novo."}}
+```
+
+- **Cada tentativa vira um evento** (`access_events`) e, quando o QR identifica o terminal, um comando para ele: `ABRIR` na
+  aprovação, `NEGAR` com o motivo na negação. O terminal os vê em `GET /terminal/commands` (acima) em até 1 s e tem
+  10 s para executá-los.
+- A aprovação consome a credencial e **um** uso; a negação não consome nada, então o mesmo QR pode ser tentado de novo
+  dentro dos 15 s (por exemplo, depois de chegar mais perto). O visitante do seed perde um uso a cada aprovação e o seed
+  não os devolve (`npm run db:reset` recomeça do zero).
+- Os motivos de negação e os textos estão na seção 4.4 do contrato e, um exemplo de cada, no Swagger (`/docs`).
+- Coordenadas **ausentes** dão `LOCALIZACAO_INVALIDA` (403); coordenadas **fora da faixa**, ou um `payload` que não é
+  `ACS1:` mais 22 caracteres, dão 422 e não geram evento. Sem token é 401, também sem evento.
+- A posição do terminal para medir a distância é o GPS dele, se o último heartbeat tem fix e menos de 10 min; senão,
+  as coordenadas do ponto de acesso (`TERMINAL_POSITION_SOURCE=GPS_COM_FALLBACK`). Para testar com o ponto fixo, mande
+  um heartbeat com `gpsFix: false` ou use `TERMINAL_POSITION_SOURCE=CADASTRO`.
+- Mais de 10 validações por minuto do mesmo usuário dão `429` (`QR_VALIDATE_MAX_PER_MINUTE`).
 
 Para o administrador cadastrar um terminal novo ou trocar a chave (a chave só aparece na resposta):
 

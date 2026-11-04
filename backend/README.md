@@ -246,6 +246,24 @@ curl -X POST http://localhost:3000/api/v1/terminal/qr \
 - Um job a cada minuto (iniciado em `server.ts`, nunca em `app.ts`) apaga as credenciais vencidas há mais de `QR_PURGE_AFTER_HOURS`.
 - Sem terminal físico: `npm run dev:qr` emite um QR para o terminal do seed e imprime o `payload` (veja [docs/ambiente-dev.md](docs/ambiente-dev.md)).
 
+## Validação de acesso por QR
+
+`POST /access/qr/validate` é a rota que o app chama depois de ler o QR Code do terminal (token do usuário; qualquer perfil, inclusive conta inativa, para a tentativa ficar registrada). Contrato e um exemplo de cada motivo de negação no Swagger.
+
+```bash
+curl -X POST http://localhost:3000/api/v1/access/qr/validate \
+  -H "Authorization: Bearer <accessToken>" -H 'content-type: application/json' \
+  -d '{"payload":"ACS1:q3F8k2Zr1pLw9XbTn0YhVA","latitude":-23.30512,"longitude":-45.96551,"precisaoMetros":12.5}'
+# 200 {"resultado":"AUTORIZADO","mensagem":"Acesso autorizado. Pode passar.","local":{"nome":"Catraca Social"},"usosRestantes":2,"distanciaM":14,"ocorridoEm":"2026-10-20T14:32:07Z"}
+# 403 {"error":{"code":"DISTANTE_DO_TERMINAL","message":"Você está longe da catraca. Aproxime-se e tente de novo."}}
+```
+
+- As 11 verificações seguem a ordem da seção 5.1 do contrato; a primeira que falhar define o motivo (`403` com o código como `error.code`). Um `payload` fora do padrão `ACS1:` mais 22 caracteres e coordenadas fora da faixa dão `422`; coordenadas ausentes dão `LOCALIZACAO_INVALIDA`; sem token é `401`, sem gerar evento.
+- **Toda tentativa gera exatamente um evento**, aprovada ou negada. Na aprovação, uma única transação consome a credencial (`consumidoEm IS NULL`), consome um uso (`situacao = 'ATIVA'` e `usosRealizados < usosPermitidos`), grava o evento e cria o comando `ABRIR`; se o evento falhar, nada é consumido e a resposta é `500`. Na negação, o evento e o comando `NEGAR` são gravados e o QR **não** é consumido.
+- Duas leituras simultâneas do mesmo QR, ou de dois QRs com um uso restante, aprovam só uma: a outra recebe `CREDENCIAL_REUTILIZADA` ou `USOS_ESGOTADOS`. Isso é provado contra o PostgreSQL real.
+- A distância é medida até a posição do terminal (`TERMINAL_POSITION_SOURCE`): o GPS recente do heartbeat ou as coordenadas do ponto. Vale até `MAX_DISTANCE_M` (100 m), com a ponta incluída.
+- No máximo `QR_VALIDATE_MAX_PER_MINUTE` validações por minuto por usuário; as seguintes dão `429`. Roteiro de teste com o `dev:qr`: [docs/ambiente-dev.md](docs/ambiente-dev.md).
+
 ## Autorizações
 
 Criar, listar e cancelar: só `ADMIN`. Ler uma e listar "as minhas": cada usuário, as próprias (contrato no Swagger).
