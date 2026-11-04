@@ -57,7 +57,10 @@ export class PrismaTerminalCommandRepository implements ITerminalCommandReposito
   }
 
   async deleteExpiredBefore(cutoff: Date): Promise<number> {
-    void cutoff;
-    throw new Error('não implementado');
+    // `lt`: a command that expires exactly at the cutoff stays. The serial `id` is never reused.
+    const { count } = await this.prisma.terminalCommand.deleteMany({
+      where: { expiraEm: { lt: cutoff } },
+    });
+    return count;
   }
 }
