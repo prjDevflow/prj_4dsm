@@ -91,6 +91,8 @@ const EnvSchema = z.object({
   OPEN_DURATION_MS: positiveInt(5000),
   // Terminal commands (B14): seconds a command may still be delivered after it was created.
   COMMAND_TTL_SECONDS: positiveInt(10),
+  // Commands expired for longer than this many hours are deleted by the purge job.
+  COMMAND_PURGE_AFTER_HOURS: positiveInt(1),
   // QR emission (B12): life of a code is TTL + tolerance; one issue per terminal per interval (seconds);
   // codes expired for longer than the purge window (hours) are deleted.
   QR_TTL_SECONDS: positiveInt(10),
