@@ -52,8 +52,10 @@ Variáveis do `.env`:
 | `QR_PURGE_AFTER_HOURS`                                 | `1`                     | horas depois de vencer em que a credencial é apagada       |
 | `COMMAND_TTL_SECONDS`                                  | `10`                    | segundos em que um comando ainda pode ser entregue         |
 | `COMMAND_PURGE_AFTER_HOURS`                            | `1`                     | horas depois de vencer em que o comando é apagado          |
-| `TERMINAL_POSITION_SOURCE`                             | `GPS_COM_FALLBACK`      | origem da posição na checagem de proximidade (B15)         |
+| `TERMINAL_POSITION_SOURCE`                             | `GPS_COM_FALLBACK`      | origem da posição na checagem de proximidade               |
 | `GPS_MAX_AGE_MIN`                                      | `10`                    | idade máxima do GPS, em minutos, para ele valer            |
+| `QR_VALIDATE_MAX_PER_MINUTE`                           | `10`                    | validações de QR por minuto por usuário (acima, 429)       |
+| `MAX_DISTANCE_M`                                       | `100`                   | distância máxima, em metros, entre o celular e o terminal  |
 | `SEED_*`                                               | ver `.env.example`      | credenciais e local do seed de desenvolvimento             |
 
 O `.env` nunca vai para o Git nem para a imagem Docker. Troque a senha do exemplo no seu `.env`.

@@ -96,6 +96,9 @@ services:
       QR_PURGE_AFTER_HOURS: ${QR_PURGE_AFTER_HOURS:-}
       TERMINAL_POSITION_SOURCE: ${TERMINAL_POSITION_SOURCE:-}
       GPS_MAX_AGE_MIN: ${GPS_MAX_AGE_MIN:-}
+      # Validação do QR (B15).
+      QR_VALIDATE_MAX_PER_MINUTE: ${QR_VALIDATE_MAX_PER_MINUTE:-}
+      MAX_DISTANCE_M: ${MAX_DISTANCE_M:-}
     ports:
       - '${PORT:-3000}:3000'
     depends_on:
