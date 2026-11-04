@@ -15,6 +15,7 @@ import type { IQrCredentialRepository } from '../../../repositories/IQrCredentia
 import type { ITerminalCommandRepository } from '../../../repositories/ITerminalCommandRepository';
 import type { ITerminalRepository } from '../../../repositories/ITerminalRepository';
 import type { IUserRepository } from '../../../repositories/IUserRepository';
+import { UnauthorizedError } from '../../../shared/errors/AppError';
 import type { AccessEventRecorder } from '../../Events/AccessEventRecorder';
 
 export interface ValidateQrAccessInput {
@@ -90,8 +91,11 @@ export class ValidateQrAccessUseCase {
     const now = this.clock.now();
     const token = input.payload.slice(PAYLOAD_PREFIX.length);
     const tokenHash = this.hash.sha256(token);
+    // The token was valid a moment ago; an account erased since then ends the session (no event: no one to blame).
+    const user = await this.users.findById(input.userId);
+    if (!user) throw new UnauthorizedError();
     const attempt: Attempt = {
-      userId: input.userId,
+      userId: user.id,
       precisaoMetros: input.precisaoMetros ?? null,
     };
 
@@ -120,17 +124,21 @@ export class ValidateQrAccessUseCase {
     if (!terminal.ativo || !accessPoint.ativo)
       return this.deny('CREDENCIAL_INVALIDA', located, now);
 
+    // 5. An inactive account is denied even though its token still works (so the attempt is recorded).
+    if (!user.ativo) return this.deny('USUARIO_INATIVO', located, now);
+
+    // 6 to 9. Which authorization, if any, lets this user through here and now.
     const authorizations = await this.authorizations.findByUserAndAccessPoint(
-      input.userId,
+      user.id,
       accessPoint.id,
     );
     const evaluation = AccessEvaluator.evaluate({
-      user: { id: input.userId },
+      user,
       accessPointId: accessPoint.id,
       authorizations,
       now,
     });
-    if (!evaluation.granted) throw new Error('não implementado');
+    if (!evaluation.granted) return this.deny(evaluation.reason, located, now);
     const { authorization } = evaluation;
 
     const phone = { latitude: input.latitude as number, longitude: input.longitude as number };
