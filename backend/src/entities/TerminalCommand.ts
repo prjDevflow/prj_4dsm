@@ -36,8 +36,14 @@ export interface NewDenyCommand {
 
 export const TerminalCommand = {
   open(input: NewOpenCommand): NewTerminalCommand {
-    void input;
-    throw new Error('não implementado');
+    return {
+      terminalId: input.terminalId,
+      tipo: 'ABRIR',
+      motivo: null,
+      aberturaMs: input.aberturaMs,
+      criadoEm: input.now,
+      expiraEm: new Date(input.now.getTime() + input.ttlSeconds * 1000),
+    };
   },
 
   deny(input: NewDenyCommand): NewTerminalCommand {
