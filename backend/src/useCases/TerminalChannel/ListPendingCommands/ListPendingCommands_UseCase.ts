@@ -16,6 +16,14 @@ export class ListPendingCommandsUseCase {
 
   async execute(terminalId: string, input: ListPendingCommandsInput): Promise<TerminalCommand[]> {
     const now = this.clock.now();
-    return this.commands.listPending(terminalId, input.after, input.limit, now);
+    const pending = await this.commands.listPending(terminalId, input.after, input.limit, now);
+    // Only what is being handed over counts as delivered; the port keeps the first delivery time.
+    if (pending.length > 0) {
+      await this.commands.markDelivered(
+        pending.map((command) => command.id),
+        now,
+      );
+    }
+    return pending;
   }
 }
