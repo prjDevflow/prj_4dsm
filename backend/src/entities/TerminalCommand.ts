@@ -47,7 +47,13 @@ export const TerminalCommand = {
   },
 
   deny(input: NewDenyCommand): NewTerminalCommand {
-    void input;
-    throw new Error('não implementado');
+    return {
+      terminalId: input.terminalId,
+      tipo: 'NEGAR',
+      motivo: input.motivo,
+      aberturaMs: null,
+      criadoEm: input.now,
+      expiraEm: new Date(input.now.getTime() + input.ttlSeconds * 1000),
+    };
   },
 };
