@@ -21,8 +21,7 @@ const make = (overrides: Partial<Authorization> = {}) =>
 const evaluate = (authorizations: Authorization[], now = NOW): AccessEvaluation =>
   AccessEvaluator.evaluate({ user: USER, accessPointId: POINT_ID, authorizations, now });
 
-const reasonOf = (evaluation: AccessEvaluation) =>
-  evaluation.granted ? null : evaluation.reason;
+const reasonOf = (evaluation: AccessEvaluation) => (evaluation.granted ? null : evaluation.reason);
 
 describe('AccessEvaluator', () => {
   describe('verificação 6: existe autorização para o ponto', () => {

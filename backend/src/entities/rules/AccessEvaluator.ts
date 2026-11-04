@@ -4,10 +4,7 @@ import { isWithinWindow } from './isWithinWindow';
 
 /** The denials the evaluator decides (checks 6 to 9 of doc 03, section 5.1). */
 export type EvaluationDenialReason =
-  | 'SEM_AUTORIZACAO'
-  | 'AUTORIZACAO_CANCELADA'
-  | 'FORA_DO_PERIODO'
-  | 'USOS_ESGOTADOS';
+  'SEM_AUTORIZACAO' | 'AUTORIZACAO_CANCELADA' | 'FORA_DO_PERIODO' | 'USOS_ESGOTADOS';
 
 export type AccessEvaluation =
   | { granted: true; authorization: Authorization }
