@@ -50,6 +50,8 @@ Variáveis do `.env`:
 | `QR_TTL_SECONDS`, `QR_TOLERANCE_SECONDS`               | `10`, `5`               | validade do QR: o código vale a soma dos dois, em segundos |
 | `QR_ISSUE_MIN_INTERVAL_S`                              | `5`                     | segundos mínimos entre dois QR do mesmo terminal           |
 | `QR_PURGE_AFTER_HOURS`                                 | `1`                     | horas depois de vencer em que a credencial é apagada       |
+| `COMMAND_TTL_SECONDS`                                  | `10`                    | segundos em que um comando ainda pode ser entregue         |
+| `COMMAND_PURGE_AFTER_HOURS`                            | `1`                     | horas depois de vencer em que o comando é apagado          |
 | `TERMINAL_POSITION_SOURCE`                             | `GPS_COM_FALLBACK`      | origem da posição na checagem de proximidade (B15)         |
 | `GPS_MAX_AGE_MIN`                                      | `10`                    | idade máxima do GPS, em minutos, para ele valer            |
 | `SEED_*`                                               | ver `.env.example`      | credenciais e local do seed de desenvolvimento             |
