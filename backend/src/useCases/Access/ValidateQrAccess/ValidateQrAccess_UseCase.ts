@@ -198,7 +198,9 @@ export class ValidateQrAccessUseCase {
         aberturaMs: this.config.aberturaMs,
       }),
     });
-    if (!result.ok) throw new Error('não implementado');
+    // Someone else won the race between the checks above and the commit: a denial like any other,
+    // and the credential is still unused (the commit left nothing behind).
+    if (!result.ok) return this.deny(result.reason, located, now);
 
     return {
       granted: true,
@@ -231,14 +233,22 @@ export class ValidateQrAccessUseCase {
       credencialHash: attempt.credencialHash ?? null,
     });
     if (attempt.terminalId) {
-      await this.commands.create(
-        TerminalCommand.deny({
-          terminalId: attempt.terminalId,
+      try {
+        await this.commands.create(
+          TerminalCommand.deny({
+            terminalId: attempt.terminalId,
+            motivo: reason,
+            now,
+            ttlSeconds: this.config.commandTtlSeconds,
+          }),
+        );
+      } catch (error) {
+        this.logger.error('Falha ao criar o comando NEGAR do terminal', {
           motivo: reason,
-          now,
-          ttlSeconds: this.config.commandTtlSeconds,
-        }),
-      );
+          terminalId: attempt.terminalId,
+          erro: error instanceof Error ? error.message : String(error),
+        });
+      }
     }
     return { granted: false, reason };
   }
