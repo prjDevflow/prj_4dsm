@@ -1,5 +1,9 @@
+import { AccessEvent } from '../../../entities/AccessEvent';
 import type { QrDenialReason } from '../../../entities/DenialReason';
+import { AccessEvaluator } from '../../../entities/rules/AccessEvaluator';
+import { haversineDistanceM } from '../../../entities/rules/haversineDistanceM';
 import type { PositionSource } from '../../../entities/rules/resolveReferencePosition';
+import { TerminalCommand } from '../../../entities/TerminalCommand';
 import type { IClock } from '../../../providers/IClock';
 import type { IHashProvider } from '../../../providers/IHashProvider';
 import type { IIdGenerator } from '../../../providers/IIdGenerator';
@@ -51,6 +55,20 @@ export type QrAccessDecision =
     }
   | { granted: false; reason: QrDenialReason };
 
+const PAYLOAD_PREFIX = 'ACS1:';
+
+/** What is known about the attempt when it is denied; it grows as the checks go on. */
+interface Attempt {
+  userId: string;
+  precisaoMetros: number | null;
+  terminalId?: string;
+  accessPointId?: string;
+  authorizationId?: string;
+  distanciaM?: number;
+  /** SHA-256 of an unknown credential; the event keeps only a short prefix. */
+  credencialHash?: string;
+}
+
 export class ValidateQrAccessUseCase {
   constructor(
     private credentials: IQrCredentialRepository,
@@ -68,20 +86,121 @@ export class ValidateQrAccessUseCase {
     private config: ValidateQrAccessConfig,
   ) {}
 
-  async execute(_input: ValidateQrAccessInput): Promise<QrAccessDecision> {
-    void this.credentials;
-    void this.terminals;
-    void this.accessPoints;
-    void this.users;
-    void this.authorizations;
-    void this.accessGrants;
-    void this.commands;
-    void this.recorder;
-    void this.hash;
-    void this.ids;
-    void this.clock;
-    void this.logger;
-    void this.config;
-    throw new Error('não implementado');
+  async execute(input: ValidateQrAccessInput): Promise<QrAccessDecision> {
+    const now = this.clock.now();
+    const token = input.payload.slice(PAYLOAD_PREFIX.length);
+    const tokenHash = this.hash.sha256(token);
+    const attempt: Attempt = {
+      userId: input.userId,
+      precisaoMetros: input.precisaoMetros ?? null,
+    };
+
+    // 1. The token exists. Nothing else is known about an unknown credential, not even the terminal.
+    const credential = await this.credentials.findByTokenHash(tokenHash);
+    if (!credential)
+      return this.deny('CREDENCIAL_INVALIDA', { ...attempt, credencialHash: tokenHash }, now);
+
+    const terminal = await this.terminals.findById(credential.terminalId);
+    const accessPoint = terminal ? await this.accessPoints.findById(terminal.accessPointId) : null;
+    // The foreign keys make these two certain; if not, the credential is as good as unknown.
+    if (!terminal || !accessPoint) return this.deny('CREDENCIAL_INVALIDA', attempt, now);
+    const located: Attempt = {
+      ...attempt,
+      terminalId: terminal.id,
+      accessPointId: accessPoint.id,
+    };
+
+    // 2 and 3. Used before, or past its end. The end itself still counts.
+    if (credential.consumidoEm !== null) return this.deny('CREDENCIAL_REUTILIZADA', located, now);
+    if (now.getTime() > credential.expiraEm.getTime()) {
+      return this.deny('CREDENCIAL_EXPIRADA', located, now);
+    }
+
+    // 4. A deactivated terminal or point no longer honors credentials it issued before.
+    if (!terminal.ativo || !accessPoint.ativo)
+      return this.deny('CREDENCIAL_INVALIDA', located, now);
+
+    const authorizations = await this.authorizations.findByUserAndAccessPoint(
+      input.userId,
+      accessPoint.id,
+    );
+    const evaluation = AccessEvaluator.evaluate({
+      user: { id: input.userId },
+      accessPointId: accessPoint.id,
+      authorizations,
+      now,
+    });
+    if (!evaluation.granted) throw new Error('não implementado');
+    const { authorization } = evaluation;
+
+    const phone = { latitude: input.latitude as number, longitude: input.longitude as number };
+    const distanceM = haversineDistanceM(phone, accessPoint);
+
+    const result = await this.accessGrants.commitApproval({
+      credentialId: credential.id,
+      userId: input.userId,
+      authorizationId: authorization.id,
+      now,
+      event: AccessEvent.approved({
+        id: this.ids.next(),
+        ocorridoEm: now,
+        metodo: 'QR',
+        terminalId: terminal.id,
+        accessPointId: accessPoint.id,
+        usuarioId: input.userId,
+        authorizationId: authorization.id,
+        distanciaM: distanceM,
+        precisaoMetros: attempt.precisaoMetros,
+      }),
+      command: TerminalCommand.open({
+        terminalId: terminal.id,
+        now,
+        ttlSeconds: this.config.commandTtlSeconds,
+        aberturaMs: this.config.aberturaMs,
+      }),
+    });
+    if (!result.ok) throw new Error('não implementado');
+
+    return {
+      granted: true,
+      authorizationId: authorization.id,
+      usosRestantes: result.usosRestantes,
+      distanceM,
+      local: { nome: accessPoint.nome },
+      ocorridoEm: now,
+    };
+  }
+
+  /**
+   * Records the denial and tells the terminal, when it is known. `recordDenied` never throws, and a
+   * command that cannot be stored must not hide the denial from the person either: it is logged.
+   */
+  private async deny(
+    reason: QrDenialReason,
+    attempt: Attempt,
+    now: Date,
+  ): Promise<QrAccessDecision> {
+    await this.recorder.recordDenied({
+      metodo: 'QR',
+      motivo: reason,
+      usuarioId: attempt.userId,
+      terminalId: attempt.terminalId ?? null,
+      accessPointId: attempt.accessPointId ?? null,
+      authorizationId: attempt.authorizationId ?? null,
+      distanciaM: attempt.distanciaM ?? null,
+      precisaoMetros: attempt.precisaoMetros,
+      credencialHash: attempt.credencialHash ?? null,
+    });
+    if (attempt.terminalId) {
+      await this.commands.create(
+        TerminalCommand.deny({
+          terminalId: attempt.terminalId,
+          motivo: reason,
+          now,
+          ttlSeconds: this.config.commandTtlSeconds,
+        }),
+      );
+    }
+    return { granted: false, reason };
   }
 }
