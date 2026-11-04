@@ -204,4 +204,51 @@ describe('PrismaTerminalCommandRepository', () => {
       expect((await stored(created.id)).executadoEm).toEqual(at(2000));
     });
   });
+
+  describe('deleteExpiredBefore', () => {
+    /** A command that expires `ms` after T0, created 10 s earlier (the CHECK wants `criadoEm` < `expiraEm`). */
+    const expiringAt = (terminalId: string, ms: number) =>
+      newCommand(terminalId, { criadoEm: at(ms - 10_000), expiraEm: at(ms) });
+
+    it('apaga só os comandos com expiraEm antes do corte, e mantém o que vence exatamente nele', async () => {
+      const terminal = await insertTerminal();
+      const old = await commands.create(expiringAt(terminal.id, -1));
+      const atCutoff = await commands.create(expiringAt(terminal.id, 0));
+      const later = await commands.create(expiringAt(terminal.id, 1));
+
+      const deleted = await commands.deleteExpiredBefore(T0);
+
+      expect(deleted).toBe(1);
+      const left = await prisma.terminalCommand.findMany({ orderBy: { id: 'asc' } });
+      expect(ids(left)).toEqual([atCutoff.id, later.id]);
+      expect(ids(left)).not.toContain(old.id);
+    });
+
+    it('apaga os vencidos de todos os terminais, entregues ou executados, e devolve a contagem', async () => {
+      const first = await insertTerminal();
+      const second = await insertTerminal();
+      const a = await commands.create(expiringAt(first.id, -5000));
+      const b = await commands.create(expiringAt(second.id, -5000));
+      await commands.markDelivered([a.id], at(-9000));
+      await commands.markExecuted(first.id, a.id, at(-8000));
+      const valid = await commands.create(newCommand(second.id));
+
+      const deleted = await commands.deleteExpiredBefore(T0);
+
+      expect(deleted).toBe(2);
+      expect(await stored(valid.id)).toBeTruthy();
+      expect(await prisma.terminalCommand.count({ where: { id: { in: [a.id, b.id] } } })).toBe(0);
+    });
+
+    it('não reaproveita ids: o comando criado depois da limpeza tem id maior e o after continua valendo', async () => {
+      const terminal = await insertTerminal();
+      const last = await commands.create(expiringAt(terminal.id, -1));
+      await commands.deleteExpiredBefore(T0);
+
+      const next = await commands.create(newCommand(terminal.id));
+
+      expect(next.id).toBeGreaterThan(last.id);
+      expect(ids(await commands.listPending(terminal.id, last.id, 10, T0))).toEqual([next.id]);
+    });
+  });
 });
