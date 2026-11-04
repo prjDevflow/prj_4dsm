@@ -122,13 +122,13 @@ código.
 | Tema escuro como padrão e claro como opção (validar ao sol) | Grupo e teste |
 | Escala compacta do administrador (abaixo dos 18 da Tabela 18) | Grupo |
 | Bloco "Você pode entrar agora" na T03, calculado a partir das autorizações | Grupo |
-| Regra de cor da negação: âmbar quando a própria pessoa resolve, vermelho quando depende da administração (e o terminal usar a mesma) | Grupo e Pedro |
-| Animação de mola do resultado dentro da meta de 3 s | Lucas |
+| Regra de cor da negação: âmbar quando a própria pessoa resolve, vermelho quando depende da administração (e o terminal usar a mesma) | Grupo e Matheus |
+| Animação de mola do resultado dentro da meta de 3 s | Pedro |
 | Alerta de terminal offline (T14 e T17) | Grupo |
 | Opção de tema em Minha conta (configuração local, fora do contrato) | Grupo |
 | Textos novos, que não estão nos requisitos | Eduardo |
 | Formato da chave do terminal na T22 | Eduardo |
-| Coordenadas digitadas com vírgula decimal (T18 e T19) | Eduardo e Lucas |
+| Coordenadas digitadas com vírgula decimal (T18 e T19) | Eduardo e Pedro |
 | Como o visitante recebe a senha (hoje o administrador define) | Grupo e Eduardo |
 | Raio de 100 m (máximo ou mínimo) e vínculo da tag | Professor |
 | Fonte a 200% e teste com idosos (lote 4) | Rafael |
