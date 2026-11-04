@@ -38,7 +38,7 @@ describe('PurgeJob', () => {
     job.stop();
   });
 
-  it('deve registrar no log quantas credenciais apagou, só quando apagou alguma', async () => {
+  it('deve registrar no log quantos itens apagou, só quando apagou algum', async () => {
     const results = [0, 4];
     const { job, logger } = makeSut(async () => results.shift() ?? 0);
 
