@@ -45,6 +45,17 @@ export class InMemoryTerminalCommandRepository implements ITerminalCommandReposi
     return true;
   }
 
+  async deleteExpiredBefore(cutoff: Date) {
+    let deleted = 0;
+    for (const [id, item] of this.items) {
+      if (item.expiraEm.getTime() < cutoff.getTime()) {
+        this.items.delete(id);
+        deleted += 1;
+      }
+    }
+    return deleted;
+  }
+
   /** Everything stored, for assertions. */
   all() {
     return [...this.items.values()].map((item) => ({ ...item }));

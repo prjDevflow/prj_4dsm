@@ -20,4 +20,9 @@ export interface ITerminalCommandRepository {
    * it is harmless. False when the terminal has no such command (another terminal's command counts as none).
    */
   markExecuted(terminalId: string, id: number, at: Date): Promise<boolean>;
+  /**
+   * Deletes the commands whose `expiraEm` is before `cutoff` (strictly), delivered or not, of every
+   * terminal. Returns how many. Ids are never reused, so a terminal's `after` stays valid.
+   */
+  deleteExpiredBefore(cutoff: Date): Promise<number>;
 }

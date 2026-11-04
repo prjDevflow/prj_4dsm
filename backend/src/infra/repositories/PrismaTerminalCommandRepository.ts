@@ -55,4 +55,9 @@ export class PrismaTerminalCommandRepository implements ITerminalCommandReposito
     const exists = await this.prisma.terminalCommand.count({ where: { id, terminalId } });
     return exists > 0;
   }
+
+  async deleteExpiredBefore(cutoff: Date): Promise<number> {
+    void cutoff;
+    throw new Error('não implementado');
+  }
 }
