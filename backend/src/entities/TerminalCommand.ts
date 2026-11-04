@@ -34,6 +34,9 @@ export interface NewDenyCommand {
   ttlSeconds: number;
 }
 
+/** A command can be delivered until `ttlSeconds` after it was created, and never after. */
+const expiresAt = (now: Date, ttlSeconds: number) => new Date(now.getTime() + ttlSeconds * 1000);
+
 export const TerminalCommand = {
   open(input: NewOpenCommand): NewTerminalCommand {
     return {
@@ -42,7 +45,7 @@ export const TerminalCommand = {
       motivo: null,
       aberturaMs: input.aberturaMs,
       criadoEm: input.now,
-      expiraEm: new Date(input.now.getTime() + input.ttlSeconds * 1000),
+      expiraEm: expiresAt(input.now, input.ttlSeconds),
     };
   },
 
@@ -53,7 +56,7 @@ export const TerminalCommand = {
       motivo: input.motivo,
       aberturaMs: null,
       criadoEm: input.now,
-      expiraEm: new Date(input.now.getTime() + input.ttlSeconds * 1000),
+      expiraEm: expiresAt(input.now, input.ttlSeconds),
     };
   },
 };
