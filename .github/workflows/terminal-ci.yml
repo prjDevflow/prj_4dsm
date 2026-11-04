@@ -1,0 +1,52 @@
+# Terminal CI: unit tests of the pure firmware logic (on the PC) and builds of the ESP32 environments.
+#
+# Runs only when the terminal changes, like mobile-ci.yml. If `terminal-ci` becomes a required check in
+# the ruleset, a pull request that does not touch the paths below stays "pending" forever (GitHub does
+# not create the check). In that case, replace the `paths` filter with the change detection of ci.yml.
+name: Terminal CI
+
+on:
+  push:
+    paths:
+      - 'terminal/**'
+      - '.github/workflows/terminal-ci.yml'
+  pull_request:
+    paths:
+      - 'terminal/**'
+      - '.github/workflows/terminal-ci.yml'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: terminal-ci-${{ github.event.pull_request.number || github.ref }}
+  # Never cancel runs on main/develop: each commit keeps its own result.
+  cancel-in-progress: ${{ !contains(fromJSON('["refs/heads/main", "refs/heads/develop"]'), github.ref) }}
+
+jobs:
+  terminal-ci:
+    name: terminal-ci
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    defaults:
+      run:
+        working-directory: terminal/firmware
+    steps:
+      - name: Baixar o repositório
+        uses: actions/checkout@v7
+
+      - name: Instalar o PlatformIO
+        run: pipx install platformio==6.2.0
+
+      # The real secrets.h never goes to the repository; the build only needs the names to exist.
+      - name: Usar o modelo de segredos
+        run: cp include/secrets.example.h include/secrets.h
+
+      - name: Testes da lógica pura (no PC)
+        run: pio test -e native
+
+      - name: Compilar o firmware do terminal
+        run: pio run -e esp32dev
+
+      - name: Compilar a ferramenta de bancada
+        run: pio run -e bancada
