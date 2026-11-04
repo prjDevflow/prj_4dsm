@@ -15,7 +15,7 @@ export class PurgeExpiredCommandsUseCase {
 
   /** Returns how many commands were deleted. */
   async execute(): Promise<number> {
-    void [this.commands, this.clock, this.config];
-    return 0;
+    const cutoff = new Date(this.clock.now().getTime() - this.config.purgeAfterHours * 3_600_000);
+    return this.commands.deleteExpiredBefore(cutoff);
   }
 }
