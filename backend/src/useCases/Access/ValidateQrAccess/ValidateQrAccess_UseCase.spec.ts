@@ -15,6 +15,7 @@ import { makeAuthorization } from '../../../../test/factories/makeAuthorization'
 import { makeQrCredential } from '../../../../test/factories/makeQrCredential';
 import { makeTerminal } from '../../../../test/factories/makeTerminal';
 import { makeUser } from '../../../../test/factories/makeUser';
+import { QR_DENIAL_REASONS, type QrDenialReason } from '../../../entities/DenialReason';
 import { haversineDistanceM } from '../../../entities/rules/haversineDistanceM';
 import { UnauthorizedError } from '../../../shared/errors/AppError';
 import { AccessEventRecorder } from '../../Events/AccessEventRecorder';
@@ -664,6 +665,91 @@ describe('ValidateQrAccess', () => {
     });
   });
 
+  describe('corrida perdida e falhas de gravação', () => {
+    it.each([['CREDENCIAL_REUTILIZADA' as const], ['USOS_ESGOTADOS' as const]])(
+      'deve virar a negação %s, com evento e comando NEGAR, quando commitApproval perde a corrida',
+      async (reason) => {
+        const world = makeSut();
+        await world.seed();
+        vi.spyOn(world.accessGrants, 'commitApproval').mockResolvedValueOnce({ ok: false, reason });
+
+        const decision = await world.validate();
+
+        expect(decision).toEqual({ granted: false, reason });
+        expect(world.events.all()).toHaveLength(1);
+        expect(world.events.all()[0]).toMatchObject({
+          resultado: 'NEGADO',
+          motivo: reason,
+          terminalId: TERMINAL_ID,
+          usuarioId: USER_ID,
+          authorizationId: null,
+          distanciaM: null,
+        });
+        expect(world.commands.all()).toHaveLength(1);
+        expect(world.commands.all()[0]).toMatchObject({ tipo: 'NEGAR', motivo: reason });
+      },
+    );
+
+    it('deve deixar a exceção de commitApproval subir, sem comando ABRIR', async () => {
+      const world = makeSut();
+      await world.seed();
+      vi.spyOn(world.accessGrants, 'commitApproval').mockRejectedValueOnce(new Error('banco fora'));
+
+      await expect(world.validate()).rejects.toThrow('banco fora');
+
+      expect(world.commands.all()).toHaveLength(0);
+      expectNothingConsumed(world);
+    });
+
+    it('deve subir a falha quando o evento da aprovação não é gravado, sem consumir uso nem credencial', async () => {
+      const world = makeSut();
+      await world.seed();
+      world.events.failWith(new Error('disco cheio'));
+
+      await expect(world.validate()).rejects.toThrow('disco cheio');
+
+      expectNothingConsumed(world);
+      expect(world.commands.all()).toHaveLength(0);
+      expect(world.events.all()).toHaveLength(0);
+    });
+
+    it('deve manter a negação quando o evento da negação não é gravado, e ainda mandar o NEGAR', async () => {
+      const world = makeSut();
+      await world.seed();
+      world.events.failWith(new Error('disco cheio'));
+      world.clock.set(new Date(T0.getTime() + 16_000));
+
+      const decision = await world.validate();
+
+      expect(decision).toEqual({ granted: false, reason: 'CREDENCIAL_EXPIRADA' });
+      expect(world.commands.all()[0]).toMatchObject({
+        tipo: 'NEGAR',
+        motivo: 'CREDENCIAL_EXPIRADA',
+      });
+      expect(world.logger.of('error')).toHaveLength(1);
+    });
+
+    it('deve manter a negação e registrar no log quando o comando NEGAR não é gravado', async () => {
+      const world = makeSut();
+      await world.seed();
+      world.commands.failWith(new Error('fila indisponível'));
+      world.clock.set(new Date(T0.getTime() + 16_000));
+
+      const decision = await world.validate();
+
+      expect(decision).toEqual({ granted: false, reason: 'CREDENCIAL_EXPIRADA' });
+      expect(world.events.all()).toHaveLength(1);
+      const [logged] = world.logger.of('error');
+      expect(logged?.meta).toMatchObject({
+        motivo: 'CREDENCIAL_EXPIRADA',
+        terminalId: TERMINAL_ID,
+        erro: 'fila indisponível',
+      });
+      expect(JSON.stringify(world.logger.entries)).not.toContain(TOKEN);
+      expect(JSON.stringify(world.logger.entries)).not.toContain(world.hash.sha256(TOKEN));
+    });
+  });
+
   describe('efeitos de uma negação', () => {
     it('deve gravar um evento NEGADO com o motivo e criar um comando NEGAR para o terminal, sem consumir nada', async () => {
       const world = makeSut();
@@ -695,5 +781,139 @@ describe('ValidateQrAccess', () => {
       });
       expectNothingConsumed(world);
     });
+    type World = ReturnType<typeof makeSut>;
+    /** The commands the terminal must get: one `NEGAR`, except when the credential is unknown. */
+    const told = (reason: QrDenialReason) => [{ tipo: 'NEGAR', motivo: reason }];
+    const replaceAuthorization = (
+      world: World,
+      overrides: Parameters<typeof makeAuthorization>[0],
+    ) => {
+      world.authorizations.clear();
+      world.authorizations.add(
+        makeAuthorization({
+          id: AUTHORIZATION_ID,
+          usuarioId: USER_ID,
+          accessPointId: POINT_ID,
+          dataInicio: '2026-10-01',
+          dataFim: '2026-10-31',
+          ...overrides,
+        }),
+      );
+    };
+
+    /** One way to provoke each of the ten reasons, and what the terminal must be told. */
+    const scenarios: Array<{
+      reason: QrDenialReason;
+      arrange: (
+        world: World,
+      ) => Promise<Partial<ValidateQrAccessInput>> | Partial<ValidateQrAccessInput>;
+      commands: Array<{ tipo: string; motivo: string }>;
+    }> = [
+      {
+        reason: 'CREDENCIAL_INVALIDA',
+        arrange: () => ({ payload: 'ACS1:aaaaaaaaaaaaaaaaaaaaaa' }),
+        // An unknown credential identifies no terminal, so no one is told.
+        commands: [],
+      },
+      {
+        reason: 'CREDENCIAL_EXPIRADA',
+        arrange: (world) => {
+          world.clock.set(new Date(T0.getTime() + 16_000));
+          return {};
+        },
+        commands: told('CREDENCIAL_EXPIRADA'),
+      },
+      {
+        reason: 'CREDENCIAL_REUTILIZADA',
+        arrange: (world) => {
+          world.credentials.seed(
+            makeQrCredential({
+              terminalId: TERMINAL_ID,
+              tokenHash: world.hash.sha256(TOKEN),
+              consumidoEm: T0,
+              consumidoPorId: 'outra-pessoa',
+            }),
+          );
+          return {};
+        },
+        commands: told('CREDENCIAL_REUTILIZADA'),
+      },
+      {
+        reason: 'USUARIO_INATIVO',
+        arrange: async (world) => {
+          await world.users.save(makeUser({ id: USER_ID, ativo: false }));
+          return {};
+        },
+        commands: told('USUARIO_INATIVO'),
+      },
+      {
+        reason: 'SEM_AUTORIZACAO',
+        arrange: (world) => {
+          world.authorizations.clear();
+          return {};
+        },
+        commands: told('SEM_AUTORIZACAO'),
+      },
+      {
+        reason: 'AUTORIZACAO_CANCELADA',
+        arrange: (world) => {
+          replaceAuthorization(world, { situacao: 'CANCELADA' });
+          return {};
+        },
+        commands: told('AUTORIZACAO_CANCELADA'),
+      },
+      {
+        reason: 'FORA_DO_PERIODO',
+        arrange: (world) => {
+          replaceAuthorization(world, { dataInicio: '2026-09-01', dataFim: '2026-09-30' });
+          return {};
+        },
+        commands: told('FORA_DO_PERIODO'),
+      },
+      {
+        reason: 'USOS_ESGOTADOS',
+        arrange: (world) => {
+          replaceAuthorization(world, { usosPermitidos: 1, usosRealizados: 1 });
+          return {};
+        },
+        commands: told('USOS_ESGOTADOS'),
+      },
+      {
+        reason: 'DISTANTE_DO_TERMINAL',
+        arrange: () => east101m,
+        commands: told('DISTANTE_DO_TERMINAL'),
+      },
+      {
+        reason: 'LOCALIZACAO_INVALIDA',
+        arrange: () => ({ latitude: undefined }),
+        commands: told('LOCALIZACAO_INVALIDA'),
+      },
+    ];
+
+    it('deve cobrir os dez motivos da validação por QR', () => {
+      expect(scenarios.map(({ reason }) => reason)).toEqual([...QR_DENIAL_REASONS]);
+    });
+
+    it.each(scenarios)(
+      'deve gravar exatamente um evento NEGADO e avisar o terminal para $reason, sem consumir nada',
+      async ({ reason, arrange, commands }) => {
+        const world = makeSut();
+        await world.seed();
+        const overrides = await arrange(world);
+        const consumedBefore = world.credentials.all().map((c) => c.consumidoEm);
+        const usesBefore = world.authorizations.all().map((a) => a.usosRealizados);
+
+        const decision = await world.validate(overrides);
+
+        expect(decision).toEqual({ granted: false, reason });
+        expect(world.events.all()).toHaveLength(1);
+        expect(world.events.all()[0]).toMatchObject({ resultado: 'NEGADO', motivo: reason });
+        expect(world.commands.all().map((c) => ({ tipo: c.tipo, motivo: c.motivo }))).toEqual(
+          commands,
+        );
+        expect(world.credentials.all().map((c) => c.consumidoEm)).toEqual(consumedBefore);
+        expect(world.authorizations.all().map((a) => a.usosRealizados)).toEqual(usesBefore);
+      },
+    );
   });
 });
