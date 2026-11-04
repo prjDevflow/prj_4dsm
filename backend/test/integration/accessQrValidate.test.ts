@@ -474,6 +474,44 @@ describe('POST /api/v1/access/qr/validate', () => {
     });
   });
 
+  describe('posição de referência do terminal (GPS_COM_FALLBACK)', () => {
+    /** About 5 km north of the registered position. */
+    const gpsSpot = { latitude: -23.26012, longitude: -45.96551 };
+
+    const reportGps = (scene: Scene) =>
+      request(app)
+        .post('/api/v1/terminal/heartbeat')
+        .set({ 'X-Terminal-Id': scene.terminal.id, 'X-Terminal-Key': TERMINAL_KEY })
+        .send({ ...gpsSpot, gpsFix: true, firmware: '0.3.0' });
+
+    it('mede a partir do GPS que o heartbeat acabou de informar', async () => {
+      const scene = await seedScene();
+      expect((await reportGps(scene)).status).toBe(200);
+
+      const nearRegistered = await validate(scene);
+      const nearGps = await validate(scene, gpsSpot);
+
+      expect(nearRegistered.status).toBe(403);
+      expect(nearRegistered.body.error.code).toBe('DISTANTE_DO_TERMINAL');
+      expect(nearGps.status).toBe(200);
+      expect(nearGps.body.distanciaM).toBe(0);
+    });
+
+    it('volta às coordenadas do cadastro quando o último contato tem mais de 10 minutos', async () => {
+      const scene = await seedScene();
+      await reportGps(scene);
+      await prisma.terminal.update({
+        where: { id: scene.terminal.id },
+        data: { ultimoContatoEm: new Date(Date.now() - 11 * 60_000) },
+      });
+
+      const res = await validate(scene);
+
+      expect(res.status).toBe(200);
+      expect(res.body.distanciaM).toBe(0);
+    });
+  });
+
   describe('caso 14: autenticação', () => {
     it('401 sem token, sem gerar evento nem comando', async () => {
       const scene = await seedScene();
