@@ -68,6 +68,35 @@ describe('ListPendingCommands', () => {
     expect(ids(result)).toEqual([2]);
   });
 
-  it.todo('deve marcar entregueEm na primeira entrega e preservar nas seguintes');
-  it.todo('deve não marcar como entregue o comando vencido nem o que ficou fora do limit');
+  it('deve marcar entregueEm na primeira entrega e preservar nas seguintes', async () => {
+    const { sut, commands, clock } = makeSut();
+    await commands.create(makeNewTerminalCommand());
+
+    await sut.execute(TERMINAL, { after: 0, limit: 10 });
+    const firstDelivery = new Date('2026-10-20T14:00:00Z');
+    expect(commands.all()[0]?.entregueEm).toEqual(firstDelivery);
+
+    clock.advance(3000);
+    await sut.execute(TERMINAL, { after: 0, limit: 10 });
+
+    expect(commands.all()[0]?.entregueEm).toEqual(firstDelivery);
+  });
+
+  it('deve não marcar como entregue o comando vencido nem o que ficou fora do limit', async () => {
+    const { sut, commands } = makeSut();
+    const expired = new Date('2026-10-20T13:00:00Z');
+    await commands.create(
+      makeNewTerminalCommand({ criadoEm: expired, expiraEm: new Date(expired.getTime() + 10_000) }),
+    );
+    await commands.create(makeNewTerminalCommand());
+    await commands.create(makeNewTerminalCommand());
+
+    await sut.execute(TERMINAL, { after: 0, limit: 1 });
+
+    expect(commands.all().map((command) => command.entregueEm !== null)).toEqual([
+      false,
+      true,
+      false,
+    ]);
+  });
 });
