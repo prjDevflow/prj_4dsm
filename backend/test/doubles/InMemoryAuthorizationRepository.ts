@@ -56,6 +56,13 @@ export class InMemoryAuthorizationRepository implements IAuthorizationRepository
     };
   }
 
+  async findByUserAndAccessPoint(userId: string, accessPointId: string) {
+    return [...this.items.values()]
+      .filter((a) => a.usuarioId === userId && a.accessPointId === accessPointId)
+      .sort((a, b) => a.dataFim.localeCompare(b.dataFim) || a.id.localeCompare(b.id))
+      .map((a) => ({ ...a }));
+  }
+
   async cancelIfActive(input: {
     id: string;
     canceladoPorId: string;

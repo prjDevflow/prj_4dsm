@@ -142,6 +142,13 @@ export class PrismaAuthorizationRepository implements IAuthorizationRepository {
     }
   }
 
+  async findByUserAndAccessPoint(
+    _userId: string,
+    _accessPointId: string,
+  ): Promise<Authorization[]> {
+    throw new Error('não implementado');
+  }
+
   async cancelIfActive(input: {
     id: string;
     canceladoPorId: string;

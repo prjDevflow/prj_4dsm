@@ -17,6 +17,68 @@ const stored = (id: string) => prisma.authorization.findUniqueOrThrow({ where: {
 describe('PrismaAuthorizationRepository (B09)', () => {
   beforeEach(resetDatabase);
 
+  describe('findByUserAndAccessPoint', () => {
+    it('devolve todas as autorizações do usuário para o ponto, canceladas e vencidas incluídas, por dataFim e id', async () => {
+      const user = await insertUser();
+      const point = await insertAccessPoint();
+      const late = await insertAuthorization({
+        usuarioId: user.id,
+        accessPointId: point.id,
+        dataFim: new Date('2026-12-31'),
+      });
+      const cancelled = await insertAuthorization({
+        usuarioId: user.id,
+        accessPointId: point.id,
+        dataFim: new Date('2026-11-15'),
+        situacao: 'CANCELADA',
+      });
+      const early = await insertAuthorization({
+        usuarioId: user.id,
+        accessPointId: point.id,
+        dataFim: new Date('2026-10-31'),
+        usosPermitidos: 2,
+        usosRealizados: 2,
+      });
+
+      const found = await authorizations.findByUserAndAccessPoint(user.id, point.id);
+
+      expect(found.map((a) => a.id)).toEqual([early.id, cancelled.id, late.id]);
+      expect(found[0]).toMatchObject({
+        usuarioId: user.id,
+        accessPointId: point.id,
+        dataInicio: '2026-10-01',
+        dataFim: '2026-10-31',
+        horaInicio: '08:00',
+        horaFim: '18:00',
+        usosPermitidos: 2,
+        usosRealizados: 2,
+        situacao: 'ATIVA',
+      });
+      expect(found[1]?.situacao).toBe('CANCELADA');
+    });
+
+    it('não devolve autorização de outro usuário nem de outro ponto', async () => {
+      const user = await insertUser();
+      const otherUser = await insertUser();
+      const point = await insertAccessPoint();
+      const otherPoint = await insertAccessPoint();
+      const mine = await insertAuthorization({ usuarioId: user.id, accessPointId: point.id });
+      await insertAuthorization({ usuarioId: otherUser.id, accessPointId: point.id });
+      await insertAuthorization({ usuarioId: user.id, accessPointId: otherPoint.id });
+
+      const found = await authorizations.findByUserAndAccessPoint(user.id, point.id);
+
+      expect(found.map((a) => a.id)).toEqual([mine.id]);
+    });
+
+    it('devolve lista vazia quando não há autorização', async () => {
+      const user = await insertUser();
+      const point = await insertAccessPoint();
+
+      expect(await authorizations.findByUserAndAccessPoint(user.id, point.id)).toEqual([]);
+    });
+  });
+
   describe('cancelIfActive', () => {
     it('cancela a autorização ATIVA e grava quem, quando e o motivo', async () => {
       const admin = await insertUser({ perfil: 'ADMIN' });
