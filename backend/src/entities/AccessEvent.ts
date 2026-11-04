@@ -36,7 +36,16 @@ export interface NewAccessEventBase {
   credencialHash?: string | null;
 }
 
-export type NewApprovedEvent = NewAccessEventBase;
+/** An approval always knows who, where, through which terminal and under which authorization. */
+export interface NewApprovedEvent extends Pick<
+  NewAccessEventBase,
+  'id' | 'ocorridoEm' | 'metodo' | 'distanciaM' | 'precisaoMetros'
+> {
+  terminalId: string;
+  accessPointId: string;
+  usuarioId: string;
+  authorizationId: string;
+}
 
 export interface NewDeniedEvent extends NewAccessEventBase {
   motivo: DenialReason;

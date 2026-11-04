@@ -28,10 +28,10 @@ describe('AccessEvent.approved', () => {
   });
 
   it('não deve aceitar o hash de uma credencial desconhecida numa aprovação', () => {
-    // @ts-expect-error só a negação de uma credencial desconhecida guarda o hash
     AccessEvent.approved({
       ...base,
       authorizationId: AUTHORIZATION_ID,
+      // @ts-expect-error só a negação de uma credencial desconhecida guarda o hash
       credencialHash: 'abcdef01',
     });
   });

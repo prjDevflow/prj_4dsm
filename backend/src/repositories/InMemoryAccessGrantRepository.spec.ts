@@ -34,7 +34,9 @@ const makeInput = (overrides: Partial<CommitApprovalInput> = {}): CommitApproval
     ocorridoEm: NOW,
     metodo: 'QR',
     terminalId: TERMINAL_ID,
+    accessPointId: makeAuthorization().accessPointId,
     usuarioId: USER_ID,
+    authorizationId: makeAuthorization().id,
   }),
   command: TerminalCommand.open({
     terminalId: TERMINAL_ID,
