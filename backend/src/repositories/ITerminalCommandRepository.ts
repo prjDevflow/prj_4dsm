@@ -15,4 +15,9 @@ export interface ITerminalCommandRepository {
   ): Promise<TerminalCommand[]>;
   /** Sets `entregueEm` on the commands that have none yet; the first delivery time is never overwritten. */
   markDelivered(ids: number[], at: Date): Promise<void>;
+  /**
+   * Sets `executadoEm` on the command of this terminal; the first time is never overwritten, so repeating
+   * it is harmless. False when the terminal has no such command (another terminal's command counts as none).
+   */
+  markExecuted(terminalId: string, id: number, at: Date): Promise<boolean>;
 }

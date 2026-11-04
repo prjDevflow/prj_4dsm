@@ -38,6 +38,13 @@ export class InMemoryTerminalCommandRepository implements ITerminalCommandReposi
     }
   }
 
+  async markExecuted(terminalId: string, id: number, at: Date) {
+    const item = this.items.get(id);
+    if (!item || item.terminalId !== terminalId) return false;
+    if (item.executadoEm === null) item.executadoEm = at;
+    return true;
+  }
+
   /** Everything stored, for assertions. */
   all() {
     return [...this.items.values()].map((item) => ({ ...item }));
