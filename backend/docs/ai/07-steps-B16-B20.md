@@ -8,7 +8,7 @@ Legenda: **U** = unitário (doubles, sem banco) · **I** = integração (superte
 
 ### B16 — Tags NFC: vínculo com usuários (apoio ao RF10)
 
-- **Depende de:** B06, B07 · **Libera:** B17; Lucas (F13); Pedro (I10, I11)
+- **Depende de:** B06, B07 · **Libera:** B17; Pedro (F13); Matheus (I10, I11)
 - **Prazo:** Sprint 3, semana 1 (início) · **Prioridade:** 🔴
 - **Objetivo:** o documento não diz como a tag é associada a uma pessoa (ambiguidade 3). O administrador vincula a tag.
 
@@ -45,13 +45,13 @@ Legenda: **U** = unitário (doubles, sem banco) · **I** = integração (superte
 **Definição de pronto**
 
 - [ ] Testes de normalização, duplicidade, desativação e perfil.
-- [ ] Swagger atualizado; Lucas avisado (★).
+- [ ] Swagger atualizado; Pedro avisado (★).
 
 ---
 
 ### B17 — Validação de acesso por NFC (RF14)
 
-- **Depende de:** B15, B16 · **Libera:** **Pedro (I11) ★**; B19
+- **Depende de:** B15, B16 · **Libera:** **Matheus (I11) ★**; B19
 - **Prazo:** Sprint 3, semana 1 · **Prioridade:** 🔴
 - **Objetivo:** o terminal envia o UID lido e recebe a decisão na própria resposta.
 
@@ -91,13 +91,13 @@ Legenda: **U** = unitário (doubles, sem banco) · **I** = integração (superte
 **Definição de pronto**
 
 - [ ] Os casos NFC da seção 9.2 do arquivo 03 estão automatizados, inclusive a idempotência.
-- [ ] Pedro avisado (★).
+- [ ] Matheus avisado (★).
 
 ---
 
 ### B18 — Histórico de acessos (RF06)
 
-- **Depende de:** B13 · **Libera:** Lucas (F12)
+- **Depende de:** B13 · **Libera:** Pedro (F12)
 - **Prazo:** Sprint 3, semana 1 · **Prioridade:** 🟡
 - **Objetivo:** consultar as tentativas, aprovadas e negadas, com filtros.
 
@@ -136,7 +136,7 @@ Legenda: **U** = unitário (doubles, sem banco) · **I** = integração (superte
 
 ### B19 — Eventos offline e idempotência (RNF03)
 
-- **Depende de:** B13, B17 · **Libera:** **Pedro (I12) ★**
+- **Depende de:** B13, B17 · **Libera:** **Matheus (I12) ★**
 - **Prazo:** Sprint 3, semana 1 · **Prioridade:** 🟡
 - **Objetivo:** quando o terminal perde a conexão, guarda as tentativas e envia depois, sem duplicar e sem "forjar" aprovações.
 
@@ -171,7 +171,7 @@ Legenda: **U** = unitário (doubles, sem banco) · **I** = integração (superte
 
 **Definição de pronto**
 
-- [ ] Testes de duplicidade, lote parcial e limites; Pedro avisado (★).
+- [ ] Testes de duplicidade, lote parcial e limites; Matheus avisado (★).
 
 ---
 
@@ -215,7 +215,7 @@ Legenda: **U** = unitário (doubles, sem banco) · **I** = integração (superte
 
 **Definição de pronto**
 
-- [ ] Documentos revisados por Lucas e Pedro.
+- [ ] Documentos revisados por Pedro e Matheus.
 - [ ] Relatório de cobertura de testes anexado.
 
 ---

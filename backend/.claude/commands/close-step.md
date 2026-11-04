@@ -30,7 +30,7 @@ If something fails, fix it test-first (a failing test that reproduces the proble
 
 ## 3. Verify acceptance criteria and DoD
 
-Go through every item of the step's "Critérios de aceitação" and "Definição de pronto", and the common DoD. For each item give the evidence (test name, command output, file). Items that need a manual step (Swagger demo, real terminal, notifying Lucas or Pedro) are listed as pending for me, not marked done.
+Go through every item of the step's "Critérios de aceitação" and "Definição de pronto", and the common DoD. For each item give the evidence (test name, command output, file). Items that need a manual step (Swagger demo, real terminal, notifying Pedro or Matheus) are listed as pending for me, not marked done.
 
 ## 4. Independent review
 
@@ -87,7 +87,7 @@ PR body (Portuguese, fill every section):
 lista completa de git log <BASE>..HEAD --oneline
 
 ## Contrato e impacto
-Mudou algo no contrato? Quem precisa ser avisado (Lucas, Pedro) e o que mudou.
+Mudou algo no contrato? Quem precisa ser avisado (Pedro, Matheus) e o que mudou.
 
 ## Pendências e observações
 Itens manuais, decisões tomadas, riscos, perguntas em aberto.
