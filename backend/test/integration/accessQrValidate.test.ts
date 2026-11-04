@@ -19,6 +19,8 @@ import {
 } from './helpers';
 
 const app = createApp();
+// Outside production the 500 body carries the stack; this one proves what a real deployment answers.
+const productionApp = createApp({ isProduction: true });
 
 const URL = '/api/v1/access/qr/validate';
 const TERMINAL_KEY = 'chave-de-teste-do-terminal-0123456789abcdef';
@@ -674,11 +676,15 @@ describe('POST /api/v1/access/qr/validate', () => {
       const scene = await seedScene();
       await failEventInserts('AUTORIZADO');
 
-      const res = await validate(scene);
+      const res = await request(productionApp)
+        .post(URL)
+        .set('Authorization', bearer(scene.user))
+        .send({ payload: scene.payload, ...here });
 
       expect(res.status).toBe(500);
       expect(res.body.error.code).toBe('INTERNAL_ERROR');
       expect(JSON.stringify(res.body)).not.toContain('falha injetada');
+      expect(res.body.error.stack).toBeUndefined();
       expect(await usesOf(scene)).toBe(0);
       expect(await isConsumed(scene)).toBe(false);
       expect(await commands()).toHaveLength(0);

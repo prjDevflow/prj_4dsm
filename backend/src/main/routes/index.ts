@@ -1,4 +1,5 @@
 import { Router } from 'express';
+import { buildAccessRoutes } from './access.routes';
 import { buildAuthRoutes } from './auth.routes';
 import { buildAuthorizationsRoutes } from './authorizations.routes';
 import { healthRoutes } from './health.routes';
@@ -16,5 +17,6 @@ export function buildApiRouter() {
   router.use(buildTerminalsRoutes());
   router.use(buildTerminalChannelRoutes());
   router.use(buildAuthorizationsRoutes());
+  router.use(buildAccessRoutes());
   return router;
 }
