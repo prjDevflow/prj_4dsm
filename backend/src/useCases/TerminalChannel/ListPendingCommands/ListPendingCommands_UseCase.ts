@@ -15,7 +15,7 @@ export class ListPendingCommandsUseCase {
   ) {}
 
   async execute(terminalId: string, input: ListPendingCommandsInput): Promise<TerminalCommand[]> {
-    void [terminalId, input, this.commands, this.clock];
-    return [];
+    const now = this.clock.now();
+    return this.commands.listPending(terminalId, input.after, input.limit, now);
   }
 }
