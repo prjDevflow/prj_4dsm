@@ -86,6 +86,8 @@ services:
       QR_REFRESH_MS: ${QR_REFRESH_MS:-}
       COMMAND_POLL_MS: ${COMMAND_POLL_MS:-}
       OPEN_DURATION_MS: ${OPEN_DURATION_MS:-}
+      # Comandos do terminal (B14).
+      COMMAND_TTL_SECONDS: ${COMMAND_TTL_SECONDS:-}
       # Emissão do QR (B12).
       QR_TTL_SECONDS: ${QR_TTL_SECONDS:-}
       QR_TOLERANCE_SECONDS: ${QR_TOLERANCE_SECONDS:-}
