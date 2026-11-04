@@ -177,7 +177,7 @@ export class ValidateQrAccessUseCase {
 
     const result = await this.accessGrants.commitApproval({
       credentialId: credential.id,
-      userId: input.userId,
+      userId: user.id,
       authorizationId: authorization.id,
       now,
       event: AccessEvent.approved({
@@ -186,7 +186,7 @@ export class ValidateQrAccessUseCase {
         metodo: 'QR',
         terminalId: terminal.id,
         accessPointId: accessPoint.id,
-        usuarioId: input.userId,
+        usuarioId: user.id,
         authorizationId: authorization.id,
         distanciaM: distanceM,
         precisaoMetros: attempt.precisaoMetros,

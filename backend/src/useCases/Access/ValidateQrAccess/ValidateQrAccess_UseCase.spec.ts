@@ -278,6 +278,21 @@ describe('ValidateQrAccess', () => {
       expect(await later.validate()).toEqual({ granted: false, reason: 'CREDENCIAL_EXPIRADA' });
     });
 
+    it('deve negar com CREDENCIAL_INVALIDA, sem comando, quando o terminal da credencial não existe', async () => {
+      const world = makeSut();
+      await world.seed();
+      world.credentials.seed(
+        makeQrCredential({
+          terminalId: '00000000-0000-4000-8000-00000000ffff',
+          tokenHash: world.hash.sha256(TOKEN),
+        }),
+      );
+
+      expect(await world.validate()).toEqual({ granted: false, reason: 'CREDENCIAL_INVALIDA' });
+      expect(world.events.all()).toHaveLength(1);
+      expect(world.commands.all()).toHaveLength(0);
+    });
+
     it('deve negar com CREDENCIAL_INVALIDA quando o terminal está inativo', async () => {
       const world = makeSut();
       await world.seed();
