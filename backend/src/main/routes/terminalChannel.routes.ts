@@ -1,6 +1,8 @@
 import { Router } from 'express';
 import { adapt } from '../../infra/http/adapt';
+import { ackCommandController } from '../../useCases/TerminalChannel/AckCommand';
 import { issueQrCredentialController } from '../../useCases/TerminalChannel/IssueQrCredential';
+import { listPendingCommandsController } from '../../useCases/TerminalChannel/ListPendingCommands';
 import { registerHeartbeatController } from '../../useCases/TerminalChannel/RegisterHeartbeat';
 import { authenticateTerminal } from '../middlewares';
 
@@ -11,6 +13,10 @@ export function buildTerminalChannelRoutes() {
   router.post('/terminal/heartbeat', authenticateTerminal, adapt(registerHeartbeatController));
 
   router.post('/terminal/qr', authenticateTerminal, adapt(issueQrCredentialController));
+
+  router.get('/terminal/commands', authenticateTerminal, adapt(listPendingCommandsController));
+
+  router.post('/terminal/commands/:id/ack', authenticateTerminal, adapt(ackCommandController));
 
   return router;
 }

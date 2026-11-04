@@ -209,14 +209,16 @@ describe('GET /api/v1/terminal/commands', () => {
     expect((await stored(created.id)).entregueEm).toEqual(first);
   });
 
-  it('não marca como entregue o comando vencido nem o terminal de outro', async () => {
+  it('marca como entregue só o comando devolvido, não o vencido nem o de outro terminal', async () => {
     const terminal = await insertAuthenticatedTerminal();
     const other = await insertAuthenticatedTerminal();
     const expired = await commandAged(terminal.id, 11_000);
     const foreign = await commandAged(other.id, 0);
+    const valid = await commandAged(terminal.id, 0);
 
     await listCommands(terminal.id);
 
+    expect((await stored(valid.id)).entregueEm).not.toBeNull();
     expect((await stored(expired.id)).entregueEm).toBeNull();
     expect((await stored(foreign.id)).entregueEm).toBeNull();
   });
