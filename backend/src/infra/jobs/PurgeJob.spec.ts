@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { SpyLogger } from '../../../test/doubles/SpyLogger';
-import { PurgeExpiredCredentialsJob } from './PurgeExpiredCredentialsJob';
+import { PurgeJob } from './PurgeJob';
 
 const MINUTE = 60_000;
 
@@ -11,11 +11,11 @@ const messages = {
 
 const makeSut = (purge: () => Promise<number>, jobMessages = messages) => {
   const logger = new SpyLogger();
-  const job = new PurgeExpiredCredentialsJob(purge, logger, MINUTE, jobMessages);
+  const job = new PurgeJob(purge, logger, MINUTE, jobMessages);
   return { job, logger };
 };
 
-describe('PurgeExpiredCredentialsJob', () => {
+describe('PurgeJob', () => {
   beforeEach(() => {
     vi.useFakeTimers();
   });
