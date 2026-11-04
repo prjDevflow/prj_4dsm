@@ -15,6 +15,7 @@ import { makeAuthorization } from '../../../../test/factories/makeAuthorization'
 import { makeQrCredential } from '../../../../test/factories/makeQrCredential';
 import { makeTerminal } from '../../../../test/factories/makeTerminal';
 import { makeUser } from '../../../../test/factories/makeUser';
+import { haversineDistanceM } from '../../../entities/rules/haversineDistanceM';
 import { UnauthorizedError } from '../../../shared/errors/AppError';
 import { AccessEventRecorder } from '../../Events/AccessEventRecorder';
 import {
@@ -49,6 +50,11 @@ const defaultConfig: ValidateQrAccessConfig = {
 
 /** Phone exactly where the access point is registered. */
 const atTheTerminal = { latitude: -23.30512, longitude: -45.96551 };
+/** 99 m north and 101 m east of the registered position. */
+const north99m = { latitude: -23.30422967, longitude: -45.96551 };
+const east101m = { latitude: -23.30512, longitude: -45.96452099 };
+/** About 5 km north of the registered position: where a terminal with a GPS fix may report itself. */
+const gpsSpot = { latitude: -23.26012, longitude: -45.96551 };
 
 const makeSut = (config: Partial<ValidateQrAccessConfig> = {}) => {
   const { accessPoints, authorizations, users } = makeLocationDoubles();
@@ -478,6 +484,183 @@ describe('ValidateQrAccess', () => {
         ['a3', 0],
       ]);
       expect(world.events.all()[0]?.authorizationId).toBe('00000000-0000-4000-8000-0000000000a2');
+    });
+  });
+
+  describe('verificação 10: localização do celular', () => {
+    it.each([
+      ['sem latitude', { latitude: undefined }],
+      ['sem longitude', { longitude: undefined }],
+      ['com latitude nula', { latitude: null }],
+      ['com longitude nula', { longitude: null }],
+      ['sem nenhuma das duas', { latitude: undefined, longitude: undefined }],
+      ['com latitude fora da faixa', { latitude: 91 }],
+      ['com longitude fora da faixa', { longitude: -181 }],
+      ['com latitude que não é número finito', { latitude: Number.NaN }],
+      ['com longitude infinita', { longitude: Number.POSITIVE_INFINITY }],
+    ])('deve negar com LOCALIZACAO_INVALIDA quando o celular vem %s', async (_name, location) => {
+      const world = makeSut();
+      await world.seed();
+
+      const decision = await world.validate(location);
+
+      expect(decision).toEqual({ granted: false, reason: 'LOCALIZACAO_INVALIDA' });
+      expect(world.events.all()[0]).toMatchObject({
+        motivo: 'LOCALIZACAO_INVALIDA',
+        authorizationId: AUTHORIZATION_ID,
+        distanciaM: null,
+      });
+      expect(world.commands.all()[0]).toMatchObject({
+        tipo: 'NEGAR',
+        motivo: 'LOCALIZACAO_INVALIDA',
+      });
+      expectNothingConsumed(world);
+    });
+
+    it('deve checar a localização depois da autorização: sem autorização e sem coordenadas dá SEM_AUTORIZACAO', async () => {
+      const world = makeSut();
+      await world.seed();
+      world.authorizations.clear();
+
+      expect(await world.validate({ latitude: undefined })).toEqual({
+        granted: false,
+        reason: 'SEM_AUTORIZACAO',
+      });
+    });
+  });
+
+  describe('verificação 11: distância até o terminal', () => {
+    it('deve autorizar a 99 m e devolver a distância medida', async () => {
+      const world = makeSut();
+      await world.seed();
+
+      const decision = await world.validate(north99m);
+
+      expect(decision.granted && decision.distanceM).toBeCloseTo(99, 0);
+      expect(world.events.all()[0]?.distanciaM).toBeCloseTo(99, 0);
+    });
+
+    it('deve negar com DISTANTE_DO_TERMINAL a 101 m, gravando a distância e a autorização no evento', async () => {
+      const world = makeSut();
+      await world.seed();
+
+      const decision = await world.validate(east101m);
+
+      expect(decision).toEqual({ granted: false, reason: 'DISTANTE_DO_TERMINAL' });
+      const [event] = world.events.all();
+      expect(event).toMatchObject({
+        motivo: 'DISTANTE_DO_TERMINAL',
+        authorizationId: AUTHORIZATION_ID,
+      });
+      expect(event?.distanciaM).toBeCloseTo(101, 0);
+      expect(world.commands.all()[0]).toMatchObject({
+        tipo: 'NEGAR',
+        motivo: 'DISTANTE_DO_TERMINAL',
+      });
+      expectNothingConsumed(world);
+    });
+
+    it('deve aceitar a distância exatamente igual ao limite e negar um pouco acima', async () => {
+      const limit = haversineDistanceM(north99m, atTheTerminal);
+
+      const exact = makeSut({ maxDistanceM: limit });
+      await exact.seed();
+      expect((await exact.validate(north99m)).granted).toBe(true);
+
+      const above = makeSut({ maxDistanceM: limit - 0.001 });
+      await above.seed();
+      expect(await above.validate(north99m)).toEqual({
+        granted: false,
+        reason: 'DISTANTE_DO_TERMINAL',
+      });
+    });
+
+    it('deve seguir o limite configurado', async () => {
+      const world = makeSut({ maxDistanceM: 50 });
+      await world.seed();
+
+      expect(await world.validate(north99m)).toEqual({
+        granted: false,
+        reason: 'DISTANTE_DO_TERMINAL',
+      });
+    });
+  });
+
+  describe('posição de referência do terminal', () => {
+    /** The terminal reported `spot` with a fix at `contatoEm`. */
+    const reportGps = (world: ReturnType<typeof makeSut>, contatoEm: Date, gpsFix = true) =>
+      world.terminals.updateHeartbeat(
+        TERMINAL_ID,
+        { contatoEm, gpsFix, gpsSimulado: false, firmware: '0.3.0', rssi: -60, posicao: gpsSpot },
+        new Date(0),
+      );
+    const secondsAgo = (world: ReturnType<typeof makeSut>, seconds: number) =>
+      new Date(world.clock.now().getTime() - seconds * 1000);
+
+    it('deve medir a partir do GPS quando o terminal tem fix recente', async () => {
+      const world = makeSut();
+      await world.seed();
+      await reportGps(world, secondsAgo(world, 30));
+
+      expect(await world.validate(gpsSpot)).toMatchObject({ granted: true, distanceM: 0 });
+
+      const far = makeSut();
+      await far.seed();
+      await reportGps(far, secondsAgo(far, 30));
+      expect(await far.validate(atTheTerminal)).toEqual({
+        granted: false,
+        reason: 'DISTANTE_DO_TERMINAL',
+      });
+    });
+
+    it('deve voltar ao cadastro quando o GPS é antigo (10 min) e usar o GPS com 9 min 59 s', async () => {
+      const old = makeSut();
+      await old.seed();
+      await reportGps(old, secondsAgo(old, 600));
+      expect((await old.validate(atTheTerminal)).granted).toBe(true);
+
+      const fresh = makeSut();
+      await fresh.seed();
+      await reportGps(fresh, secondsAgo(fresh, 599));
+      expect((await fresh.validate(atTheTerminal)).granted).toBe(false);
+    });
+
+    it('deve voltar ao cadastro quando o terminal está sem fix', async () => {
+      const world = makeSut();
+      await world.seed();
+      await reportGps(world, secondsAgo(world, 30), false);
+
+      expect((await world.validate(atTheTerminal)).granted).toBe(true);
+    });
+
+    it('deve ignorar o GPS no modo CADASTRO', async () => {
+      const world = makeSut({ positionSource: 'CADASTRO' });
+      await world.seed();
+      await reportGps(world, secondsAgo(world, 30));
+
+      expect((await world.validate(atTheTerminal)).granted).toBe(true);
+    });
+
+    it('deve negar com LOCALIZACAO_INVALIDA no modo GPS quando o terminal não tem GPS utilizável', async () => {
+      const world = makeSut({ positionSource: 'GPS' });
+      await world.seed();
+
+      const decision = await world.validate();
+
+      expect(decision).toEqual({ granted: false, reason: 'LOCALIZACAO_INVALIDA' });
+      expect(world.events.all()[0]).toMatchObject({
+        motivo: 'LOCALIZACAO_INVALIDA',
+        authorizationId: AUTHORIZATION_ID,
+        distanciaM: null,
+      });
+    });
+
+    it('deve usar o GPS no modo GPS quando ele é recente', async () => {
+      const world = makeSut({ positionSource: 'GPS' });
+      await world.seed();
+      await reportGps(world, secondsAgo(world, 30));
+
+      expect((await world.validate(gpsSpot)).granted).toBe(true);
     });
   });
 
