@@ -15,6 +15,7 @@ import { makeAuthorization } from '../../../../test/factories/makeAuthorization'
 import { makeQrCredential } from '../../../../test/factories/makeQrCredential';
 import { makeTerminal } from '../../../../test/factories/makeTerminal';
 import { makeUser } from '../../../../test/factories/makeUser';
+import { UnauthorizedError } from '../../../shared/errors/AppError';
 import { AccessEventRecorder } from '../../Events/AccessEventRecorder';
 import {
   ValidateQrAccessUseCase,
@@ -309,6 +310,174 @@ describe('ValidateQrAccess', () => {
         granted: false,
         reason: 'CREDENCIAL_EXPIRADA',
       });
+    });
+  });
+
+  describe('verificação 5: usuário ativo', () => {
+    it('deve negar com USUARIO_INATIVO e registrar o evento com o usuário', async () => {
+      const world = makeSut();
+      await world.seed();
+      await world.users.save(makeUser({ id: USER_ID, ativo: false }));
+
+      const decision = await world.validate();
+
+      expect(decision).toEqual({ granted: false, reason: 'USUARIO_INATIVO' });
+      expect(world.events.all()).toHaveLength(1);
+      expect(world.events.all()[0]).toMatchObject({
+        resultado: 'NEGADO',
+        motivo: 'USUARIO_INATIVO',
+        usuarioId: USER_ID,
+        terminalId: TERMINAL_ID,
+        accessPointId: POINT_ID,
+        authorizationId: null,
+      });
+      expect(world.commands.all()[0]).toMatchObject({ tipo: 'NEGAR', motivo: 'USUARIO_INATIVO' });
+      expectNothingConsumed(world);
+    });
+
+    it('deve negar com USUARIO_INATIVO antes de olhar as autorizações', async () => {
+      const world = makeSut();
+      await world.seed();
+      await world.users.save(makeUser({ id: USER_ID, ativo: false }));
+      world.authorizations.clear();
+
+      expect(await world.validate()).toEqual({ granted: false, reason: 'USUARIO_INATIVO' });
+    });
+
+    it('deve rejeitar com 401 quando o usuário do token já não existe', async () => {
+      const world = makeSut();
+      await world.seed();
+
+      await expect(world.validate({ userId: 'nao-existe' })).rejects.toBeInstanceOf(
+        UnauthorizedError,
+      );
+      expect(world.events.all()).toHaveLength(0);
+    });
+  });
+
+  describe('verificações 6 a 9: autorização', () => {
+    /** Replaces the default authorization with `overrides` applied to it. */
+    const authorizeWith = (
+      world: ReturnType<typeof makeSut>,
+      ...list: Parameters<typeof makeAuthorization>[0][]
+    ) => {
+      world.authorizations.clear();
+      list.forEach((overrides, index) =>
+        world.authorizations.add(
+          makeAuthorization({
+            id: `00000000-0000-4000-8000-0000000000a${index + 1}`,
+            usuarioId: USER_ID,
+            accessPointId: POINT_ID,
+            dataInicio: '2026-10-01',
+            dataFim: '2026-10-31',
+            ...overrides,
+          }),
+        ),
+      );
+    };
+
+    it('deve negar com SEM_AUTORIZACAO quando o usuário não tem autorização', async () => {
+      const world = makeSut();
+      await world.seed();
+      authorizeWith(world);
+
+      expect(await world.validate()).toEqual({ granted: false, reason: 'SEM_AUTORIZACAO' });
+      expect(world.events.all()[0]).toMatchObject({
+        motivo: 'SEM_AUTORIZACAO',
+        authorizationId: null,
+      });
+    });
+
+    it('deve negar com SEM_AUTORIZACAO quando a autorização é de outro local', async () => {
+      const world = makeSut();
+      await world.seed();
+      authorizeWith(world, { accessPointId: '00000000-0000-4000-8000-0000000000c2' });
+
+      expect(await world.validate()).toEqual({ granted: false, reason: 'SEM_AUTORIZACAO' });
+    });
+
+    it('deve negar com AUTORIZACAO_CANCELADA quando só há canceladas', async () => {
+      const world = makeSut();
+      await world.seed();
+      authorizeWith(world, { situacao: 'CANCELADA' });
+
+      expect(await world.validate()).toEqual({ granted: false, reason: 'AUTORIZACAO_CANCELADA' });
+    });
+
+    it('deve negar com FORA_DO_PERIODO antes do início e depois do fim, e aceitar no último dia', async () => {
+      const before = makeSut();
+      await before.seed();
+      authorizeWith(before, { dataInicio: '2026-10-21', dataFim: '2026-10-30' });
+      expect(await before.validate()).toEqual({ granted: false, reason: 'FORA_DO_PERIODO' });
+
+      const after = makeSut();
+      await after.seed();
+      authorizeWith(after, { dataInicio: '2026-10-01', dataFim: '2026-10-19' });
+      expect(await after.validate()).toEqual({ granted: false, reason: 'FORA_DO_PERIODO' });
+
+      const lastDay = makeSut();
+      await lastDay.seed();
+      authorizeWith(lastDay, { dataInicio: '2026-10-01', dataFim: '2026-10-20' });
+      expect((await lastDay.validate()).granted).toBe(true);
+    });
+
+    it('deve negar com FORA_DO_PERIODO um minuto fora do horário e aceitar nos limites (agora são 11:00 em São Paulo)', async () => {
+      const early = makeSut();
+      await early.seed();
+      authorizeWith(early, { horaInicio: '11:01', horaFim: '18:00' });
+      expect(await early.validate()).toEqual({ granted: false, reason: 'FORA_DO_PERIODO' });
+
+      const late = makeSut();
+      await late.seed();
+      authorizeWith(late, { horaInicio: '08:00', horaFim: '10:59' });
+      expect(await late.validate()).toEqual({ granted: false, reason: 'FORA_DO_PERIODO' });
+
+      const exactStart = makeSut();
+      await exactStart.seed();
+      authorizeWith(exactStart, { horaInicio: '11:00', horaFim: '18:00' });
+      expect((await exactStart.validate()).granted).toBe(true);
+
+      const exactEnd = makeSut();
+      await exactEnd.seed();
+      authorizeWith(exactEnd, { horaInicio: '08:00', horaFim: '11:00' });
+      expect((await exactEnd.validate()).granted).toBe(true);
+    });
+
+    it('deve negar com USOS_ESGOTADOS quando a autorização vigente não tem mais usos', async () => {
+      const world = makeSut();
+      await world.seed();
+      authorizeWith(world, { usosPermitidos: 2, usosRealizados: 2 });
+
+      expect(await world.validate()).toEqual({ granted: false, reason: 'USOS_ESGOTADOS' });
+      expect(world.events.all()[0]).toMatchObject({
+        motivo: 'USOS_ESGOTADOS',
+        authorizationId: null,
+      });
+      expect(world.credentials.all()[0]?.consumidoEm).toBeNull();
+    });
+
+    it('deve usar a autorização de dataFim mais próxima entre as elegíveis e deixar a outra intacta', async () => {
+      const world = makeSut();
+      await world.seed();
+      authorizeWith(
+        world,
+        { dataFim: '2026-10-31' },
+        { dataFim: '2026-10-22' },
+        { dataFim: '2026-10-25' },
+      );
+
+      const decision = await world.validate();
+
+      expect(decision.granted && decision.authorizationId).toBe(
+        '00000000-0000-4000-8000-0000000000a2',
+      );
+      const used = world.authorizations.all().map((a) => [a.id.slice(-2), a.usosRealizados]);
+      expect(used).toEqual([
+        ['a1', 0],
+        ['a2', 1],
+        ['a3', 0],
+      ]);
+      expect(world.events.all()[0]?.authorizationId).toBe('00000000-0000-4000-8000-0000000000a2');
     });
   });
 

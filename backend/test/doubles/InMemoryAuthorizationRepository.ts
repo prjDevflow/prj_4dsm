@@ -147,6 +147,11 @@ export class InMemoryAuthorizationRepository implements IAuthorizationRepository
     };
   }
 
+  /** Not part of the port: empties the store, to replace the default scene of a test. */
+  clear() {
+    this.items.clear();
+  }
+
   /** Not part of the port: lets a test see every stored authorization. */
   all() {
     return [...this.items.values()].map((a) => ({ ...a }));
