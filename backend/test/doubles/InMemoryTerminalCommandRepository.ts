@@ -4,8 +4,15 @@ import type { ITerminalCommandRepository } from '../../src/repositories/ITermina
 export class InMemoryTerminalCommandRepository implements ITerminalCommandRepository {
   private items = new Map<number, TerminalCommand>();
   private lastId = 0;
+  private failure: Error | null = null;
+
+  /** Makes every following `create` fail with `error`, like a database that stopped answering. */
+  failWith(error: Error) {
+    this.failure = error;
+  }
 
   async create(command: NewTerminalCommand) {
+    if (this.failure) throw this.failure;
     // Like the serial column: increasing, never reused.
     this.lastId += 1;
     const stored: TerminalCommand = {
