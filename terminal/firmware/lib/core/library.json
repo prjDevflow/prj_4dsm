@@ -1,0 +1,10 @@
+{
+  "name": "core",
+  "version": "0.1.0",
+  "description": "Pure firmware logic of the access terminal: plain C++11, no Arduino.h, tested on the PC with Unity.",
+  "frameworks": "*",
+  "platforms": "*",
+  "build": {
+    "flags": ["-Wall", "-Wextra", "-Werror"]
+  }
+}
