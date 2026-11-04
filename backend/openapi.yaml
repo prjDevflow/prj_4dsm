@@ -1274,6 +1274,121 @@ paths:
           $ref: '#/components/responses/QrRateLimited'
         '500':
           $ref: '#/components/responses/InternalError'
+  /terminal/commands:
+    get:
+      tags: [Terminal]
+      summary: Consultar os comandos pendentes do terminal
+      description: >-
+        O terminal chama a cada `commandPollMs` (1 s) com o `id` do último comando que viu em
+        `after`. Autenticado pela chave do terminal (cabeçalhos `X-Terminal-Id` e `X-Terminal-Key`),
+        nunca pelo token de usuário.
+
+
+        Devolve só os comandos **deste terminal**, em ordem crescente de `id`, com `id` maior que
+        `after`, e **que ainda não venceram**. Um comando vale por `COMMAND_TTL_SECONDS` (10 s) a
+        partir da criação: com exatamente 10 s de vida ainda é entregue, com mais não. Um `ABRIR`
+        vencido nunca é entregue, para a catraca não abrir minutos depois do pedido.
+
+
+        Cada comando é marcado como entregue (`entregueEm`) na primeira vez que sai aqui; as
+        consultas seguintes não mudam essa hora. A lista vazia é a resposta normal quando não há
+        nada novo.
+
+
+        O `ABRIR` traz `aberturaMs` (por quanto tempo abrir, `OPEN_DURATION_MS`); o `NEGAR` traz
+        `motivo` (um dos códigos de negação). Os comandos são criados pela validação de acesso
+        (B15).
+      operationId: listPendingCommands
+      security:
+        - terminalId: []
+          terminalKey: []
+      parameters:
+        - name: after
+          in: query
+          description: Só vêm comandos com `id` maior que este. Use o maior `id` que o terminal já viu.
+          schema:
+            type: integer
+            minimum: 0
+            maximum: 2147483647
+            default: 0
+        - name: limit
+          in: query
+          description: Quantos comandos, no máximo, numa resposta.
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 10
+      responses:
+        '200':
+          description: Comandos pendentes (lista vazia quando não há nada novo)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ComandosPendentes'
+              examples:
+                abrirENegar:
+                  summary: Um ABRIR e um NEGAR
+                  value:
+                    commands:
+                      - id: 42
+                        tipo: ABRIR
+                        aberturaMs: 5000
+                        criadoEm: '2026-10-20T14:32:07.123Z'
+                      - id: 43
+                        tipo: NEGAR
+                        motivo: DISTANTE_DO_TERMINAL
+                        criadoEm: '2026-10-20T14:32:08.456Z'
+                semNovidade:
+                  summary: Nada novo
+                  value:
+                    commands: []
+        '401':
+          $ref: '#/components/responses/TerminalUnauthorized'
+        '403':
+          $ref: '#/components/responses/TerminalForbidden'
+        '422':
+          $ref: '#/components/responses/CommandsValidationError'
+        '500':
+          $ref: '#/components/responses/InternalError'
+  /terminal/commands/{id}/ack:
+    post:
+      tags: [Terminal]
+      summary: Confirmar que o terminal executou um comando
+      description: >-
+        O terminal avisa que executou o comando `id`. Autenticado pela chave do terminal (cabeçalhos
+        `X-Terminal-Id` e `X-Terminal-Key`). Não tem corpo.
+
+
+        Grava `executadoEm`. Só vale para comando **do próprio terminal**: o de outro terminal, um
+        `id` que não existe e um `id` que não é um inteiro positivo dão o mesmo 404, para não
+        revelar o que existe. Repetir o ack é inofensivo: devolve 204 de novo e mantém a primeira
+        hora. Um comando já vencido que o terminal recebeu a tempo ainda pode ser confirmado.
+      operationId: ackCommand
+      security:
+        - terminalId: []
+          terminalKey: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: '`id` do comando (inteiro crescente, não é uuid).'
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 2147483647
+          example: 42
+      responses:
+        '204':
+          description: Comando confirmado (sem corpo)
+        '401':
+          $ref: '#/components/responses/TerminalUnauthorized'
+        '403':
+          $ref: '#/components/responses/TerminalForbidden'
+        '404':
+          $ref: '#/components/responses/CommandNotFound'
+        '500':
+          $ref: '#/components/responses/InternalError'
 components:
   securitySchemes:
     bearerAuth:
@@ -1781,6 +1896,37 @@ components:
         renovarEmMs:
           type: integer
           description: Quando pedir o próximo QR (`QR_REFRESH_MS`, 10000).
+    ComandoTerminal:
+      type: object
+      required: [id, tipo, criadoEm]
+      description: >-
+        Um comando para o terminal. O `ABRIR` traz `aberturaMs` e o `NEGAR` traz `motivo`; o outro
+        campo não vem.
+      properties:
+        id:
+          type: integer
+          description: Inteiro crescente (não é uuid), para o terminal pedir só o que veio depois.
+        tipo:
+          type: string
+          enum: [ABRIR, NEGAR]
+        aberturaMs:
+          type: integer
+          description: Só no `ABRIR`. Por quanto tempo abrir a catraca (`OPEN_DURATION_MS`).
+        motivo:
+          type: string
+          description: Só no `NEGAR`. Código de negação (seção 4.4 do contrato), por exemplo `DISTANTE_DO_TERMINAL`.
+        criadoEm:
+          type: string
+          format: date-time
+          description: Instante da criação, em UTC, com milissegundos.
+    ComandosPendentes:
+      type: object
+      required: [commands]
+      properties:
+        commands:
+          type: array
+          items:
+            $ref: '#/components/schemas/ComandoTerminal'
     ChaveDoTerminal:
       type: object
       required: [id, apiKey]
@@ -2334,6 +2480,31 @@ components:
             error:
               code: RATE_LIMITED
               message: Muitas tentativas. Aguarde um minuto e tente novamente
+    CommandsValidationError:
+      description: '`after` ou `limit` inválido, com a mensagem do campo em `details`'
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          example:
+            error:
+              code: VALIDATION_ERROR
+              message: Dados inválidos
+              details:
+                - field: limit
+                  message: deve ser um número inteiro entre 1 e 100
+    CommandNotFound:
+      description: >-
+        O comando não existe, é de outro terminal ou o `id` não é um inteiro positivo (a mesma
+        resposta nos três casos)
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          example:
+            error:
+              code: NOT_FOUND
+              message: Comando não encontrado
     NotFound:
       description: Rota ou recurso inexistente
       content:
