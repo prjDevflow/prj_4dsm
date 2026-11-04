@@ -29,6 +29,10 @@ tags:
     description: >-
       Autorizações de acesso. Criar, listar e cancelar: só ADMIN. Ler uma e listar "as minhas":
       cada usuário, as próprias.
+  - name: Access
+    description: >-
+      Validação de acesso pelo app: a pessoa lê o QR Code do terminal e o backend decide.
+      Qualquer perfil, inclusive conta inativa (para a tentativa ficar registrada).
 paths:
   /health:
     get:
@@ -1164,6 +1168,143 @@ paths:
           $ref: '#/components/responses/AuthorizationQueryError'
         '500':
           $ref: '#/components/responses/InternalError'
+  /access/qr/validate:
+    post:
+      tags: [Access]
+      summary: Validar o QR Code lido pelo app
+      description: >-
+        O app envia o texto do QR Code do terminal e a posição do celular. O backend aplica as 11
+        verificações na ordem (a primeira que falhar define o motivo), e **toda tentativa gera
+        exatamente um evento**, aprovada ou negada.
+
+
+        1. o token existe (`CREDENCIAL_INVALIDA`); 2. ainda não foi usado (`CREDENCIAL_REUTILIZADA`);
+        3. não passou de `expiraEm`, 15 s depois da emissão, inclusive (`CREDENCIAL_EXPIRADA`);
+        4. terminal e ponto de acesso ativos (`CREDENCIAL_INVALIDA`); 5. usuário ativo
+        (`USUARIO_INATIVO`); 6. há autorização para o ponto (`SEM_AUTORIZACAO`); 7. alguma não
+        cancelada (`AUTORIZACAO_CANCELADA`); 8. alguma dentro das datas e do horário, em
+        `America/Sao_Paulo` e com os limites incluídos (`FORA_DO_PERIODO`); 9. alguma com usos
+        restantes (`USOS_ESGOTADOS`); 10. coordenadas presentes (`LOCALIZACAO_INVALIDA`);
+        11. distância até a posição do terminal de no máximo `MAX_DISTANCE_M`, 100 m por padrão
+        (`DISTANTE_DO_TERMINAL`). Com mais de uma autorização elegível vale a de `dataFim` mais
+        próxima.
+
+
+        **Aprovação:** numa só transação consome a credencial, consome um uso, grava o evento
+        `AUTORIZADO` e cria o comando `ABRIR` para o terminal. Se o evento não puder ser gravado,
+        nada é consumido e a resposta é 500. **Negação:** grava o evento `NEGADO` e, se o terminal
+        foi identificado, cria o comando `NEGAR`; o QR **não** é consumido, e a pessoa pode tentar
+        de novo dentro da validade.
+
+
+        Um texto que não segue `ACS1:` mais 22 caracteres é 422 e não conta como tentativa.
+        Coordenadas **ausentes ou nulas** são uma negação (`LOCALIZACAO_INVALIDA`); coordenadas
+        **fora da faixa** são 422. Sem token: 401, também sem evento. Limite de
+        `QR_VALIDATE_MAX_PER_MINUTE` (10) validações por minuto por usuário; as seguintes dão 429.
+      operationId: validateQrAccess
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ValidarQrRequest'
+            example:
+              payload: 'ACS1:q3F8k2Zr1pLw9XbTn0YhVA'
+              latitude: -23.30512
+              longitude: -45.96551
+              precisaoMetros: 12.5
+      responses:
+        '200':
+          description: Acesso autorizado; a catraca recebe o comando `ABRIR`
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AcessoAutorizado'
+              example:
+                resultado: AUTORIZADO
+                mensagem: Acesso autorizado. Pode passar.
+                local:
+                  nome: Catraca Social
+                usosRestantes: 2
+                distanciaM: 14
+                ocorridoEm: '2026-10-20T14:32:07Z'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          description: >-
+            Acesso negado. O `code` é o motivo e o `message` é o texto para mostrar à pessoa (seção
+            4.4 do contrato). Um evento `NEGADO` foi gravado.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              examples:
+                CREDENCIAL_INVALIDA:
+                  summary: CREDENCIAL_INVALIDA — QR adulterado, ou terminal ou ponto de acesso inativo
+                  value:
+                    error:
+                      code: CREDENCIAL_INVALIDA
+                      message: Este QR Code não é válido. Aponte para o QR Code da catraca.
+                CREDENCIAL_EXPIRADA:
+                  summary: CREDENCIAL_EXPIRADA — QR lido depois de 15 s
+                  value:
+                    error:
+                      code: CREDENCIAL_EXPIRADA
+                      message: Este QR Code expirou. Leia o novo QR Code que aparece na tela.
+                CREDENCIAL_REUTILIZADA:
+                  summary: CREDENCIAL_REUTILIZADA — QR já usado (inclusive a segunda de duas leituras simultâneas)
+                  value:
+                    error:
+                      code: CREDENCIAL_REUTILIZADA
+                      message: Este QR Code já foi usado. Aguarde o próximo e leia de novo.
+                USUARIO_INATIVO:
+                  summary: USUARIO_INATIVO — Conta desativada com o token ainda válido
+                  value:
+                    error:
+                      code: USUARIO_INATIVO
+                      message: Seu cadastro está inativo. Procure a administração.
+                SEM_AUTORIZACAO:
+                  summary: SEM_AUTORIZACAO — Nenhuma autorização para este local
+                  value:
+                    error:
+                      code: SEM_AUTORIZACAO
+                      message: Você não tem autorização para este local.
+                AUTORIZACAO_CANCELADA:
+                  summary: AUTORIZACAO_CANCELADA — Só há autorizações canceladas para este local
+                  value:
+                    error:
+                      code: AUTORIZACAO_CANCELADA
+                      message: Sua autorização foi cancelada. Procure a administração.
+                FORA_DO_PERIODO:
+                  summary: FORA_DO_PERIODO — Fora das datas ou do horário (São Paulo, limites incluídos)
+                  value:
+                    error:
+                      code: FORA_DO_PERIODO
+                      message: Sua autorização não vale para esta data ou horário.
+                USOS_ESGOTADOS:
+                  summary: USOS_ESGOTADOS — Nenhuma autorização vigente tem usos restantes
+                  value:
+                    error:
+                      code: USOS_ESGOTADOS
+                      message: Você já usou todas as entradas desta autorização.
+                DISTANTE_DO_TERMINAL:
+                  summary: DISTANTE_DO_TERMINAL — Celular a mais de MAX_DISTANCE_M (100 m) do terminal
+                  value:
+                    error:
+                      code: DISTANTE_DO_TERMINAL
+                      message: Você está longe da catraca. Aproxime-se e tente de novo.
+                LOCALIZACAO_INVALIDA:
+                  summary: LOCALIZACAO_INVALIDA — Coordenadas ausentes (ou sem GPS utilizável no modo GPS)
+                  value:
+                    error:
+                      code: LOCALIZACAO_INVALIDA
+                      message: Não conseguimos confirmar sua localização. Ative o GPS e tente de novo.
+        '422':
+          $ref: '#/components/responses/QrValidateValidationError'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+        '500':
+          $ref: '#/components/responses/InternalError'
   /terminal/heartbeat:
     post:
       tags: [Terminal]
@@ -1927,6 +2068,62 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/ComandoTerminal'
+    ValidarQrRequest:
+      type: object
+      required: [payload]
+      properties:
+        payload:
+          type: string
+          pattern: '^ACS1:[A-Za-z0-9_-]{22}$'
+          description: O texto lido do QR Code do terminal, inteiro.
+        latitude:
+          type:
+            - number
+            - 'null'
+          minimum: -90
+          maximum: 90
+          description: Posição do celular. Ausente ou nula dá `LOCALIZACAO_INVALIDA`.
+        longitude:
+          type:
+            - number
+            - 'null'
+          minimum: -180
+          maximum: 180
+          description: Posição do celular. Ausente ou nula dá `LOCALIZACAO_INVALIDA`.
+        precisaoMetros:
+          type:
+            - number
+            - 'null'
+          minimum: 0
+          description: Precisão do GPS do celular, em metros. Fica no `detalhes` do evento.
+    AcessoAutorizado:
+      type: object
+      required: [resultado, mensagem, local, usosRestantes, distanciaM, ocorridoEm]
+      properties:
+        resultado:
+          type: string
+          enum: [AUTORIZADO]
+        mensagem:
+          type: string
+          example: Acesso autorizado. Pode passar.
+        local:
+          type: object
+          required: [nome]
+          properties:
+            nome:
+              type: string
+              description: Nome do ponto de acesso.
+        usosRestantes:
+          type: integer
+          minimum: 0
+          description: Usos que sobram na autorização usada, já descontado este.
+        distanciaM:
+          type: integer
+          description: Distância entre o celular e o terminal, arredondada ao metro.
+        ocorridoEm:
+          type: string
+          format: date-time
+          description: Instante da decisão, em UTC, ao segundo.
     ChaveDoTerminal:
       type: object
       required: [id, apiKey]
@@ -2144,6 +2341,16 @@ components:
                   CONFLICT,
                   RATE_LIMITED,
                   INTERNAL_ERROR,
+                  CREDENCIAL_INVALIDA,
+                  CREDENCIAL_EXPIRADA,
+                  CREDENCIAL_REUTILIZADA,
+                  USUARIO_INATIVO,
+                  SEM_AUTORIZACAO,
+                  AUTORIZACAO_CANCELADA,
+                  FORA_DO_PERIODO,
+                  USOS_ESGOTADOS,
+                  DISTANTE_DO_TERMINAL,
+                  LOCALIZACAO_INVALIDA,
                 ]
             message:
               type: string
@@ -2493,6 +2700,21 @@ components:
               details:
                 - field: limit
                   message: deve ser um número inteiro entre 1 e 100
+    QrValidateValidationError:
+      description: >-
+        `payload` fora do padrão `ACS1:` mais 22 caracteres, ou coordenadas fora da faixa, ou
+        `precisaoMetros` negativa. Não é uma tentativa de acesso: nenhum evento é gravado.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          example:
+            error:
+              code: VALIDATION_ERROR
+              message: Dados inválidos
+              details:
+                - field: payload
+                  message: 'deve ser o texto lido do QR Code do terminal (ACS1: e 22 caracteres)'
     CommandNotFound:
       description: >-
         O comando não existe, é de outro terminal ou o `id` não é um inteiro positivo (a mesma
