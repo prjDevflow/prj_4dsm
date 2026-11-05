@@ -195,7 +195,7 @@ Ordem de construção sugerida dentro do bloco: B11 e B12 (independentes) → B1
 
 **Peças**
 
-- `src/useCases/Access/ValidateQrAccess` (Controller, DTO, UseCase). Entrada: `userId` do token, `payload`, `latitude`, `longitude`, `precisaoMetros?`. Saída: `AccessDecision` (arquivo 01, seção 5).
+- `src/useCases/Access/ValidateQrAccess` (Controller, DTO, UseCase). Entrada: `userId` do token, `payload`, `latitude`, `longitude`, `precisaoMetros?`. Saída: `QrAccessDecision`, a variante da `AccessDecision` do arquivo 01, seção 5 com os dez motivos do QR; na aprovação traz também `distanceM`, `local` e `ocorridoEm`. A B17 define a do NFC.
 - Regras puras em `entities/rules`: `AccessEvaluator` (verificações 6 a 9), `haversineDistanceM`, `isWithinWindow`, `resolveReferencePosition` (B11).
 - Ports usados: `IQrCredentialRepository`, `IUserRepository`, `ITerminalRepository`, `IAccessPointRepository`, `IAuthorizationRepository.findByUserAndAccessPoint`, `IAccessGrantRepository.commitApproval`, `ITerminalCommandRepository`, `AccessEventRecorder`, `IClock`.
 - Rota com `authenticate({ allowInactive: true })` (para registrar o evento `USUARIO_INATIVO`) e limite de 10 validações por minuto por usuário (429).
