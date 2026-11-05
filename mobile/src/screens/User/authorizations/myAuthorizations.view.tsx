@@ -67,11 +67,13 @@ const AuthorizationCard = ({ card }: { card: AuthorizationCardData }) => {
         </Text>
         <Text variant="pessoaCorpoForte">{card.entradas}</Text>
       </View>
-      <ProgressBar
-        value={card.usosRestantes}
-        total={card.usosPermitidos}
-        accessibilityLabel="Entradas restantes"
-      />
+      {card.situacao === 'ATIVA' ? (
+        <ProgressBar
+          value={card.usosRestantes}
+          total={card.usosPermitidos}
+          accessibilityLabel="Entradas restantes"
+        />
+      ) : null}
     </Card>
   );
 };

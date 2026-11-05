@@ -93,6 +93,14 @@ describe('Minhas autorizações (T04)', () => {
     expect(screen.getByRole('button', { name: 'Ocultar anteriores (3)' })).toBeExpanded();
   });
 
+  it('nas anteriores não há barra: só as ativas mostram o que ainda resta', async () => {
+    await renderScreen();
+    await fireEvent.press(await screen.findByRole('button', { name: 'Ver anteriores (3)' }));
+
+    expect(screen.getAllByRole('progressbar', { name: 'Entradas restantes' })).toHaveLength(2);
+    expect(screen.getByText('Usadas 2 de 2')).toBeOnTheScreen();
+  });
+
   it('os quatro selos têm texto e ícone', async () => {
     await renderScreen();
     await fireEvent.press(await screen.findByRole('button', { name: 'Ver anteriores (3)' }));

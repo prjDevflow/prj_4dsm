@@ -13,6 +13,17 @@ export type MyAuthorizationsStatus = 'loading' | 'error' | 'empty' | 'ready';
 // The warning appears or goes away on its own while the screen stays open.
 const CLOCK_REFRESH_MS = 30_000;
 
+// "Restam" on one that no longer works would read as if it still did: past ones count what was used.
+const entriesText = ({
+  situacaoEfetiva,
+  usosRestantes,
+  usosRealizados,
+  usosPermitidos,
+}: Autorizacao) =>
+  situacaoEfetiva === 'ATIVA'
+    ? `${usosRestantes === 1 ? 'Resta' : 'Restam'} ${usosRestantes} de ${usosPermitidos}`
+    : `${usosRealizados === 1 ? 'Usada' : 'Usadas'} ${usosRealizados} de ${usosPermitidos}`;
+
 const toCard = (authorization: Autorizacao, now: Date) => {
   const { dataInicio, dataFim, horaInicio, horaFim, usosRestantes, usosPermitidos } = authorization;
   const situacao = authorization.situacaoEfetiva;
@@ -24,7 +35,7 @@ const toCard = (authorization: Autorizacao, now: Date) => {
     situacao,
     validade: `Válida de ${formatPeriod(dataInicio, dataFim)}`,
     horario: `Das ${horaInicio} às ${horaFim}`,
-    entradas: `${usosRestantes === 1 ? 'Resta' : 'Restam'} ${usosRestantes} de ${usosPermitidos}`,
+    entradas: entriesText(authorization),
     usosRestantes,
     usosPermitidos,
     foraDoHorario: situacao === 'ATIVA' && !isAllowedNow(authorization, now),

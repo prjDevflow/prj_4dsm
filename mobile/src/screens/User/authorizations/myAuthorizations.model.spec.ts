@@ -103,6 +103,21 @@ describe('useMyAuthorizationsModel', () => {
   });
 
   it.each([
+    ['EXPIRADA', 1, 'Usada 1 de 3'],
+    ['CANCELADA', 0, 'Usadas 0 de 3'],
+    ['ESGOTADA', 3, 'Usadas 3 de 3'],
+  ] as const)(
+    '%s conta as entradas usadas: "restam" numa que não vale mais pareceria que ainda vale',
+    async (situacaoEfetiva, usosRealizados, entradas) => {
+      const { result } = await setup([
+        { ...base, situacaoEfetiva, usosRealizados, usosRestantes: 3 - usosRealizados },
+      ]);
+
+      expect(result.current.anteriores[0].entradas).toBe(entradas);
+    },
+  );
+
+  it.each([
     ['antes da janela', '2026-10-21T10:59:00.000Z', true],
     ['no primeiro minuto', '2026-10-21T11:00:00.000Z', false],
     ['dentro da janela', '2026-10-21T18:00:00.000Z', false],
