@@ -333,6 +333,26 @@ describe('ValidateQrAccess', () => {
         reason: 'CREDENCIAL_EXPIRADA',
       });
     });
+
+    it('deve negar com CREDENCIAL_INVALIDA, e não com USUARIO_INATIVO, quando a credencial vale e o terminal e o usuário estão inativos', async () => {
+      const world = makeSut();
+      await world.seed();
+      await world.terminals.updateDetails(TERMINAL_ID, { ativo: false });
+      await world.users.save(makeUser({ id: USER_ID, ativo: false }));
+
+      expect(await world.validate()).toEqual({ granted: false, reason: 'CREDENCIAL_INVALIDA' });
+      expect(world.events.all()[0]?.motivo).toBe('CREDENCIAL_INVALIDA');
+    });
+
+    it('deve negar com CREDENCIAL_INVALIDA, e não com USUARIO_INATIVO, quando o ponto de acesso e o usuário estão inativos', async () => {
+      const world = makeSut();
+      await world.seed();
+      await world.accessPoints.save(makeAccessPoint({ id: POINT_ID, ativo: false }));
+      await world.users.save(makeUser({ id: USER_ID, ativo: false }));
+
+      expect(await world.validate()).toEqual({ granted: false, reason: 'CREDENCIAL_INVALIDA' });
+      expect(world.events.all()[0]?.motivo).toBe('CREDENCIAL_INVALIDA');
+    });
   });
 
   describe('verificação 5: usuário ativo', () => {
