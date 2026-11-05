@@ -622,6 +622,24 @@ describe('POST /api/v1/access/qr/validate', () => {
     });
   });
 
+  describe('quem consome vem só do token', () => {
+    it('ignora userId e usuarioId do corpo: credencial, uso e evento são de quem está logado', async () => {
+      const scene = await seedScene();
+      const someoneElse = await insertUser();
+
+      const res = await validate(scene, { userId: someoneElse.id, usuarioId: someoneElse.id });
+
+      expect(res.status).toBe(200);
+      expect(
+        await prisma.qrCredential.findUniqueOrThrow({ where: { id: scene.credential.id } }),
+      ).toMatchObject({ consumidoPorId: scene.user.id });
+      const stored = await events();
+      expect(stored).toHaveLength(1);
+      expect(stored[0]).toMatchObject({ usuarioId: scene.user.id });
+      expect(await usesOf(scene)).toBe(1);
+    });
+  });
+
   describe('limite de validações por minuto', () => {
     const limit = container.env.QR_VALIDATE_MAX_PER_MINUTE;
 
