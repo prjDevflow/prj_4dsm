@@ -47,8 +47,8 @@ O app abre no **login** (T02). Com a API real e o seed do backend, use:
 São as senhas públicas do `backend/.env.example`, só para desenvolvimento. A sessão fica guardada: ao
 reabrir o app, a abertura (T01) confere o token com `GET /auth/me` e leva direto ao início. Os blocos
 "Usuários" (F05), "Locais e terminais" (F06) e "Autorizações" (F07 e F08) do administrador abrem as
-telas de cadastro e consulta. Os outros blocos e os atalhos da pessoa abrem telas "Em breve" até as
-etapas seguintes.
+telas de cadastro e consulta. Na pessoa, "Minhas autorizações" (F09) mostra as autorizações dela, e o
+início conta as ativas. Os outros blocos e atalhos abrem telas "Em breve" até as etapas seguintes.
 
 A chave de um terminal novo (ou gerada de novo) aparece uma vez só, na tela "Chave do terminal". Ela não
 fica guardada no app: anote ou use "Copiar chave" antes de tocar em "Concluir".
@@ -92,10 +92,10 @@ administrador não desativa a si mesmo".
 "Catraca Social" tem autorização ativa (para ver a recusa ao desativá-la). `currentPosition` (localização
 do aparelho) e `clipboard` (área de transferência) também têm falsos, usados nos testes.
 
-`authorizations` troca juntos os quatro serviços de autorizações (criar, listar, obter e cancelar).
+`authorizations` troca juntos os serviços de autorizações (criar, listar, minhas, obter e cancelar).
 Eles guardam tudo em memória com as regras da API (pessoa e local ativos, datas, horários, de 1 a 1000
 usos e cancelamento idempotente), usando as mesmas pessoas e locais dos falsos `users` e `locations`, e
-já vêm com exemplos das quatro situações.
+já vêm com exemplos das quatro situações, inclusive para `visitante@dev.local`.
 
 ## Tema e componentes
 

@@ -126,17 +126,18 @@ Outros: 401 (sessão), 422 `VALIDATION_ERROR` (payload fora do formato; não dev
 
 **Lista de testes**
 
-- [ ] U formatters: datas, horas e instantes em São Paulo (inclusive um instante perto da meia-noite UTC).
-- [ ] U model: separa ativas e anteriores pela `situacaoEfetiva`; ativas primeiro.
-- [ ] U model: aviso de fora do horário com o relógio antes, dentro e depois da janela (limites inclusivos).
-- [ ] U tela: os quatro selos (Ativa, Cancelada, Expirada, Esgotada) com texto e ícone; lista vazia; erro com "Tentar novamente".
+- [x] U formatters: datas, horas e instantes em São Paulo (inclusive um instante perto da meia-noite UTC).
+- [x] U model: separa ativas e anteriores pela `situacaoEfetiva`; ativas primeiro.
+- [x] U model: aviso de fora do horário com o relógio antes, dentro e depois da janela (limites inclusivos).
+- [x] U tela: os quatro selos (Ativa, Cancelada, Expirada, Esgotada) com texto e ícone; lista vazia; erro com "Tentar novamente".
 
 **Critérios de aceitação**
 
-- [ ] A pessoa vê **só** as próprias autorizações (confira com o visitante e o condômino do seed).
-- [ ] Ativas primeiro; o resto em "Anteriores".
-- [ ] Datas e horas em `dd/MM/aaaa` e `HH:mm`, fuso de São Paulo.
-- [ ] "Abrir catraca" leva ao leitor.
+- [x] A pessoa vê **só** as próprias autorizações (confira com o visitante e o condômino do seed). (05/11, API real: o visitante vê as dele, mesmo pedindo o `usuarioId` de outra pessoa; o condômino vê a tela vazia; sair e entrar com outra conta não mostra as da anterior)
+- [x] Ativas primeiro; o resto em "Anteriores".
+- [x] Os selos usam texto, ícone e cor.
+- [x] Datas e horas em `dd/MM/aaaa` e `HH:mm`, fuso de São Paulo. (a validade segue o Figma, "Válida de 20/10 a 25/10", com o ano só quando o período cruza o ano; conferido com o emulador em UTC)
+- [ ] "Abrir catraca" leva ao leitor. (leva ao "Em breve" do leitor; o leitor é a F10)
 
 **Definição de pronto**
 
