@@ -230,6 +230,32 @@ describe('parseEnv', () => {
     }
   });
 
+  it('deve usar 10 como padrão de QR_VALIDATE_MAX_PER_MINUTE e converter para número', () => {
+    expect(parseEnv(validSource).QR_VALIDATE_MAX_PER_MINUTE).toBe(10);
+    expect(
+      parseEnv({ ...validSource, QR_VALIDATE_MAX_PER_MINUTE: '3' }).QR_VALIDATE_MAX_PER_MINUTE,
+    ).toBe(3);
+  });
+
+  it('deve rejeitar QR_VALIDATE_MAX_PER_MINUTE zero, negativo, decimal ou não numérico', () => {
+    for (const value of ['0', '-1', 'abc', '2.5']) {
+      expect(() => parseEnv({ ...validSource, QR_VALIDATE_MAX_PER_MINUTE: value })).toThrow(
+        /QR_VALIDATE_MAX_PER_MINUTE/,
+      );
+    }
+  });
+
+  it('deve usar 100 m como padrão de MAX_DISTANCE_M e converter para número', () => {
+    expect(parseEnv(validSource).MAX_DISTANCE_M).toBe(100);
+    expect(parseEnv({ ...validSource, MAX_DISTANCE_M: '50' }).MAX_DISTANCE_M).toBe(50);
+  });
+
+  it('deve rejeitar MAX_DISTANCE_M zero, negativo, decimal ou não numérico', () => {
+    for (const value of ['0', '-1', 'abc', '2.5']) {
+      expect(() => parseEnv({ ...validSource, MAX_DISTANCE_M: value })).toThrow(/MAX_DISTANCE_M/);
+    }
+  });
+
   it('deve aceitar tolerância do QR igual a zero e rejeitar negativa, decimal ou não numérica', () => {
     expect(parseEnv({ ...validSource, QR_TOLERANCE_SECONDS: '0' }).QR_TOLERANCE_SECONDS).toBe(0);
     for (const value of ['-1', 'abc', '2.5']) {

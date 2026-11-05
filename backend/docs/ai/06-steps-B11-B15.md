@@ -119,21 +119,21 @@ Ordem de construção sugerida dentro do bloco: B11 e B12 (independentes) → B1
 - [x] U `AccessEventRecorder`: se o repositório lançar erro, registra no log (com contexto) e **não** propaga; a negação segue.
 - [x] U `AccessEvent.approved`: monta o evento com `metodo`, `distanciaM` e `detalhes` sem token, chave ou senha.
 - [x] U credencial desconhecida: `terminalId` nulo e `detalhes` com prefixo do hash de no máximo 8 caracteres, sem o token.
-- [ ] ➡️ B15 · U `InMemoryAccessGrantRepository.commitApproval` com falha injetada no evento: o uso **não** é consumido e a credencial **não** é marcada (all-or-nothing). _O port nasce na B15 (decisão de 2026-11-03)._
-- [ ] ➡️ B15 · I falha de gravação do evento na aprovação (falha injetada dentro da transação): resposta 500 e `usosRealizados` intacto. _Precisa da rota e do `commitApproval`._
-- [x] I falha de gravação do evento numa negação: a negação segue (provado no recorder com falha real do PostgreSQL; a resposta HTTP é conferida na B15).
+- [x] ➡️ B15 · U `InMemoryAccessGrantRepository.commitApproval` com falha injetada no evento: o uso **não** é consumido e a credencial **não** é marcada (all-or-nothing). _Feito na B15 (`src/repositories/InMemoryAccessGrantRepository.spec.ts`)._
+- [x] ➡️ B15 · I falha de gravação do evento na aprovação (falha injetada dentro da transação): resposta 500 e `usosRealizados` intacto. _Feito na B15 (`accessQrValidate.test.ts`, com um gatilho do PostgreSQL que recusa o evento) e no repositório (`accessGrantRepository.test.ts`)._
+- [x] I falha de gravação do evento numa negação: a negação segue (provado no recorder com falha real do PostgreSQL; a resposta HTTP foi conferida na B15).
 - [x] I não existe rota que edite ou apague eventos (`PATCH` e `DELETE` em `/access-events/:id` → 404).
 
 **Critérios de aceitação**
 
 - [x] Um teste para cada motivo da seção 4.4 do arquivo 03 confirma que **exatamente um** evento foi criado.
-- [ ] ➡️ B15 · Simular falha de gravação na aprovação: o uso **não** é consumido e a resposta é 500.
-- [x] Simular falha de gravação na negação: a negação segue (no recorder; a resposta HTTP é conferida na B15).
+- [x] ➡️ B15 · Simular falha de gravação na aprovação: o uso **não** é consumido e a resposta é 500.
+- [x] Simular falha de gravação na negação: a negação segue (no recorder; a resposta HTTP foi conferida na B15).
 - [x] Nenhum evento guarda token, chave ou senha.
 
 **Definição de pronto**
 
-- [ ] Testes unitários do recorder e de integração das duas situações de falha. _Negação feita; aprovação ➡️ B15._
+- [x] Testes unitários do recorder e de integração das duas situações de falha. _Negação na B13; aprovação na B15._
 - [x] Tabela "campo × quando é nulo" em `docs/eventos-campos.md` para o Pedro (F12) saber o que esperar.
 
 ---
@@ -195,7 +195,7 @@ Ordem de construção sugerida dentro do bloco: B11 e B12 (independentes) → B1
 
 **Peças**
 
-- `src/useCases/Access/ValidateQrAccess` (Controller, DTO, UseCase). Entrada: `userId` do token, `payload`, `latitude`, `longitude`, `precisaoMetros?`. Saída: `AccessDecision` (arquivo 01, seção 5).
+- `src/useCases/Access/ValidateQrAccess` (Controller, DTO, UseCase). Entrada: `userId` do token, `payload`, `latitude`, `longitude`, `precisaoMetros?`. Saída: `QrAccessDecision`, a variante da `AccessDecision` do arquivo 01, seção 5 com os dez motivos do QR; na aprovação traz também `distanceM`, `local` e `ocorridoEm`. A B17 define a do NFC.
 - Regras puras em `entities/rules`: `AccessEvaluator` (verificações 6 a 9), `haversineDistanceM`, `isWithinWindow`, `resolveReferencePosition` (B11).
 - Ports usados: `IQrCredentialRepository`, `IUserRepository`, `ITerminalRepository`, `IAccessPointRepository`, `IAuthorizationRepository.findByUserAndAccessPoint`, `IAccessGrantRepository.commitApproval`, `ITerminalCommandRepository`, `AccessEventRecorder`, `IClock`.
 - Rota com `authenticate({ allowInactive: true })` (para registrar o evento `USUARIO_INATIVO`) e limite de 10 validações por minuto por usuário (429).
@@ -203,7 +203,7 @@ Ordem de construção sugerida dentro do bloco: B11 e B12 (independentes) → B1
 **Regras**
 
 - Ordem das 11 verificações: tabela da seção 5.1 do arquivo 03. A primeira que falhar define o motivo.
-- Corpo: `payload` bate com `^ACS1:[A-Za-z0-9_-]{22}$`; `latitude` e `longitude` numéricas dentro da faixa; `precisaoMetros` opcional. Payload fora do padrão é 422 (não gera tentativa de credencial). Coordenadas ausentes ou inválidas **dentro de um QR bem formado** → decisão `LOCALIZACAO_INVALIDA`.
+- Corpo: `payload` bate com `^ACS1:[A-Za-z0-9_-]{22}$`; `latitude` e `longitude` numéricas dentro da faixa; `precisaoMetros` opcional. Payload fora do padrão é 422 (não gera tentativa de credencial). Coordenadas ausentes ou nulas **dentro de um QR bem formado** → decisão `LOCALIZACAO_INVALIDA`; fora da faixa ou não numéricas → 422.
 - Mais de uma autorização elegível → usar a de `dataFim` mais próxima.
 - **Aprovação em uma única transação** via `commitApproval`: (1) consumir a credencial, se `consumidoEm` é nulo, senão `CREDENCIAL_REUTILIZADA`; (2) consumir um uso, se `situacao = ATIVA` e `usosRealizados < usosPermitidos`, senão `USOS_ESGOTADOS`; (3) inserir evento `AUTORIZADO`; (4) inserir comando `ABRIR`.
 - **Negação:** evento `NEGADO` com o motivo e, se o terminal foi identificado, comando `NEGAR` com o motivo. O QR **não** é consumido (a pessoa pode se aproximar e tentar de novo dentro da validade).
@@ -230,52 +230,52 @@ Negação 403: `{ "error": { "code": "DISTANTE_DO_TERMINAL", "message": "Você e
 
 Unidade, `AccessEvaluator` e `haversineDistanceM`:
 
-- [ ] U distância: 99 m passa e 101 m não, com o limite padrão; valor conhecido entre dois pontos de referência.
-- [ ] U janela: exatamente `horaInicio` e exatamente `horaFim` passam; um minuto antes e um minuto depois não.
-- [ ] U período: último dia vale; dia seguinte não; antes do início não.
-- [ ] U várias autorizações: escolhe a de `dataFim` mais próxima entre as elegíveis.
+- [x] U distância: 99 m passa e 101 m não, com o limite padrão; valor conhecido entre dois pontos de referência.
+- [x] U janela: exatamente `horaInicio` e exatamente `horaFim` passam; um minuto antes e um minuto depois não.
+- [x] U período: último dia vale; dia seguinte não; antes do início não.
+- [x] U várias autorizações: escolhe a de `dataFim` mais próxima entre as elegíveis.
 
 Unidade, `ValidateQrAccess` (um teste por linha):
 
-- [ ] U caminho feliz: autoriza, chama `commitApproval` uma vez, devolve `usosRestantes` e `distanceM`.
-- [ ] U credencial desconhecida → `CREDENCIAL_INVALIDA`; já consumida → `CREDENCIAL_REUTILIZADA`; vencida → `CREDENCIAL_EXPIRADA` (`FakeClock`: T+15 s passa, T+16 s não).
-- [ ] U terminal ou ponto de acesso inativo → `CREDENCIAL_INVALIDA`.
-- [ ] U usuário inativo → `USUARIO_INATIVO`.
-- [ ] U sem autorização para o ponto → `SEM_AUTORIZACAO`; só canceladas → `AUTORIZACAO_CANCELADA`.
-- [ ] U fora da data ou do horário → `FORA_DO_PERIODO`; sem usos → `USOS_ESGOTADOS`.
-- [ ] U coordenadas ausentes → `LOCALIZACAO_INVALIDA`; distância acima do limite → `DISTANTE_DO_TERMINAL`.
-- [ ] U precedência: credencial expirada e usuário inativo ao mesmo tempo → `CREDENCIAL_EXPIRADA` (ordem da tabela).
-- [ ] U toda negação grava **um** evento `NEGADO` e, com terminal identificado, **um** comando `NEGAR`; nenhuma consome credencial ou uso.
-- [ ] U `commitApproval` devolvendo `CREDENCIAL_REUTILIZADA` ou `USOS_ESGOTADOS` (corrida perdida) vira a negação correspondente, com evento.
-- [ ] U `commitApproval` lançando erro → a exceção sobe (500) e nenhum comando `ABRIR` existe.
-- [ ] U (vindo da B13) `InMemoryAccessGrantRepository.commitApproval` com falha injetada no evento: o uso **não** é consumido e a credencial **não** é marcada (all-or-nothing).
+- [x] U caminho feliz: autoriza, chama `commitApproval` uma vez, devolve `usosRestantes` e `distanceM`.
+- [x] U credencial desconhecida → `CREDENCIAL_INVALIDA`; já consumida → `CREDENCIAL_REUTILIZADA`; vencida → `CREDENCIAL_EXPIRADA` (`FakeClock`: T+15 s passa, T+16 s não).
+- [x] U terminal ou ponto de acesso inativo → `CREDENCIAL_INVALIDA`.
+- [x] U usuário inativo → `USUARIO_INATIVO`.
+- [x] U sem autorização para o ponto → `SEM_AUTORIZACAO`; só canceladas → `AUTORIZACAO_CANCELADA`.
+- [x] U fora da data ou do horário → `FORA_DO_PERIODO`; sem usos → `USOS_ESGOTADOS`.
+- [x] U coordenadas ausentes → `LOCALIZACAO_INVALIDA`; distância acima do limite → `DISTANTE_DO_TERMINAL`.
+- [x] U precedência: credencial expirada e usuário inativo ao mesmo tempo → `CREDENCIAL_EXPIRADA` (ordem da tabela).
+- [x] U toda negação grava **um** evento `NEGADO` e, com terminal identificado, **um** comando `NEGAR`; nenhuma consome credencial ou uso.
+- [x] U `commitApproval` devolvendo `CREDENCIAL_REUTILIZADA` ou `USOS_ESGOTADOS` (corrida perdida) vira a negação correspondente, com evento.
+- [x] U `commitApproval` lançando erro → a exceção sobe (500) e nenhum comando `ABRIR` existe.
+- [x] U (vindo da B13) `InMemoryAccessGrantRepository.commitApproval` com falha injetada no evento: o uso **não** é consumido e a credencial **não** é marcada (all-or-nothing).
 
 Integração (as colunas U e I da seção 9.1 do arquivo 03):
 
-- [ ] I os casos 1 a 12 retornam o status e o `code` certos e gravam **um** evento cada.
-- [ ] I caso 13: duas requisições simultâneas com o **mesmo** QR → uma 200 e uma 403 `CREDENCIAL_REUTILIZADA`; um uso consumido; dois eventos.
-- [ ] I duas requisições simultâneas com **QRs diferentes** e um uso restante → uma aprovada e outra `USOS_ESGOTADOS`.
-- [ ] I usuário inativo com token válido recebe `USUARIO_INATIVO` e o evento é gravado.
-- [ ] I caso 14: sem token → 401 (sem evento, ver ADR).
-- [ ] I payload fora do padrão → 422; coordenadas fora da faixa → 422; 11ª validação no minuto → 429.
-- [ ] I resposta em menos de 500 ms no ambiente local (medir no teste e registrar).
-- [ ] I (vindo da B13) falha de gravação do evento na aprovação (falha injetada dentro da transação): resposta 500 e `usosRealizados` intacto; falha na gravação do evento numa negação: a resposta continua sendo a negação correta.
+- [x] I os casos 1 a 12 retornam o status e o `code` certos e gravam **um** evento cada.
+- [x] I caso 13: duas requisições simultâneas com o **mesmo** QR → uma 200 e uma 403 `CREDENCIAL_REUTILIZADA`; um uso consumido; dois eventos.
+- [x] I duas requisições simultâneas com **QRs diferentes** e um uso restante → uma aprovada e outra `USOS_ESGOTADOS`.
+- [x] I usuário inativo com token válido recebe `USUARIO_INATIVO` e o evento é gravado.
+- [x] I caso 14: sem token → 401 (sem evento, ver ADR).
+- [x] I payload fora do padrão → 422; coordenadas fora da faixa → 422; 11ª validação no minuto → 429.
+- [x] I resposta em menos de 500 ms no ambiente local (medir no teste e registrar).
+- [x] I (vindo da B13) falha de gravação do evento na aprovação (falha injetada dentro da transação): resposta 500 e `usosRealizados` intacto; falha na gravação do evento numa negação: a resposta continua sendo a negação correta.
 
 **Critérios de aceitação**
 
-- [ ] Caminho feliz: autoriza, consome **um** uso, grava **um** evento `AUTORIZADO` e cria o comando `ABRIR`.
-- [ ] Cada motivo da tabela tem um teste de integração que retorna 403 com o código certo, grava **um** evento `NEGADO` e (quando há terminal) cria o comando `NEGAR`.
-- [ ] Concorrência 1: duas requisições simultâneas com o **mesmo** QR → só uma aprovada, a outra `CREDENCIAL_REUTILIZADA`.
-- [ ] Concorrência 2: duas requisições simultâneas com **QRs diferentes** e apenas 1 uso restante → só uma aprovada, a outra `USOS_ESGOTADOS`.
-- [ ] Limites de horário testados: exatamente `horaInicio` e exatamente `horaFim` passam; um minuto fora, não.
-- [ ] Distância testada com valores conhecidos (99 m passa e 101 m não, com o limite padrão).
-- [ ] Usuário inativo com token válido recebe `USUARIO_INATIVO` e o evento é gravado.
-- [ ] Meta de desempenho: resposta abaixo de 500 ms no ambiente local.
-- [ ] (vindo da B13) Falha de gravação do evento na aprovação: o uso **não** é consumido e a resposta é 500; falha na gravação do evento numa negação: a resposta continua sendo a negação correta.
+- [x] Caminho feliz: autoriza, consome **um** uso, grava **um** evento `AUTORIZADO` e cria o comando `ABRIR`.
+- [x] Cada motivo da tabela tem um teste de integração que retorna 403 com o código certo, grava **um** evento `NEGADO` e (quando há terminal) cria o comando `NEGAR`.
+- [x] Concorrência 1: duas requisições simultâneas com o **mesmo** QR → só uma aprovada, a outra `CREDENCIAL_REUTILIZADA`.
+- [x] Concorrência 2: duas requisições simultâneas com **QRs diferentes** e apenas 1 uso restante → só uma aprovada, a outra `USOS_ESGOTADOS`.
+- [x] Limites de horário testados: exatamente `horaInicio` e exatamente `horaFim` passam; um minuto fora, não.
+- [x] Distância testada com valores conhecidos (99 m passa e 101 m não, com o limite padrão).
+- [x] Usuário inativo com token válido recebe `USUARIO_INATIVO` e o evento é gravado.
+- [x] Meta de desempenho: resposta abaixo de 500 ms no ambiente local.
+- [x] (vindo da B13) Falha de gravação do evento na aprovação: o uso **não** é consumido e a resposta é 500; falha na gravação do evento numa negação: a resposta continua sendo a negação correta.
 
 **Definição de pronto**
 
-- [ ] Os 15 casos de teste da seção 9.1 do arquivo 03 estão automatizados.
-- [ ] O Swagger traz um exemplo para cada um dos 10 motivos de negação do QR (as 11 verificações usam 10 códigos).
-- [ ] Teste manual completo com o terminal virtual ou o físico.
+- [x] Os 15 casos de teste da seção 9.1 do arquivo 03 estão automatizados.
+- [x] O Swagger traz um exemplo para cada um dos 10 motivos de negação do QR (as 11 verificações usam 10 códigos).
+- [ ] Teste manual completo com o terminal virtual ou o físico. _Feito com `curl` e `dev:qr` contra o servidor real (aprovação, reuso, distância, 401, 422 e os comandos que o terminal lê); falta com o terminal do Matheus._
 - [ ] Pedro avisado (★).

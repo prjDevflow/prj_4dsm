@@ -24,24 +24,28 @@ const withRelations = {
 type AuthorizationRow = Prisma.AuthorizationGetPayload<{ include: typeof withRelations }>;
 
 // Explicit mapping, so a column added later never reaches the entity by accident.
+const toAuthorization = (
+  row: Prisma.AuthorizationGetPayload<Record<string, never>>,
+): Authorization => ({
+  id: row.id,
+  usuarioId: row.usuarioId,
+  accessPointId: row.accessPointId,
+  dataInicio: row.dataInicio.toISOString().slice(0, 10),
+  dataFim: row.dataFim.toISOString().slice(0, 10),
+  horaInicio: row.horaInicio,
+  horaFim: row.horaFim,
+  usosPermitidos: row.usosPermitidos,
+  usosRealizados: row.usosRealizados,
+  situacao: row.situacao,
+  criadoPorId: row.criadoPorId,
+  criadoEm: row.criadoEm,
+  canceladoPorId: row.canceladoPorId,
+  canceladoEm: row.canceladoEm,
+  motivoCancelamento: row.motivoCancelamento,
+});
+
 const toDetails = (row: AuthorizationRow): AuthorizationDetails => ({
-  authorization: {
-    id: row.id,
-    usuarioId: row.usuarioId,
-    accessPointId: row.accessPointId,
-    dataInicio: row.dataInicio.toISOString().slice(0, 10),
-    dataFim: row.dataFim.toISOString().slice(0, 10),
-    horaInicio: row.horaInicio,
-    horaFim: row.horaFim,
-    usosPermitidos: row.usosPermitidos,
-    usosRealizados: row.usosRealizados,
-    situacao: row.situacao,
-    criadoPorId: row.criadoPorId,
-    criadoEm: row.criadoEm,
-    canceladoPorId: row.canceladoPorId,
-    canceladoEm: row.canceladoEm,
-    motivoCancelamento: row.motivoCancelamento,
-  },
+  authorization: toAuthorization(row),
   usuario: row.usuario,
   local: {
     id: row.accessPoint.id,
@@ -140,6 +144,14 @@ export class PrismaAuthorizationRepository implements IAuthorizationRepository {
           usosRealizados: { lt: usosPermitidos },
         };
     }
+  }
+
+  async findByUserAndAccessPoint(userId: string, accessPointId: string) {
+    const rows = await this.prisma.authorization.findMany({
+      where: { usuarioId: userId, accessPointId },
+      orderBy: [{ dataFim: 'asc' }, { id: 'asc' }],
+    });
+    return rows.map(toAuthorization);
   }
 
   async cancelIfActive(input: {

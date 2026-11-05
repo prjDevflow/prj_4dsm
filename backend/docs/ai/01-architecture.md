@@ -215,9 +215,10 @@ Pure rules (`entities/rules`) receive everything as arguments, including `now: D
 export interface IAccessGrantRepository {
   commitApproval(input: {
     credentialId: string;
+    userId: string;           // stored as consumidoPorId
     authorizationId: string;
     now: Date;
-    event: NewAccessEvent;
+    event: AccessEvent;       // the AUTORIZADO event, already built
     command: NewTerminalCommand;
   }): Promise<
     | { ok: true; usosRestantes: number }

@@ -41,6 +41,26 @@ export class InMemoryQrCredentialRepository implements IQrCredentialRepository {
     return [...this.items.values()].map((item) => ({ ...item }));
   }
 
+  /**
+   * Not part of the port: marks an unused credential as used, as the approval does. False when it was
+   * already used (the real conditional write cannot tell that from an unknown id either).
+   */
+  consumeIfUnused(id: string, userId: string, at: Date) {
+    const item = this.items.get(id);
+    if (!item || item.consumidoEm !== null) return false;
+    this.items.set(id, { ...item, consumidoEm: at, consumidoPorId: userId });
+    return true;
+  }
+
+  /** Not part of the port: the state to go back to when an approval fails halfway. */
+  snapshot() {
+    return new Map(this.items);
+  }
+
+  restore(snapshot: Map<string, QrCredential>) {
+    this.items = new Map(snapshot);
+  }
+
   /** Puts a credential in without the rate-limit check, to set the scene of a test. */
   seed(credential: QrCredential) {
     this.items.set(credential.id, { ...credential });

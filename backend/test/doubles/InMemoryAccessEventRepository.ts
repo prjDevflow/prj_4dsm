@@ -15,6 +15,15 @@ export class InMemoryAccessEventRepository implements IAccessEventRepository {
     this.failure = error;
   }
 
+  /** Not part of the port: the state to go back to when an approval fails halfway. */
+  snapshot() {
+    return [...this.items];
+  }
+
+  restore(snapshot: AccessEvent[]) {
+    this.items = [...snapshot];
+  }
+
   /** Everything stored, for assertions. */
   all() {
     return this.items.map((item) => ({ ...item }));

@@ -10,7 +10,32 @@ const base = {
   usuarioId: '00000000-0000-4000-8000-0000000000c1',
 };
 
+const AUTHORIZATION_ID = '00000000-0000-4000-8000-0000000000d1';
+
 describe('AccessEvent.approved', () => {
+  // Checked by `npm run typecheck`: if the types get loose again, the directives below become unused errors.
+  it('deve exigir terminal, ponto, usuário e autorização numa aprovação', () => {
+    const full = { ...base, authorizationId: AUTHORIZATION_ID };
+
+    // @ts-expect-error uma aprovação sempre tem a autorização que consumiu
+    AccessEvent.approved({ ...full, authorizationId: null });
+    // @ts-expect-error uma aprovação sempre vem de um terminal
+    AccessEvent.approved({ ...full, terminalId: null });
+    // @ts-expect-error uma aprovação sempre tem o ponto de acesso
+    AccessEvent.approved({ ...full, accessPointId: null });
+    // @ts-expect-error uma aprovação sempre tem o usuário
+    AccessEvent.approved({ ...full, usuarioId: null });
+  });
+
+  it('não deve aceitar o hash de uma credencial desconhecida numa aprovação', () => {
+    AccessEvent.approved({
+      ...base,
+      authorizationId: AUTHORIZATION_ID,
+      // @ts-expect-error só a negação de uma credencial desconhecida guarda o hash
+      credencialHash: 'abcdef01',
+    });
+  });
+
   it('deve montar um evento AUTORIZADO com método, ids, distância e autorização, sem motivo', () => {
     const event = AccessEvent.approved({
       ...base,
@@ -61,7 +86,9 @@ describe('detalhes do evento', () => {
     const event = AccessEvent.denied(input);
 
     expect(event.detalhes).toEqual({ precisaoMetros: 5 });
-    expect(JSON.stringify(event)).not.toMatch(/q3F8k2Zr1pLw9XbTn0YhVA|chave-do-terminal|Senha-Valida/);
+    expect(JSON.stringify(event)).not.toMatch(
+      /q3F8k2Zr1pLw9XbTn0YhVA|chave-do-terminal|Senha-Valida/,
+    );
   });
   it('deve guardar só 8 caracteres do hash de uma credencial desconhecida, com terminal e ponto nulos', () => {
     const hash = 'abcdef0123456789'.repeat(4);
@@ -81,19 +108,29 @@ describe('detalhes do evento', () => {
   });
 
   it('deve guardar o hash inteiro quando ele tem menos de 8 caracteres', () => {
-    const event = AccessEvent.denied({ ...base, motivo: 'CREDENCIAL_INVALIDA', credencialHash: 'abc' });
+    const event = AccessEvent.denied({
+      ...base,
+      motivo: 'CREDENCIAL_INVALIDA',
+      credencialHash: 'abc',
+    });
 
     expect(event.detalhes).toEqual({ credencialHashPrefixo: 'abc' });
   });
 
   it('deve guardar a precisão do GPS do celular em detalhes', () => {
-    const event = AccessEvent.approved({ ...base, precisaoMetros: 12.5 });
+    const event = AccessEvent.approved({
+      ...base,
+      authorizationId: AUTHORIZATION_ID,
+      precisaoMetros: 12.5,
+    });
 
     expect(event.detalhes).toEqual({ precisaoMetros: 12.5 });
   });
 
   it('deve deixar detalhes nulo quando não há precisão nem hash', () => {
-    expect(AccessEvent.approved(base).detalhes).toBeNull();
+    expect(
+      AccessEvent.approved({ ...base, authorizationId: AUTHORIZATION_ID }).detalhes,
+    ).toBeNull();
     expect(AccessEvent.denied({ ...base, motivo: 'SEM_AUTORIZACAO' }).detalhes).toBeNull();
   });
 });

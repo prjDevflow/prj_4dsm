@@ -20,11 +20,11 @@ Vale para todas as tentativas:
 | `usuarioId` | UUID | QR: nunca, porque o app sempre está logado (vale também para conta inativa e para QR desconhecido). NFC: nulo só em `TAG_DESCONHECIDA`. |
 | `terminalId` | UUID | QR: nulo quando o QR não existe (`CREDENCIAL_INVALIDA` por hash desconhecido); preenchido nos demais casos. NFC: nunca, o terminal se autentica. |
 | `accessPointId` | UUID | Igual ao `terminalId`: o ponto vem do terminal. |
-| `authorizationId` | UUID | Preenchido quando `AUTORIZADO`. Nulo nas negações que acontecem antes de olhar as autorizações (credencial, usuário inativo, `SEM_AUTORIZACAO`, tag). Nas demais negações de autorização, a regra de qual autorização gravar fecha na B15. |
-| `distanciaM` | número, em metros | Só existe no QR. Nulo no NFC e nas negações que acontecem antes de medir a distância. Preenchido quando `AUTORIZADO` e em `DISTANTE_DO_TERMINAL`. |
+| `authorizationId` | UUID | Preenchido quando `AUTORIZADO` e nas negações que já escolheram a autorização: `DISTANTE_DO_TERMINAL` e `LOCALIZACAO_INVALIDA`. Nulo em todas as outras: credencial (inclusive `CREDENCIAL_REUTILIZADA` e `USOS_ESGOTADOS` que vêm de uma corrida), `USUARIO_INATIVO`, `SEM_AUTORIZACAO`, `AUTORIZACAO_CANCELADA`, `FORA_DO_PERIODO` e `USOS_ESGOTADOS`, e as negações de tag. Um mesmo motivo grava sempre os mesmos campos. |
+| `distanciaM` | número, em metros | Só existe no QR. Preenchido quando `AUTORIZADO` e em `DISTANTE_DO_TERMINAL`, com o valor exato (a resposta da validação o arredonda ao metro). Nulo no NFC e em todas as outras negações, inclusive `LOCALIZACAO_INVALIDA` (sem posição não há distância). |
 | `detalhes` | objeto ou nulo | Nulo quando não há nada a guardar. Chaves possíveis abaixo. |
 
-As linhas de `authorizationId` e `distanciaM` descrevem o que a B15 vai gravar; a B13 entrega a estrutura e a B15 as confirma com testes de integração.
+As linhas de `authorizationId` e `distanciaM` são as que a B15 grava e que os testes de integração de `POST /access/qr/validate` confirmam.
 
 ## Chaves de `detalhes`
 

@@ -183,10 +183,12 @@ A primeira verificação que falhar define o motivo.
 | 7 | Há alguma não cancelada | `AUTORIZACAO_CANCELADA` |
 | 8 | Alguma dentro de `dataInicio..dataFim` e de `horaInicio..horaFim` (inclusivo, São Paulo) | `FORA_DO_PERIODO` |
 | 9 | Alguma com usos restantes | `USOS_ESGOTADOS` |
-| 10 | Coordenadas presentes e válidas | `LOCALIZACAO_INVALIDA` |
+| 10 | Coordenadas presentes (ausentes ou nulas) | `LOCALIZACAO_INVALIDA` |
 | 11 | Distância (Haversine) até a posição de referência do terminal no máximo `MAX_DISTANCE_M` | `DISTANTE_DO_TERMINAL` |
 
 Se houver mais de uma autorização elegível, usar a de `dataFim` mais próxima. As verificações 6 a 9 são o `AccessEvaluator`, reaproveitado pelo NFC.
+
+Coordenadas que o app **não envia** (ausentes ou `null`) dentro de um QR bem formado são a negação `LOCALIZACAO_INVALIDA` (403, com evento). Coordenadas **fora da faixa** (latitude de -90 a 90, longitude de -180 a 180) ou que não são números são erro de formato do corpo: 422 `VALIDATION_ERROR`, antes desta ordem, sem evento e sem consumir a credencial. Decisão da B15, a confirmar com o Pedro (pergunta #12 do `STATUS.md`).
 
 ### 5.2 Ordem do NFC (`POST /terminal/nfc`)
 
@@ -276,7 +278,7 @@ Cada linha precisa de teste automatizado (U = unidade com doubles; I = integraç
 | 8 | Dentro do período, fora do horário | `FORA_DO_PERIODO` | U e I |
 | 9 | Usos esgotados | `USOS_ESGOTADOS` | U e I |
 | 10 | Distância acima do limite (99 m passa, 101 m não) | `DISTANTE_DO_TERMINAL` | U e I |
-| 11 | Coordenadas ausentes ou inválidas | `LOCALIZACAO_INVALIDA` | U e I |
+| 11 | Coordenadas ausentes ou nulas (fora da faixa ou não numéricas: 422, sem evento) | `LOCALIZACAO_INVALIDA` | U e I |
 | 12 | Usuário inativo | `USUARIO_INATIVO` | U e I |
 | 13 | Duas leituras simultâneas com um uso restante | Só uma aprovada | **I** |
 | 14 | Sem autenticação | 401 | I |

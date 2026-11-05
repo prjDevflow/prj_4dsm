@@ -4,8 +4,15 @@ import type { ITerminalCommandRepository } from '../../src/repositories/ITermina
 export class InMemoryTerminalCommandRepository implements ITerminalCommandRepository {
   private items = new Map<number, TerminalCommand>();
   private lastId = 0;
+  private failure: Error | null = null;
+
+  /** Makes every following `create` fail with `error`, like a database that stopped answering. */
+  failWith(error: Error) {
+    this.failure = error;
+  }
 
   async create(command: NewTerminalCommand) {
+    if (this.failure) throw this.failure;
     // Like the serial column: increasing, never reused.
     this.lastId += 1;
     const stored: TerminalCommand = {
@@ -54,6 +61,18 @@ export class InMemoryTerminalCommandRepository implements ITerminalCommandReposi
       }
     }
     return deleted;
+  }
+
+  /**
+   * Not part of the port: the state to go back to when an approval fails halfway. The id counter is
+   * not restored, like a serial column: a rolled back insert still used its number.
+   */
+  snapshot() {
+    return new Map(this.items);
+  }
+
+  restore(snapshot: Map<number, TerminalCommand>) {
+    this.items = new Map(snapshot);
   }
 
   /** Everything stored, for assertions. */

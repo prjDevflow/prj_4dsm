@@ -106,6 +106,10 @@ const EnvSchema = z.object({
     })
     .default('GPS_COM_FALLBACK'),
   GPS_MAX_AGE_MIN: positiveInt(10),
+  // QR validation (B15): validations per minute for each user, and the largest distance in meters
+  // between the phone and the terminal.
+  QR_VALIDATE_MAX_PER_MINUTE: positiveInt(10),
+  MAX_DISTANCE_M: positiveInt(100),
 });
 
 export type Env = z.infer<typeof EnvSchema>;
