@@ -6,10 +6,11 @@ import {
   FakeCreateAuthorizationService,
   FakeGetAuthorizationService,
   FakeListAuthorizationsService,
+  FakeListMyAuthorizationsService,
 } from './FakeAuthorizationServices';
 import { FakeLocationDirectory } from './FakeLocationDirectory';
 import { FakeUserDirectory } from './FakeUserDirectory';
-import { sampleAdmin, sampleUsers } from './sampleData';
+import { sampleAdmin, sampleUsers, sampleVisitante } from './sampleData';
 
 const all = { page: 1, pageSize: 100 };
 const now = () => new Date(2026, 9, 20, 10, 0);
@@ -34,6 +35,18 @@ const setup = () => {
 
 describe('serviços falsos de autorizações', () => {
   beforeEach(() => useSessionStore.getState().signIn('fake-token-admin', sampleAdmin));
+
+  it('"minhas autorizações" são as de quem está logado, como no servidor', async () => {
+    const { directory } = setup();
+    const mine = new FakeListMyAuthorizationsService(directory);
+    useSessionStore.getState().signIn('fake-token-visitante', sampleVisitante);
+
+    const { data } = await mine.exec(all);
+
+    expect(data.length).toBeGreaterThan(0);
+    expect(data.every(({ usuario }) => usuario.id === sampleVisitante.id)).toBe(true);
+    expect(mine.calls).toEqual([all]);
+  });
 
   it('compartilham o diretório: a criada aparece na lista e no detalhe, feita por quem está logado', async () => {
     const { directory, body } = setup();
