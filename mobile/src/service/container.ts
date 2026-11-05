@@ -6,6 +6,7 @@ import {
   FakeCreateAuthorizationService,
   FakeGetAuthorizationService,
   FakeListAuthorizationsService,
+  FakeListMyAuthorizationsService,
 } from './fakes/FakeAuthorizationServices';
 import { FakeClipboardService, FakeCurrentPositionService } from './fakes/FakeDeviceServices';
 import {
@@ -33,6 +34,7 @@ import {
   CreateAuthorizationService,
   GetAuthorizationService,
   ListAuthorizationsService,
+  ListMyAuthorizationsService,
 } from './implementations/AuthorizationServices';
 import { CreateUserService } from './implementations/CreateUserService';
 import { ClipboardService, CurrentPositionService } from './implementations/DeviceServices';
@@ -61,7 +63,7 @@ import { UpdateUserService } from './implementations/UpdateUserService';
 // One entry per service; the names are the ones accepted in EXPO_PUBLIC_FAKE_SERVICES.
 // "users" switches the four /users services together, since the fakes share one directory;
 // "locations" does the same for buildings, access points and terminals, and "authorizations" for
-// the four /authorizations services.
+// the services of /authorizations and /me/authorizations.
 export const createServices = (fakeServices: string[]) => {
   const isFake = (name: string) => fakeServices.includes(name);
   const fakeUsers = isFake('users');
@@ -101,6 +103,9 @@ export const createServices = (fakeServices: string[]) => {
     listAuthorizations: fakeAuthorizations
       ? new FakeListAuthorizationsService()
       : new ListAuthorizationsService(),
+    listMyAuthorizations: fakeAuthorizations
+      ? new FakeListMyAuthorizationsService()
+      : new ListMyAuthorizationsService(),
     getAuthorization: fakeAuthorizations
       ? new FakeGetAuthorizationService()
       : new GetAuthorizationService(),

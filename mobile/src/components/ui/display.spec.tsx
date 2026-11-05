@@ -50,13 +50,15 @@ describe('StatusBadge', () => {
     await render(<StatusBadge status={status} withIcon />);
 
     expect(screen.getByText(label)).toBeOnTheScreen();
-    expect(screen.getByTestId('status-pill-icon')).toBeOnTheScreen();
+    expect(
+      screen.getByTestId('status-pill-icon', { includeHiddenElements: true }),
+    ).toBeOnTheScreen();
   });
 
   it('sem withIcon, o selo continua só com texto e cor', async () => {
     await render(<StatusBadge status="ATIVA" />);
 
-    expect(screen.queryByTestId('status-pill-icon')).toBeNull();
+    expect(screen.queryByTestId('status-pill-icon', { includeHiddenElements: true })).toBeNull();
   });
 
   it.each<[BadgeStatus, string, string, string]>([

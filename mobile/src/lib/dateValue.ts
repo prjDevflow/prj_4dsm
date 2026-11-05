@@ -37,8 +37,27 @@ export const formatPeriod = (start: string, end: string) => {
   return `${format(start)} a ${format(end)}`;
 };
 
-/** Instant of the API (UTC) → "19/10/2026 às 09:05", in the phone's local time. */
+const saoPaulo = new Intl.DateTimeFormat('pt-BR', {
+  timeZone: 'America/Sao_Paulo',
+  day: '2-digit',
+  month: '2-digit',
+  year: 'numeric',
+  hour: '2-digit',
+  minute: '2-digit',
+  hour12: false,
+});
+
+/**
+ * The day and the time in São Paulo, whatever the phone's time zone is. Read from the formatted
+ * text because formatToParts is not dependable on Hermes for iOS; some engines write midnight as 24.
+ */
+export const inSaoPaulo = (instant: Date) => {
+  const [day, month, year, hour, minute] = saoPaulo.format(instant).match(/\d+/g) ?? [];
+  return { date: `${year}-${month}-${day}`, time: `${pad(Number(hour) % 24)}:${minute}` };
+};
+
+/** Instant of the API (UTC) → "19/10/2026 às 09:05", in São Paulo. */
 export const formatDateTime = (instant: string) => {
-  const date = new Date(instant);
-  return `${formatIsoDate(toIsoDate(date))} às ${toTime(date)}`;
+  const { date, time } = inSaoPaulo(new Date(instant));
+  return `${formatIsoDate(date)} às ${time}`;
 };

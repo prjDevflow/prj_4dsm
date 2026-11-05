@@ -8,4 +8,6 @@ export const authorizationsQueryKeys = {
   lists: ['authorizations', 'list'] as const,
   list: (filters: AuthorizationFilters) => ['authorizations', 'list', filters] as const,
   detail: (id: string) => ['authorizations', 'detail', id] as const,
+  /** T04 and the counter of T03 share this one. */
+  mine: ['authorizations', 'mine'] as const,
 };

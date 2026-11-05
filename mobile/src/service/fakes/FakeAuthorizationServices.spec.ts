@@ -39,7 +39,7 @@ describe('serviços falsos de autorizações', () => {
   it('"minhas autorizações" são as de quem está logado, como no servidor', async () => {
     const { directory } = setup();
     const mine = new FakeListMyAuthorizationsService(directory);
-    useSessionStore.getState().signIn('fake-token-visitante', sampleVisitante);
+    await useSessionStore.getState().signIn('fake-token-visitante', sampleVisitante);
 
     const { data } = await mine.exec(all);
 
@@ -81,6 +81,6 @@ describe('serviços falsos de autorizações', () => {
     await expect(list.exec(all)).rejects.toMatchObject({ code: 'NETWORK' });
 
     list.willFail(null);
-    await expect(list.exec(all)).resolves.toMatchObject({ total: 6 });
+    await expect(list.exec(all)).resolves.toMatchObject({ total: 11 });
   });
 });

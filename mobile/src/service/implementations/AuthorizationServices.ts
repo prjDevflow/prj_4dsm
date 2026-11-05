@@ -2,6 +2,7 @@ import type {
   Autorizacao,
   CreateAuthorizationBody,
   ListAuthorizationsParams,
+  ListMyAuthorizationsParams,
 } from '@/lib/types/authorizations';
 import type { Page } from '@/lib/types/page';
 import { AxiosInstance } from '../AxiosInstance';
@@ -10,6 +11,7 @@ import type {
   ICreateAuthorizationService,
   IGetAuthorizationService,
   IListAuthorizationsService,
+  IListMyAuthorizationsService,
 } from '../IAuthorizationService';
 
 // /authorizations (B08, B09). The authorization is always born ATIVA; there is no state to send.
@@ -27,6 +29,13 @@ export class CreateAuthorizationService implements ICreateAuthorizationService {
 export class ListAuthorizationsService implements IListAuthorizationsService {
   async exec(params: ListAuthorizationsParams): Promise<Page<Autorizacao>> {
     const { data } = await AxiosInstance.get<Page<Autorizacao>>('/authorizations', { params });
+    return data;
+  }
+}
+
+export class ListMyAuthorizationsService implements IListMyAuthorizationsService {
+  async exec(params: ListMyAuthorizationsParams): Promise<Page<Autorizacao>> {
+    const { data } = await AxiosInstance.get<Page<Autorizacao>>('/me/authorizations', { params });
     return data;
   }
 }

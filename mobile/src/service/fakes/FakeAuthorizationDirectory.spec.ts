@@ -63,7 +63,7 @@ describe('FakeAuthorizationDirectory', () => {
 
     const { data, total } = directory.list(all);
 
-    expect(total).toBe(6);
+    expect(total).toBe(11);
     expect(new Set(data.map((a) => a.situacaoEfetiva))).toEqual(
       new Set(['ATIVA', 'CANCELADA', 'ESGOTADA', 'EXPIRADA']),
     );
@@ -119,8 +119,8 @@ describe('FakeAuthorizationDirectory', () => {
     expect(directory.list({ page: 2, pageSize: 4 })).toMatchObject({
       page: 2,
       pageSize: 4,
-      total: 6,
-      data: [expect.anything(), expect.anything()],
+      total: 11,
+      data: Array(4).fill(expect.anything()),
     });
   });
 
