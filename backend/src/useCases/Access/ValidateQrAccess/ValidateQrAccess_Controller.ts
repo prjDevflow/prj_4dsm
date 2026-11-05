@@ -12,7 +12,8 @@ export class ValidateQrAccessController {
     if (!req.auth) throw new UnauthorizedError();
     const body = ValidateQrAccessSchema.parse(req.body);
 
-    const decision = await this.useCase.execute({ userId: req.auth.userId, ...body });
+    // The token decides who consumes the credential; it goes last so no body field can override it.
+    const decision = await this.useCase.execute({ ...body, userId: req.auth.userId });
 
     // A denial is an answer, not a failure of the request: 403 with the reason as the error code.
     if (!decision.granted) {
