@@ -43,7 +43,7 @@ describe('useAuthorizationsListModel', () => {
     const result = await ready(context);
 
     expect(context.listAuthorizationsService.calls).toEqual([firstPage]);
-    expect(result.current.authorizations).toHaveLength(6);
+    expect(result.current.authorizations).toHaveLength(11);
     expect(result.current.situacao).toBe('TODAS');
     expect(result.current.hasFilters).toBe(false);
   });
@@ -168,7 +168,7 @@ describe('useAuthorizationsListModel', () => {
 
     await act(() => result.current.onEndReached());
 
-    await waitFor(() => expect(result.current.authorizations).toHaveLength(26));
+    await waitFor(() => expect(result.current.authorizations).toHaveLength(31));
     expect(context.listAuthorizationsService.calls[1]).toEqual({ page: 2, pageSize: 20 });
 
     await act(() => result.current.onEndReached());

@@ -86,15 +86,11 @@ describe('Minhas autorizações (T04)', () => {
   it('o estado de aberto chega ao leitor de tela', async () => {
     await renderScreen();
     const toggle = await screen.findByRole('button', { name: 'Ver anteriores (3)' });
-    expect(toggle).toHaveAccessibilityState({ expanded: false });
+    expect(toggle).toBeCollapsed();
 
     await fireEvent.press(toggle);
 
-    expect(screen.getByRole('button', { name: 'Ocultar anteriores (3)' })).toHaveAccessibilityState(
-      {
-        expanded: true,
-      },
-    );
+    expect(screen.getByRole('button', { name: 'Ocultar anteriores (3)' })).toBeExpanded();
   });
 
   it('os quatro selos têm texto e ícone', async () => {

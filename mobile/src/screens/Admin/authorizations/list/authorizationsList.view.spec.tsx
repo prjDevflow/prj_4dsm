@@ -38,14 +38,12 @@ describe('Autorizações (T23)', () => {
     await rendered;
 
     expect(screen.getByRole('header', { name: 'Autorizações' })).toBeOnTheScreen();
-    expect(
-      await screen.findByRole('button', {
-        name: 'Maria Souza, Catraca Social, Edifício Central, 19/10 a 25/10 · 08:00 às 18:00, Entradas: 1 de 3, Ativa',
-      }),
-    ).toBeOnTheScreen();
+    const maria = await screen.findByRole('button', {
+      name: 'Maria Souza, Catraca Social, Edifício Central, 19/10 a 25/10 · 08:00 às 18:00, Entradas: 1 de 3, Ativa',
+    });
     expect(screen.getByRole('button', { name: /^Bruno Alves,.*Cancelada$/ })).toBeOnTheScreen();
-    expect(screen.getByText('19/10 a 25/10 · 08:00 às 18:00')).toBeOnTheScreen();
-    expect(screen.getByText('Entradas: 1 de 3')).toBeOnTheScreen();
+    expect(within(maria).getByText('19/10 a 25/10 · 08:00 às 18:00')).toBeOnTheScreen();
+    expect(within(maria).getByText('Entradas: 1 de 3')).toBeOnTheScreen();
   });
 
   it('tocar num item abre o detalhe; "Nova autorização" abre o cadastro', async () => {
@@ -171,7 +169,7 @@ describe('Autorizações (T23)', () => {
     const row = await screen.findByRole('button', { name: /^Bruno Alves,/ });
 
     expect(within(row).getByText('Cancelada')).toBeOnTheScreen();
-    expect(screen.getByRole('button', { name: /Esgotada$/ })).toBeOnTheScreen();
-    expect(screen.getByRole('button', { name: /Expirada$/ })).toBeOnTheScreen();
+    expect(screen.getByRole('button', { name: /^Maria Souza,.*Esgotada$/ })).toBeOnTheScreen();
+    expect(screen.getByRole('button', { name: /^João Pereira,.*Expirada$/ })).toBeOnTheScreen();
   });
 });
