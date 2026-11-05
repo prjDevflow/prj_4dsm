@@ -50,8 +50,8 @@ do banco.
 
 O middleware `authenticateTerminal` (B07) confere os dois cabeçalhos: chave errada, ausente ou id desconhecido dão
 `401 UNAUTHORIZED` (a mesma mensagem nos três casos); terminal inativo com a chave certa dá `403 FORBIDDEN`. As rotas
-`/terminal/*` que o usam chegam aos poucos: o heartbeat (B11) e o QR (B12) já existem; os comandos e as validações vêm
-nas etapas seguintes. O administrador vê o terminal do seed em `GET /terminals` (campo `online`).
+`/terminal/*` que o usam chegam aos poucos: o heartbeat (B11), o QR (B12) e os comandos (B14) já existem; a validação
+de acesso vem na B15. O administrador vê o terminal do seed em `GET /terminals` (campo `online`).
 
 Heartbeat de teste (o terminal deve mandar a cada 10 s; menos de 2 s entre dois dá `429`):
 
@@ -85,6 +85,32 @@ curl -s -X POST http://localhost:3000/api/v1/terminal/qr \
   -H 'X-Terminal-Key: terminal-dev-key-1234567890abcdef1234567890'
 # {"payload":"ACS1:q3F8k2Zr1pLw9XbTn0YhVA","emitidoEm":"2026-10-20T14:32:07.000Z","expiraEm":"2026-10-20T14:32:22.000Z","renovarEmMs":10000}
 ```
+
+Comandos para o terminal (B14). O terminal consulta a cada 1 s (`commandPollMs`) e confirma o que executou:
+
+```bash
+H=(-H 'X-Terminal-Id: 5eed0000-0000-4000-8000-000000000006' \
+   -H 'X-Terminal-Key: terminal-dev-key-1234567890abcdef1234567890')
+curl -s "${H[@]}" 'http://localhost:3000/api/v1/terminal/commands?after=0&limit=10'
+# {"commands":[{"id":42,"tipo":"ABRIR","aberturaMs":5000,"criadoEm":"2026-10-20T14:32:07.123Z"},
+#              {"id":43,"tipo":"NEGAR","motivo":"DISTANTE_DO_TERMINAL","criadoEm":"2026-10-20T14:32:08.456Z"}]}
+curl -s -o /dev/null -w '%{http_code}\n' -X POST "${H[@]}" http://localhost:3000/api/v1/terminal/commands/42/ack
+# 204
+```
+
+- Na próxima consulta use `after=<maior id que o terminal já viu>`: assim ele não recebe o mesmo comando duas vezes.
+- **Um comando vale 10 s** (`COMMAND_TTL_SECONDS`) depois de criado; passado isso ele nunca é entregue, para um `ABRIR`
+  não abrir a catraca minutos depois. A lista vazia (`{"commands":[]}`) é a resposta normal quando não há nada novo.
+- O `ack` de um comando de outro terminal, ou de um id que não existe, dá `404`; repetir o `ack` dá `204` de novo.
+- Quem cria os comandos é a validação de acesso (B15); até lá a API não tem rota que os crie. Para testar o terminal
+  antes, insira um na mão (vale 10 s; rode e consulte logo em seguida):
+
+```bash
+docker compose exec db psql -U access -d access -c "INSERT INTO terminal_commands (\"terminalId\", tipo, \"aberturaMs\", \"criadoEm\", \"expiraEm\") VALUES ('5eed0000-0000-4000-8000-000000000006', 'ABRIR', 5000, now(), now() + interval '10 seconds')"
+```
+
+- Os comandos vencidos há mais de 1 hora (`COMMAND_PURGE_AFTER_HOURS`) são apagados por um job a cada minuto, que sobe com
+  o servidor (`npm run dev`, `npm start`).
 
 Para o administrador cadastrar um terminal novo ou trocar a chave (a chave só aparece na resposta):
 

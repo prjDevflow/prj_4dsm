@@ -1,16 +1,21 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { SpyLogger } from '../../../test/doubles/SpyLogger';
-import { PurgeExpiredCredentialsJob } from './PurgeExpiredCredentialsJob';
+import { PurgeJob } from './PurgeJob';
 
 const MINUTE = 60_000;
 
-const makeSut = (purge: () => Promise<number>) => {
+const messages = {
+  apagou: 'Credenciais QR vencidas apagadas',
+  falhou: 'Falha ao apagar credenciais QR vencidas',
+};
+
+const makeSut = (purge: () => Promise<number>, jobMessages = messages) => {
   const logger = new SpyLogger();
-  const job = new PurgeExpiredCredentialsJob(purge, logger, MINUTE);
+  const job = new PurgeJob(purge, logger, MINUTE, jobMessages);
   return { job, logger };
 };
 
-describe('PurgeExpiredCredentialsJob', () => {
+describe('PurgeJob', () => {
   beforeEach(() => {
     vi.useFakeTimers();
   });
@@ -33,7 +38,7 @@ describe('PurgeExpiredCredentialsJob', () => {
     job.stop();
   });
 
-  it('deve registrar no log quantas credenciais apagou, só quando apagou alguma', async () => {
+  it('deve registrar no log quantos itens apagou, só quando apagou algum', async () => {
     const results = [0, 4];
     const { job, logger } = makeSut(async () => results.shift() ?? 0);
 
@@ -45,6 +50,25 @@ describe('PurgeExpiredCredentialsJob', () => {
     expect(logger.of('info')).toEqual([
       expect.objectContaining({ meta: expect.objectContaining({ apagadas: 4 }) }),
     ]);
+    job.stop();
+  });
+
+  it('deve usar no log as mensagens recebidas, no sucesso e no erro', async () => {
+    const results: (number | Error)[] = [3, new Error('banco fora do ar')];
+    const { job, logger } = makeSut(
+      async () => {
+        const next = results.shift() ?? 0;
+        if (next instanceof Error) throw next;
+        return next;
+      },
+      { apagou: 'Comandos vencidos apagados', falhou: 'Falha ao apagar comandos vencidos' },
+    );
+
+    job.start();
+    await vi.advanceTimersByTimeAsync(2 * MINUTE);
+
+    expect(logger.of('info')[0]?.message).toBe('Comandos vencidos apagados');
+    expect(logger.of('error')[0]?.message).toBe('Falha ao apagar comandos vencidos');
     job.stop();
   });
 

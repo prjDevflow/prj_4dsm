@@ -1,4 +1,5 @@
-import { PurgeExpiredCredentialsJob } from '../infra/jobs/PurgeExpiredCredentialsJob';
+import { PurgeJob } from '../infra/jobs/PurgeJob';
+import { PurgeExpiredCommandsUseCase } from '../useCases/TerminalChannel/PurgeExpiredCommands/PurgeExpiredCommands_UseCase';
 import { PurgeExpiredCredentialsUseCase } from '../useCases/TerminalChannel/PurgeExpiredCredentials/PurgeExpiredCredentials_UseCase';
 import { app } from './app';
 import { container } from './container';
@@ -17,8 +18,17 @@ const purgeExpiredCredentials = new PurgeExpiredCredentialsUseCase(
   container.clock,
   { purgeAfterHours: env.QR_PURGE_AFTER_HOURS },
 );
-new PurgeExpiredCredentialsJob(
-  () => purgeExpiredCredentials.execute(),
-  logger,
-  PURGE_INTERVAL_MS,
-).start();
+new PurgeJob(() => purgeExpiredCredentials.execute(), logger, PURGE_INTERVAL_MS, {
+  apagou: 'Credenciais QR vencidas apagadas',
+  falhou: 'Falha ao apagar credenciais QR vencidas',
+}).start();
+
+const purgeExpiredCommands = new PurgeExpiredCommandsUseCase(
+  container.terminalCommands,
+  container.clock,
+  { purgeAfterHours: env.COMMAND_PURGE_AFTER_HOURS },
+);
+new PurgeJob(() => purgeExpiredCommands.execute(), logger, PURGE_INTERVAL_MS, {
+  apagou: 'Comandos do terminal vencidos apagados',
+  falhou: 'Falha ao apagar comandos do terminal vencidos',
+}).start();

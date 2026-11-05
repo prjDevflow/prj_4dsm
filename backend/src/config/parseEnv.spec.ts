@@ -202,6 +202,34 @@ describe('parseEnv', () => {
     },
   );
 
+  it('deve usar 10 segundos como padrão de COMMAND_TTL_SECONDS e converter para número', () => {
+    expect(parseEnv(validSource).COMMAND_TTL_SECONDS).toBe(10);
+    expect(parseEnv({ ...validSource, COMMAND_TTL_SECONDS: '20' }).COMMAND_TTL_SECONDS).toBe(20);
+  });
+
+  it('deve rejeitar COMMAND_TTL_SECONDS zero, negativo, decimal ou não numérico', () => {
+    for (const value of ['0', '-1', 'abc', '2.5']) {
+      expect(() => parseEnv({ ...validSource, COMMAND_TTL_SECONDS: value })).toThrow(
+        /COMMAND_TTL_SECONDS/,
+      );
+    }
+  });
+
+  it('deve usar 1 hora como padrão de COMMAND_PURGE_AFTER_HOURS e converter para número', () => {
+    expect(parseEnv(validSource).COMMAND_PURGE_AFTER_HOURS).toBe(1);
+    expect(
+      parseEnv({ ...validSource, COMMAND_PURGE_AFTER_HOURS: '6' }).COMMAND_PURGE_AFTER_HOURS,
+    ).toBe(6);
+  });
+
+  it('deve rejeitar COMMAND_PURGE_AFTER_HOURS zero, negativo, decimal ou não numérico', () => {
+    for (const value of ['0', '-1', 'abc', '2.5']) {
+      expect(() => parseEnv({ ...validSource, COMMAND_PURGE_AFTER_HOURS: value })).toThrow(
+        /COMMAND_PURGE_AFTER_HOURS/,
+      );
+    }
+  });
+
   it('deve aceitar tolerância do QR igual a zero e rejeitar negativa, decimal ou não numérica', () => {
     expect(parseEnv({ ...validSource, QR_TOLERANCE_SECONDS: '0' }).QR_TOLERANCE_SECONDS).toBe(0);
     for (const value of ['-1', 'abc', '2.5']) {

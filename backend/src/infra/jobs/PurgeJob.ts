@@ -1,7 +1,14 @@
 import type { ILogger } from '../../providers/ILogger';
 
+export interface PurgeJobMessages {
+  /** Logged (info) when a run deleted something. */
+  apagou: string;
+  /** Logged (error) when a run failed. */
+  falhou: string;
+}
+
 /** Runs `purge` on a fixed interval. It never throws: a failed run is logged and the next one still happens. */
-export class PurgeExpiredCredentialsJob {
+export class PurgeJob {
   private timer: NodeJS.Timeout | null = null;
   private running = false;
 
@@ -9,6 +16,7 @@ export class PurgeExpiredCredentialsJob {
     private purge: () => Promise<number>,
     private logger: ILogger,
     private intervalMs: number,
+    private messages: PurgeJobMessages,
   ) {}
 
   start() {
@@ -29,9 +37,9 @@ export class PurgeExpiredCredentialsJob {
     this.running = true;
     try {
       const apagadas = await this.purge();
-      if (apagadas > 0) this.logger.info('Credenciais QR vencidas apagadas', { apagadas });
+      if (apagadas > 0) this.logger.info(this.messages.apagou, { apagadas });
     } catch (error) {
-      this.logger.error('Falha ao apagar credenciais QR vencidas', {
+      this.logger.error(this.messages.falhou, {
         erro: error instanceof Error ? error.message : String(error),
       });
     } finally {

@@ -144,40 +144,45 @@ Ordem de construção sugerida dentro do bloco: B11 e B12 (independentes) → B1
 - **Prazo:** Sprint 2, semana 2 · **Prioridade:** 🔴
 - **Objetivo:** o backend diz ao terminal "abra" ou "negue" depois de validar o acesso pelo app.
 
-**Use cases** (`src/useCases/TerminalChannel/`): `ListPendingCommands`, `AckCommand`. Entidade `TerminalCommand` com fábricas `TerminalCommand.open(...)` e `TerminalCommand.deny(motivo)` (`expiraEm = criadoEm + COMMAND_TTL_SECONDS`, `aberturaMs` da configuração); a criação acontece dentro da transação da B15. Port `ITerminalCommandRepository`: `create`, `listPending(terminalId, after, limit, now)`, `markDelivered`, `markExecuted`.
+**Use cases** (`src/useCases/TerminalChannel/`): `ListPendingCommands`, `AckCommand` e `PurgeExpiredCommands` (rodado por um job, como a limpeza de QR). Entidade `TerminalCommand` com fábricas `TerminalCommand.open(...)` e `TerminalCommand.deny(...)` (`expiraEm = criadoEm + COMMAND_TTL_SECONDS`, `aberturaMs` da configuração), que devolvem um `NewTerminalCommand` (o `id` é serial do banco); a criação acontece dentro da transação da B15 (`PrismaTerminalCommandRepository` aceita o cliente da transação). Port `ITerminalCommandRepository`: `create` (devolve o comando com o `id`), `listPending(terminalId, after, limit, now)`, `markDelivered(ids, at)`, `markExecuted(terminalId, id, at)` (false se o comando não é do terminal) e `deleteExpiredBefore(cutoff)`.
 
 **Regras**
 
 - `GET /terminal/commands?after=<id>&limit=10`: comandos do terminal, em ordem crescente de `id`, **não expirados** e com `id` maior que `after`. Marca `entregueEm` na primeira entrega (não sobrescreve nas seguintes).
 - `POST /terminal/commands/:id/ack` → 204: marca `executadoEm`. Só comandos do próprio terminal (senão 404).
 - 🔴 **Segurança:** comando vencido (mais de 10 s) nunca é entregue. Um `ABRIR` não pode abrir a catraca minutos depois.
-- 🟢 Opcional, depois do básico: `?wait=15` (espera longa até 15 s ou até chegar comando).
-- 🟢 Opcional: endpoint de desenvolvimento para disparar comandos, protegido por `NODE_ENV` diferente de `production`.
+- Limpeza: um job a cada minuto (`infra/jobs`, `PurgeJob`, iniciado em `server.ts`) apaga os comandos vencidos há mais de `COMMAND_PURGE_AFTER_HOURS` (1 h), entregues ou não. O `id` serial não volta atrás, então o `after` do terminal continua valendo.
+- `limit`: padrão 10, de 1 a 100; `after`: padrão 0, inteiro de 0 a 2147483647; fora disso, 422 no campo. `ack` repetido devolve 204 e preserva o primeiro `executadoEm`; `id` que não é inteiro positivo dá 404.
+- 🟢 Opcional, depois do básico: `?wait=15` (espera longa até 15 s ou até chegar comando). _Não feito na B14._
+- 🟢 Opcional: endpoint de desenvolvimento para disparar comandos, protegido por `NODE_ENV` diferente de `production`. _Não feito (decisão do autor): até a B15 o comando se cria na mão por SQL, ver `docs/ambiente-dev.md`._
 
 **Lista de testes**
 
-- [ ] U `ListPendingCommands`: devolve em ordem crescente de `id`.
-- [ ] U `ListPendingCommands`: comando com 10 s de vida ainda é entregue; com mais de 10 s não (`FakeClock`).
-- [ ] U `ListPendingCommands`: `after` evita reentrega; `limit` é respeitado.
-- [ ] U `ListPendingCommands`: nunca devolve comandos de outro terminal.
-- [ ] U `ListPendingCommands`: `entregueEm` é marcado na primeira entrega e preservado depois.
-- [ ] U `AckCommand`: marca `executadoEm`; comando de outro terminal → `NotFoundError`.
-- [ ] U `TerminalCommand.open` e `deny`: `expiraEm`, `aberturaMs` e `motivo` corretos.
-- [ ] I `GET /terminal/commands` sem cabeçalhos do terminal → 401.
-- [ ] I comando criado aparece na consulta seguinte (dentro de 1 s).
-- [ ] I `POST .../ack` devolve 204 e `ack` de comando alheio devolve 404.
+- [x] U `ListPendingCommands`: devolve em ordem crescente de `id`.
+- [x] U `ListPendingCommands`: comando com 10 s de vida ainda é entregue; com mais de 10 s não (`FakeClock`).
+- [x] U `ListPendingCommands`: `after` evita reentrega; `limit` é respeitado.
+- [x] U `ListPendingCommands`: nunca devolve comandos de outro terminal.
+- [x] U `ListPendingCommands`: `entregueEm` é marcado na primeira entrega e preservado depois.
+- [x] U `AckCommand`: marca `executadoEm`; comando de outro terminal → `NotFoundError`.
+- [x] U `TerminalCommand.open` e `deny`: `expiraEm`, `aberturaMs` e `motivo` corretos.
+- [x] (acrescentados) U `ListPendingCommands`: só o comando devolvido vira entregue (não o vencido, nem o que ficou fora do `limit`). U `AckCommand`: ack repetido preserva o primeiro `executadoEm`.
+- [x] (acrescentados) U `PurgeExpiredCommands`: apaga só os vencidos há mais de 1 h (1 h exata fica, 1 h e 1 ms sai), também os entregues e executados; prazo e relógio injetados. U `PurgeJob`: mensagens de log recebidas. U `parseEnv` e repasse no compose de `COMMAND_TTL_SECONDS` e `COMMAND_PURGE_AFTER_HOURS`.
+- [x] (acrescentados) I `PrismaTerminalCommandRepository` com PostgreSQL real (ids crescentes, rollback na transação, ponta de 10 s, `deleteExpiredBefore` estrito). I `GET /terminal/commands` com `after`/`limit` e 422 por campo, `entregueEm` só do devolvido, consultas simultâneas. I `ack` repetido, de comando vencido e ids malformados (404).
+- [x] I `GET /terminal/commands` sem cabeçalhos do terminal → 401.
+- [x] I comando criado aparece na consulta seguinte (dentro de 1 s).
+- [x] I `POST .../ack` devolve 204 e `ack` de comando alheio devolve 404.
 
 **Critérios de aceitação**
 
-- [ ] Comando criado aparece em até 1 s na próxima consulta do terminal.
-- [ ] Comando com mais de 10 s não é entregue.
-- [ ] Um terminal nunca vê comandos de outro.
-- [ ] `after` evita reentrega de comandos já vistos.
-- [ ] `ack` de comando alheio → 404.
+- [x] Comando criado aparece em até 1 s na próxima consulta do terminal.
+- [x] Comando com mais de 10 s não é entregue.
+- [x] Um terminal nunca vê comandos de outro.
+- [x] `after` evita reentrega de comandos já vistos.
+- [x] `ack` de comando alheio → 404.
 
 **Definição de pronto**
 
-- [ ] Testes de ordem, expiração, isolamento entre terminais e `ack`.
+- [x] Testes de ordem, expiração, isolamento entre terminais e `ack`.
 - [ ] Matheus avisado do formato exato (seção 4.5 do arquivo 03) e do endpoint de teste de desenvolvimento, se existir.
 
 ---
