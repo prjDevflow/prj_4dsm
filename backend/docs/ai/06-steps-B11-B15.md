@@ -203,7 +203,7 @@ Ordem de construção sugerida dentro do bloco: B11 e B12 (independentes) → B1
 **Regras**
 
 - Ordem das 11 verificações: tabela da seção 5.1 do arquivo 03. A primeira que falhar define o motivo.
-- Corpo: `payload` bate com `^ACS1:[A-Za-z0-9_-]{22}$`; `latitude` e `longitude` numéricas dentro da faixa; `precisaoMetros` opcional. Payload fora do padrão é 422 (não gera tentativa de credencial). Coordenadas ausentes ou inválidas **dentro de um QR bem formado** → decisão `LOCALIZACAO_INVALIDA`.
+- Corpo: `payload` bate com `^ACS1:[A-Za-z0-9_-]{22}$`; `latitude` e `longitude` numéricas dentro da faixa; `precisaoMetros` opcional. Payload fora do padrão é 422 (não gera tentativa de credencial). Coordenadas ausentes ou nulas **dentro de um QR bem formado** → decisão `LOCALIZACAO_INVALIDA`; fora da faixa ou não numéricas → 422.
 - Mais de uma autorização elegível → usar a de `dataFim` mais próxima.
 - **Aprovação em uma única transação** via `commitApproval`: (1) consumir a credencial, se `consumidoEm` é nulo, senão `CREDENCIAL_REUTILIZADA`; (2) consumir um uso, se `situacao = ATIVA` e `usosRealizados < usosPermitidos`, senão `USOS_ESGOTADOS`; (3) inserir evento `AUTORIZADO`; (4) inserir comando `ABRIR`.
 - **Negação:** evento `NEGADO` com o motivo e, se o terminal foi identificado, comando `NEGAR` com o motivo. O QR **não** é consumido (a pessoa pode se aproximar e tentar de novo dentro da validade).
