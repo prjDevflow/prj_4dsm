@@ -95,6 +95,10 @@ export class PrismaTerminalRepository implements ITerminalRepository {
     return count > 0;
   }
 
+  async setEnrollMode(_id: string, _mode: { usuarioId: string; ate: Date }): Promise<void> {
+    throw new Error('não implementado');
+  }
+
   async list(filter: TerminalListFilter): Promise<TerminalListResult> {
     const [rows, total] = await this.prisma.$transaction([
       this.prisma.terminal.findMany({

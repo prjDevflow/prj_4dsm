@@ -48,6 +48,11 @@ export interface ITerminalRepository {
     heartbeat: TerminalHeartbeat,
     previousContactUntil: Date,
   ): Promise<boolean>;
+  /**
+   * Replaces only the two enrollment columns, so it never undoes the heartbeat or a key rotation stored
+   * meanwhile. Opening the mode again replaces the current one. The user must exist.
+   */
+  setEnrollMode(id: string, mode: { usuarioId: string; ate: Date }): Promise<void>;
   /** Ordered by name. */
   list(filter: TerminalListFilter): Promise<TerminalListResult>;
 }

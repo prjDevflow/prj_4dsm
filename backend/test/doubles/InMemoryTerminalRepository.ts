@@ -64,6 +64,16 @@ export class InMemoryTerminalRepository implements ITerminalRepository {
     return true;
   }
 
+  async setEnrollMode(id: string, mode: { usuarioId: string; ate: Date }) {
+    const terminal = this.items.get(id);
+    if (!terminal) return;
+    this.items.set(id, {
+      ...terminal,
+      modoCadastroUsuarioId: mode.usuarioId,
+      modoCadastroAte: mode.ate,
+    });
+  }
+
   async list(filter: TerminalListFilter) {
     const all = [...this.items.values()].sort(
       (a, b) => a.nome.localeCompare(b.nome) || a.id.localeCompare(b.id),
