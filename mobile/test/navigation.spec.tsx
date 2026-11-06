@@ -6,7 +6,7 @@ import { http, HttpResponse } from 'msw';
 import { useSessionStore } from '@/context/SessionStore';
 import { TOKEN_KEY } from '@/context/tokenStorage';
 import type { Usuario } from '@/lib/types/auth';
-import { FakeCreateAuthorizationService } from '@/service/fakes/FakeAuthorizationServices';
+import { FakeAuthorizationDirectory } from '@/service/fakes/FakeAuthorizationDirectory';
 import { FakeLocationDirectory } from '@/service/fakes/FakeLocationDirectory';
 import { FakeUserDirectory } from '@/service/fakes/FakeUserDirectory';
 import { sampleAdmin, sampleCondomino, sampleVisitante } from '@/service/fakes/sampleData';
@@ -450,31 +450,36 @@ describe('locais e terminais (F06)', () => {
 });
 
 describe('nova autorização (F07)', () => {
-  let service: FakeCreateAuthorizationService;
+  let authorizations: FakeAuthorizationDirectory;
 
   beforeEach(async () => {
     await SecureStore.deleteItemAsync(TOKEN_KEY);
     useSessionStore.setState({ token: null, usuario: null, expired: false });
     const users = new FakeUserDirectory();
     const locations = new FakeLocationDirectory();
-    service = new FakeCreateAuthorizationService({ users, locations });
+    authorizations = new FakeAuthorizationDirectory({ users, locations });
     server.use(
       ...usersHandlers(users, sampleAdmin.id),
       ...locationsHandlers(locations),
-      ...authorizationsHandlers(service),
+      ...authorizationsHandlers(authorizations, sampleAdmin),
     );
   });
 
-  it('o bloco "Autorizações" leva à nova autorização; criada, aparece o aviso e volta', async () => {
+  const openAuthorizations = async () => {
     await renderApp();
     await login(sampleAdmin);
     await fireEvent.press(await screen.findByRole('button', { name: /^Autorizações,/ }));
+    expect(await screen.findByRole('header', { name: 'Autorizações' })).toBeOnTheScreen();
+  };
+
+  it('cria pela lista: volta para ela com a nova no topo, "Ativa"', async () => {
+    await openAuthorizations();
     await fireEvent.press(await screen.findByRole('button', { name: 'Nova autorização' }));
     expect(await screen.findByRole('header', { name: 'Nova autorização' })).toBeOnTheScreen();
 
     await fireEvent.press(await screen.findByRole('button', { name: 'Pessoa' }));
-    await fireEvent.changeText(await screen.findByLabelText('Buscar'), 'Maria Souza');
-    await fireEvent.press(await screen.findByRole('radio', { name: 'Maria Souza, Condômino' }));
+    await fireEvent.changeText(await screen.findByLabelText('Buscar'), 'Fábio Nunes');
+    await fireEvent.press(await screen.findByRole('radio', { name: 'Fábio Nunes, Condômino' }));
     await fireEvent.press(screen.getByRole('button', { name: 'Local de acesso' }));
     await fireEvent.press(
       await screen.findByRole('radio', { name: 'Catraca Social, Edifício Central' }),
@@ -483,12 +488,47 @@ describe('nova autorização (F07)', () => {
 
     expect(await screen.findByText('Autorização criada.')).toBeOnTheScreen();
     expect(await screen.findByRole('header', { name: 'Autorizações' })).toBeOnTheScreen();
-    expect(service.created).toEqual([
-      expect.objectContaining({
-        usuario: expect.objectContaining({ nome: 'Maria Souza' }),
-        local: expect.objectContaining({ nome: 'Catraca Social' }),
-        situacaoEfetiva: 'ATIVA',
-      }),
-    ]);
+    const created = await screen.findByRole('button', { name: /^Fábio Nunes,.*Ativa$/ });
+    const rows = screen.getAllByRole('button', { name: /Entradas: / });
+    expect(rows[0]).toBe(created);
+    expect(authorizations.list({ page: 1, pageSize: 1 }).data[0]).toMatchObject({
+      usuario: { nome: 'Fábio Nunes' },
+      criadoPor: { id: sampleAdmin.id },
+      situacaoEfetiva: 'ATIVA',
+    });
+  });
+
+  it('cancela com confirmação: o selo muda no detalhe e na lista, sem reabrir', async () => {
+    await openAuthorizations();
+
+    await fireEvent.press(await screen.findByRole('button', { name: /^Ana Lima,.*Ativa$/ }));
+    expect(await screen.findByRole('header', { name: 'Autorização' })).toBeOnTheScreen();
+
+    await fireEvent.press(await screen.findByRole('button', { name: 'Cancelar autorização' }));
+    expect(screen.getByRole('header', { name: 'Cancelar esta autorização?' })).toBeOnTheScreen();
+    await fireEvent.changeText(screen.getByLabelText('Motivo (opcional)'), 'Pedido da moradora');
+    await pressLast('Cancelar autorização');
+
+    expect(await screen.findByText('Autorização cancelada.')).toBeOnTheScreen();
+    expect(await screen.findByText('Motivo: Pedido da moradora')).toBeOnTheScreen();
+    expect(screen.getByText('Cancelada')).toBeOnTheScreen();
+
+    await fireEvent.press(screen.getByRole('button', { name: 'Voltar' }));
+
+    expect(await screen.findByRole('button', { name: /^Ana Lima,.*Cancelada$/ })).toBeOnTheScreen();
+  });
+
+  it('com o filtro "Ativas", a cancelada sai da lista ao voltar', async () => {
+    await openAuthorizations();
+    await fireEvent.press(await screen.findByRole('button', { name: 'Ativas' }));
+    await fireEvent.press(await screen.findByRole('button', { name: /^Ana Lima,/ }));
+
+    await fireEvent.press(await screen.findByRole('button', { name: 'Cancelar autorização' }));
+    await pressLast('Cancelar autorização');
+    await screen.findByText('Autorização cancelada.');
+    await fireEvent.press(screen.getByRole('button', { name: 'Voltar' }));
+
+    await screen.findByRole('header', { name: 'Autorizações' });
+    await waitFor(() => expect(screen.queryByRole('button', { name: /^Ana Lima,/ })).toBeNull());
   });
 });

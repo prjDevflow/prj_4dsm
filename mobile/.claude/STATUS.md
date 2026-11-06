@@ -2,9 +2,9 @@
 
 Atualize este arquivo no fim de cada sessão de trabalho e ao abrir ou integrar um PR. A IA lê aqui qual é a etapa atual antes de começar.
 
-**Etapa atual:** F07 (pronta na branch local, não enviada; empilhada na F06, PR #29) → próxima: F08
-**Branch:** `feature/F07-new-authorization` (criada da `feature/F06-locations-terminals`)
-**Último teste vermelho/verde:** nova autorização (green), 522 testes passando
+**Etapa atual:** F08 (PR #31 aberto, empilhado na F07, #30) → próxima: F10, para a Review 2 de 11/11
+**Branch:** `feature/F08-authorizations-list` (criada da `feature/F07-new-authorization`)
+**Último teste vermelho/verde:** diálogo com o texto rolando e os botões fixos (green), 591 testes passando
 
 Legenda: ⬜ pendente · 🟨 em andamento · ✅ pronta (critérios e DoD marcados, PR integrado em `develop`) · 🔴 essencial · 🟡 importante · 🟢 pode ser cortada · ❓ pergunta em aberto (lista no fim deste arquivo).
 
@@ -19,16 +19,16 @@ Hoje é 28/10 e o app começa do zero. 💡 Por isso a ordem muda em relação a
 | F01 | Setup do app | — | — | B01 ✅ | 30/10 | 🔴 | 🟨 | [#14](https://github.com/prjDevflow/prj_4dsm/pull/14) |
 | F02 | Tema e componentes base | Fundamentos, componentes, T31 | F01 | — | 01/11 | 🔴 | 🟨 | [#16](https://github.com/prjDevflow/prj_4dsm/pull/16) |
 | F03 | Login | T02 | F02 | B05 ✅ | 03/11 | 🔴 | 🟨 | [#19](https://github.com/prjDevflow/prj_4dsm/pull/19) |
-| F04 | Abertura, navegação por perfil, início e sessão | T01, T03, T13, T14 | F03 | B05 ✅ | 04/11 | 🔴 | 🟨 | não enviada |
+| F04 | Abertura, navegação por perfil, início e sessão | T01, T03, T13, T14 | F03 | B05 ✅ | 04/11 | 🔴 | 🟨 | PR #25 |
 | F10 | Leitor de QR Code | T06, T07 | F04 | (B12 para QR real) | 05/11 | 🔴 | ⬜ | |
 | F11 | Validação do acesso e resultado | T08, T09, T10, T11 | F10 | B15 (falso até sair) | 07/11 | 🔴 | ⬜ | |
 | F09 | Minhas autorizações | T04, T05 | F04 | B09 (falso até sair) | 08/11 | 🔴 | ⬜ | |
 | — | Integração com backend e terminal, ensaio | — | F11, F09 | B15 | 09–10/11 | 🔴 | | |
 | — | **Review 2 (M4: QR ponta a ponta)** | | | | **11/11 19h30** | | | |
-| F05 | Usuários | T15, T16 | F04 | B06 ✅ | 13/11 | 🔴 | 🟨 | não enviada |
-| F06 | Locais e terminais | T17 a T22 | F04 | B07, B11 | 15/11 | 🔴 | 🟨 | não enviada |
-| F07 | Nova autorização | T24 | F05, F06 | B08 | 16/11 | 🔴 | 🟨 | não enviada |
-| F08 | Lista e cancelamento de autorizações | T23, T25 | F07 | B09 | 17/11 | 🔴 | ⬜ | |
+| F05 | Usuários | T15, T16 | F04 | B06 ✅ | 13/11 | 🔴 | 🟨 | PR #28 |
+| F06 | Locais e terminais | T17 a T22 | F04 | B07, B11 | 15/11 | 🔴 | 🟨 | PR #29 |
+| F07 | Nova autorização | T24 | F05, F06 | B08 | 16/11 | 🔴 | 🟨 | PR #30 |
+| F08 | Lista e cancelamento de autorizações | T23, T25 | F07 | B09 | 17/11 | 🔴 | 🟨 | PR #31 |
 | F13 | Tags NFC | T28, T29, T30 | F05 | B16 | 18/11 | 🔴 | ⬜ | |
 | F12 | Histórico de acessos | T26, T27, T12 | F04 | B18 | 20/11 | 🟡 | ⬜ | |
 | F14 | Acessibilidade e usabilidade | todas | F11, F12, F13 | — | 22/11 | 🟡 | ⬜ | |
@@ -108,6 +108,10 @@ Formato: data · decisão · motivo.
 - 2026-11-03 · Na F07, depois de criar, o app volta para a tela de onde veio (hoje, "Autorizações" com "Em breve") em vez da lista · a lista é a F08; a criação já invalida `['authorizations']`, então a F08 mostra a nova no topo quando chegar.
 - 2026-11-03 · Na F07, o resumo diz "poderá entrar em Catraca Social (Edifício Central)" em vez de "na Catraca Social do Edifício Central" · o app não sabe se o nome do local pede "na" ou "no"; o texto do card fica igual em todo o resto.
 - 2026-11-03 · Na F07, o resumo só aparece quando o formulário passaria na validação, e é montado do mesmo objeto enviado à API · assim ele nunca mostra algo que o servidor recusaria.
+- 2026-11-03 · Na F08, o filtro "Pessoa" abre a lista de pessoas com busca, em vez de texto livre, e inclui inativas · a API filtra por `usuarioId`, não por nome, e autorizações antigas podem ser de quem já foi desativado.
+- 2026-11-03 · Na F08, a lista mostra o ano só quando o período cruza o ano · sem isso, "28/10/2026 a 28/10/2027" aparecia como "28/10 a 28/10".
+- 2026-11-03 · Na F08, depois de cancelar, o app grava a resposta no cache do detalhe e das listas e ainda invalida as listas · o selo muda na hora, e a pessoa sai de filtros como "Ativas" ao recarregar. Erros do cancelamento ficam no diálogo.
+- 2026-11-03 · O `Dialog` rola só o texto e deixa os botões fixos · a F08 pôs nele o primeiro campo, que cresce até 200 caracteres; com fonte 200% e teclado, os botões iam para trás do teclado.
 - 2026-11-03 · Na F07, o app também recusa data final no passado ("A data final não pode estar no passado.") · é regra do servidor (B08); avisar antes evita o 422.
 - 2026-11-03 · Com a fonte do sistema a partir de 130%, campos lado a lado (datas, horários, coordenadas) vão um por linha (`FieldRow`) e os botões do rodapé se empilham · em 200% a data quebrava ao meio e os botões se sobrepunham.
 - 2026-11-02 · Na F06, a chave do terminal só vive no estado da tela T22: o cadastro e o "Gerar nova chave" chamam o serviço direto, sem `useMutation` · o cache de mutações do TanStack Query guardaria a resposta, e a resposta traz a chave.
@@ -135,6 +139,7 @@ Formato: data · decisão · motivo.
 | 2026-10-28 | F02 | Tema do `tokens.md` (cores conferidas pelo teste contra o próprio `tokens.md`, contraste WCAG), fonte Atkinson com a splash, formas, `Icon` e 25 componentes em `components/ui`; catálogo em `/catalog` só em `__DEV__`; teste que percorre o catálogo e exige papel e rótulo em todo elemento interativo. Conferido no emulador a 100% e a 200% (161 testes) | Testar o catálogo no celular; revisão do Rafael e do Eduardo; F03 |
 | 2026-10-28 | F01, F02 | Revisão: no celular do Pedro (Expo Go), "API: ok" com o mock e "API: fora do ar" sem ele, sem fechar o app. Corrigidos na F02: anúncio do erro de campo, dos avisos e dos estados no iOS (`useAnnounce`), aviso curto lido uma vez, rodapé em linha com fragmento, "Voltar" do catálogo aberto por link; o teste de contraste cobre as partes que não são texto (175 testes) | F01: celular com o Docker e revisor no #14; F02: catálogo no celular e revisão do Eduardo |
 | 2026-10-29 | F03 | Login (T02): schema, mensagens, `LoginUserService` e falso com os usuários do seed, model com toque duplo, senha limpa e foco, faixa que some ao digitar e aviso de sessão expirada; guards por sessão (`Stack.Protected` com `redirectTo`) e inícios provisórios; `/health` vira ferramenta de desenvolvimento. Emulador contra a API real no Docker: os três perfis, senha errada, sem internet, voltar do Android, fonte em 200% com teclado. Corrigido no aparelho: o foco não ia para a senha depois do erro | Abrir o PR (base #16); GIF; ouvir com TalkBack/VoiceOver; Eduardo confirmar o contrato; teste com uma pessoa; F04 |
+| 2026-11-03 | F08 | Lista de autorizações (T23) com filtros sozinhos e combinados, paginação e puxar para atualizar; detalhe (T25) com auditoria; cancelamento confirmado com motivo opcional, que muda o selo na lista e no detalhe sem reabrir. Conferido no emulador contra a API real, em 100% e 200%, inclusive dois administradores cancelando a mesma. 591 testes, 96,3% de linhas | Revisão do PR #31; a negação no acesso depois de cancelar depende da B15 e da F11; depois, F10 |
 | 2026-11-03 | F07 | Nova autorização (T24): pessoa com busca (só ativas, nome e perfil), local agrupado por edifício (só ativos), datas com padrão hoje, horários 08:00 e 18:00, utilizações de 1 a 1000, atalhos "Só hoje" e "Próximos 7 dias", resumo que acompanha o que será enviado, "Criando…", 404 e 422 nos lugares do card, descartar; "Autorizações" oferece "Nova autorização" até a F08. Emulador contra a API real: pessoas e locais ativos, horário final antes do inicial recusado, criada e conferida pela API com os mesmos valores e "Ativa", fonte em 200%. Corrigido no aparelho: datas quebrando e botões do rodapé sobrepostos com fonte grande | Abrir o PR (base #29); conferir no Swagger do Eduardo; F08 |
 | 2026-11-02 | F06 | Locais e terminais (T17), edifício (T18) e ponto de acesso (T19) com "Usar minha localização atual" e coordenadas com vírgula; terminais (T20) com Online/Offline e "Visto há"; novo terminal e detalhe (T21) com "Gerar nova chave" confirmada; chave mostrada uma vez (T22), fora do cache, com "Copiar chave". Peças de formulário compartilhadas (rodapé, descartar, voltar do Android) também no formulário de usuários. Emulador contra a API real: edifício → ponto → terminal, permissão de localização negada e concedida, latitude 91 recusada, chave copiada (conferida colando), heartbeat simulado com a chave da tela (Online e depois Offline), chave antiga recusada (401) depois de gerar outra, "Catraca de Testes" com autorização ativa recusada, fonte em 200% | Abrir o PR (base #28); GIF; o Matheus cadastrar o terminal dele pelo app; F10 |
 | 2026-11-02 | F05 | Lista de usuários (T15): busca 400 ms depois de parar de digitar, filtro de perfil, inativos, rolagem infinita, puxar para atualizar e estados; cadastro e edição (T16) com `RadioGroup` de perfil, 409 no campo E-mail, `AUTO_DESATIVACAO` e `ULTIMO_ADMIN` na faixa, 422 nos campos, PATCH só com o que mudou e "Descartar alterações?" (também no voltar do Android). Serviços de `/users` e falsos com as regras do B06. Emulador contra a API real (seed mais 22 pessoas de teste): paginação, busca com filtro, e-mail repetido, cadastrar, desativar a si mesmo e outra pessoa, inativos, fonte em 200%. Corrigidos no aparelho: faixa de erro escondida, teclado sobre o formulário, selos espremendo o e-mail | Abrir o PR (base #25); GIF; F10 |

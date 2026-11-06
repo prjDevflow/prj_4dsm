@@ -28,3 +28,17 @@ export const fromTime = (time: string) => {
   date.setHours(hours, minutes, 0, 0);
   return date;
 };
+
+/** "20/10 a 25/10" in lists: the year only adds noise, unless the period crosses it. */
+export const formatPeriod = (start: string, end: string) => {
+  const sameYear = start.slice(0, 4) === end.slice(0, 4);
+  const format = (date: string) =>
+    sameYear ? formatIsoDate(date).slice(0, 5) : formatIsoDate(date);
+  return `${format(start)} a ${format(end)}`;
+};
+
+/** Instant of the API (UTC) → "19/10/2026 às 09:05", in the phone's local time. */
+export const formatDateTime = (instant: string) => {
+  const date = new Date(instant);
+  return `${formatIsoDate(toIsoDate(date))} às ${toTime(date)}`;
+};

@@ -1,95 +1,89 @@
 import { useSessionStore } from '@/context/SessionStore';
-import { toIsoDate } from '@/lib/dateValue';
-import type { Autorizacao, CreateAuthorizationBody } from '@/lib/types/authorizations';
-import { ApiError, type FieldError } from '../ApiError';
-import type { ICreateAuthorizationService } from '../IAuthorizationService';
-import type { FakeLocationDirectory } from './FakeLocationDirectory';
+import type {
+  Autorizacao,
+  CreateAuthorizationBody,
+  ListAuthorizationsParams,
+} from '@/lib/types/authorizations';
+import type { Page } from '@/lib/types/page';
+import type { ApiError } from '../ApiError';
+import type {
+  ICancelAuthorizationService,
+  ICreateAuthorizationService,
+  IGetAuthorizationService,
+  IListAuthorizationsService,
+} from '../IAuthorizationService';
+import { FakeAuthorizationDirectory } from './FakeAuthorizationDirectory';
 import { sharedLocationDirectory } from './FakeLocationServices';
-import type { FakeUserDirectory } from './FakeUserDirectory';
 import { sharedUserDirectory } from './FakeUserServices';
 
-const ALL = { page: 1, pageSize: 1000 };
+// One directory for the whole app in fake mode, with the same people and places as the other fakes.
+const sharedDirectory = new FakeAuthorizationDirectory({
+  users: sharedUserDirectory,
+  locations: sharedLocationDirectory,
+});
 
-type FakeAuthorizationOptions = {
-  users?: FakeUserDirectory;
-  locations?: FakeLocationDirectory;
-  now?: () => Date;
+/** Like the server, who creates or cancels is who is logged in. */
+const loggedIn = () => {
+  const usuario = useSessionStore.getState().usuario;
+  return { id: usuario?.id ?? '', nome: usuario?.nome ?? '' };
 };
 
 /**
- * Creates authorizations with the rules of the API (B08): person and place must exist (404) and
- * be active (422), the end date is not before the start nor in the past, the end time is after
- * the start, and 1 to 1000 uses. In fake mode it uses the same people and places as the other fakes.
+ * Records each call in `calls`; willFail makes every next call fail with the given error
+ * (null goes back to answering from the directory).
  */
-export class FakeCreateAuthorizationService implements ICreateAuthorizationService {
-  readonly calls: CreateAuthorizationBody[] = [];
-  readonly created: Autorizacao[] = [];
-  private readonly users: FakeUserDirectory;
-  private readonly locations: FakeLocationDirectory;
-  private readonly now: () => Date;
-  private nextId = 1;
+abstract class FakeAuthorizationService<Call> {
+  readonly calls: Call[] = [];
+  private failure: ApiError | null = null;
 
-  constructor({
-    users = sharedUserDirectory,
-    locations = sharedLocationDirectory,
-    now = () => new Date(),
-  }: FakeAuthorizationOptions = {}) {
-    this.users = users;
-    this.locations = locations;
-    this.now = now;
+  constructor(protected readonly directory: FakeAuthorizationDirectory = sharedDirectory) {}
+
+  willFail(error: ApiError | null) {
+    this.failure = error;
   }
 
+  protected record(call: Call) {
+    this.calls.push(call);
+    if (this.failure) throw this.failure;
+  }
+}
+
+export class FakeCreateAuthorizationService
+  extends FakeAuthorizationService<CreateAuthorizationBody>
+  implements ICreateAuthorizationService
+{
   async exec(body: CreateAuthorizationBody): Promise<Autorizacao> {
-    this.calls.push(body);
-    const usuario = this.users.get(body.usuarioId); // 404 when it does not exist
-    const ap = this.locations.listAccessPoints(ALL).data.find((p) => p.id === body.accessPointId);
-    if (!ap) throw new ApiError(404, 'NOT_FOUND', 'Ponto de acesso não encontrado');
-    const building = this.locations.listBuildings(ALL).data.find((b) => b.id === ap.buildingId)!;
+    this.record(body);
+    return this.directory.create(body, loggedIn());
+  }
+}
 
-    const details: FieldError[] = [];
-    if (!usuario.ativo) details.push({ field: 'usuarioId', message: 'o usuário está inativo' });
-    if (!ap.ativo) {
-      details.push({ field: 'accessPointId', message: 'o ponto de acesso está inativo' });
-    }
-    if (body.dataFim < body.dataInicio) {
-      details.push({ field: 'dataFim', message: 'deve ser igual ou depois de dataInicio' });
-    } else if (body.dataFim < toIsoDate(this.now())) {
-      details.push({ field: 'dataFim', message: 'não pode estar no passado' });
-    }
-    if (body.horaFim <= body.horaInicio) {
-      details.push({ field: 'horaFim', message: 'deve ser depois de horaInicio' });
-    }
-    if (
-      !Number.isInteger(body.usosPermitidos) ||
-      body.usosPermitidos < 1 ||
-      body.usosPermitidos > 1000
-    ) {
-      details.push({ field: 'usosPermitidos', message: 'deve ser de 1 a 1000' });
-    }
-    if (details.length > 0) throw new ApiError(422, 'VALIDATION_ERROR', 'Dados inválidos', details);
+export class FakeListAuthorizationsService
+  extends FakeAuthorizationService<ListAuthorizationsParams>
+  implements IListAuthorizationsService
+{
+  async exec(params: ListAuthorizationsParams): Promise<Page<Autorizacao>> {
+    this.record(params);
+    return this.directory.list(params);
+  }
+}
 
-    const admin = useSessionStore.getState().usuario;
-    const authorization: Autorizacao = {
-      id: `fake-autorizacao-${this.nextId++}`,
-      usuario: { id: usuario.id, nome: usuario.nome, perfil: usuario.perfil },
-      local: {
-        id: ap.id,
-        nome: ap.nome,
-        tipo: ap.tipo,
-        edificio: { id: building.id, nome: building.nome },
-      },
-      ...body,
-      usosRealizados: 0,
-      usosRestantes: body.usosPermitidos,
-      situacao: 'ATIVA',
-      situacaoEfetiva: 'ATIVA',
-      criadoPor: { id: admin?.id ?? '', nome: admin?.nome ?? '' },
-      criadoEm: this.now().toISOString(),
-      canceladoPor: null,
-      canceladoEm: null,
-      motivoCancelamento: null,
-    };
-    this.created.push(authorization);
-    return authorization;
+export class FakeGetAuthorizationService
+  extends FakeAuthorizationService<string>
+  implements IGetAuthorizationService
+{
+  async exec(id: string): Promise<Autorizacao> {
+    this.record(id);
+    return this.directory.get(id);
+  }
+}
+
+export class FakeCancelAuthorizationService
+  extends FakeAuthorizationService<{ id: string; motivo?: string }>
+  implements ICancelAuthorizationService
+{
+  async exec(id: string, motivo?: string): Promise<Autorizacao> {
+    this.record({ id, motivo });
+    return this.directory.cancel(id, motivo, loggedIn());
   }
 }

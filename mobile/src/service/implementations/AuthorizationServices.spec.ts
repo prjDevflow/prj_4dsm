@@ -3,7 +3,12 @@ import { useSessionStore } from '@/context/SessionStore';
 import type { Autorizacao } from '@/lib/types/authorizations';
 import { API_URL } from '@test/msw/handlers';
 import { server } from '@test/msw/server';
-import { CreateAuthorizationService } from './AuthorizationServices';
+import {
+  CancelAuthorizationService,
+  CreateAuthorizationService,
+  GetAuthorizationService,
+  ListAuthorizationsService,
+} from './AuthorizationServices';
 
 // Example of backend/openapi.yaml.
 const created: Autorizacao = {
@@ -96,5 +101,108 @@ describe('CreateAuthorizationService', () => {
       status: 404,
       code: 'NOT_FOUND',
     });
+  });
+});
+
+describe('consulta e cancelamento de autorizações', () => {
+  beforeEach(() =>
+    useSessionStore.setState({ token: 'token-admin', usuario: null, expired: false }),
+  );
+
+  it('ListAuthorizationsService: GET /authorizations com todos os filtros e a página', async () => {
+    let query = {};
+    const page = { data: [created], page: 2, pageSize: 20, total: 21 };
+    server.use(
+      http.get(`${API_URL}/authorizations`, ({ request }) => {
+        query = Object.fromEntries(new URL(request.url).searchParams);
+        return HttpResponse.json(page);
+      }),
+    );
+
+    const result = await new ListAuthorizationsService().exec({
+      usuarioId: 'u-1',
+      accessPointId: 'ap-1',
+      situacao: 'ATIVA',
+      dataDe: '2026-10-01',
+      dataAte: '2026-10-31',
+      page: 2,
+      pageSize: 20,
+    });
+
+    expect(query).toEqual({
+      usuarioId: 'u-1',
+      accessPointId: 'ap-1',
+      situacao: 'ATIVA',
+      dataDe: '2026-10-01',
+      dataAte: '2026-10-31',
+      page: '2',
+      pageSize: '20',
+    });
+    expect(result).toEqual(page);
+  });
+
+  it('ListAuthorizationsService: não envia os filtros vazios', async () => {
+    let query = {};
+    server.use(
+      http.get(`${API_URL}/authorizations`, ({ request }) => {
+        query = Object.fromEntries(new URL(request.url).searchParams);
+        return HttpResponse.json({ data: [], page: 1, pageSize: 20, total: 0 });
+      }),
+    );
+
+    await new ListAuthorizationsService().exec({ page: 1, pageSize: 20 });
+
+    expect(query).toEqual({ page: '1', pageSize: '20' });
+  });
+
+  it('GetAuthorizationService: GET /authorizations/:id', async () => {
+    let path = '';
+    server.use(
+      http.get(`${API_URL}/authorizations/:id`, ({ request }) => {
+        path = new URL(request.url).pathname;
+        return HttpResponse.json(created);
+      }),
+    );
+
+    await expect(new GetAuthorizationService().exec(created.id)).resolves.toEqual(created);
+    expect(path).toBe(`/api/v1/authorizations/${created.id}`);
+  });
+
+  it('CancelAuthorizationService: PATCH /authorizations/:id/cancel com o motivo', async () => {
+    let request: { method: string; path: string; body: unknown } | null = null;
+    const cancelled = { ...created, situacao: 'CANCELADA', situacaoEfetiva: 'CANCELADA' };
+    server.use(
+      http.patch(`${API_URL}/authorizations/:id/cancel`, async ({ request: req }) => {
+        request = {
+          method: req.method,
+          path: new URL(req.url).pathname,
+          body: await req.json(),
+        };
+        return HttpResponse.json(cancelled);
+      }),
+    );
+
+    await expect(
+      new CancelAuthorizationService().exec(created.id, 'Pedido da moradora'),
+    ).resolves.toEqual(cancelled);
+    expect(request).toEqual({
+      method: 'PATCH',
+      path: `/api/v1/authorizations/${created.id}/cancel`,
+      body: { motivo: 'Pedido da moradora' },
+    });
+  });
+
+  it('CancelAuthorizationService: sem motivo envia o corpo vazio', async () => {
+    let body: unknown = null;
+    server.use(
+      http.patch(`${API_URL}/authorizations/:id/cancel`, async ({ request }) => {
+        body = await request.json();
+        return HttpResponse.json(created);
+      }),
+    );
+
+    await new CancelAuthorizationService().exec(created.id);
+
+    expect(body).toEqual({});
   });
 });

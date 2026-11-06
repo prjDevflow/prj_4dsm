@@ -62,3 +62,23 @@ export const placeLabel = (
   const building = buildings?.find((candidate) => candidate.id === ap.buildingId);
   return building ? `${ap.nome}, ${building.nome}` : ap.nome;
 };
+
+/** Options of a select of places, grouped by building: both in alphabetical order. */
+export const placeOptions = (accessPoints: PontoDeAcesso[], buildings: Edificio[]) => {
+  const byId = new Map(buildings.map((building) => [building.id, building]));
+  return accessPoints
+    .flatMap((ap) => {
+      const building = byId.get(ap.buildingId);
+      return building ? [{ ap, building }] : [];
+    })
+    .sort(
+      (a, b) =>
+        a.building.nome.localeCompare(b.building.nome, 'pt-BR') ||
+        a.ap.nome.localeCompare(b.ap.nome, 'pt-BR'),
+    )
+    .map(({ ap, building }) => ({
+      value: ap.id,
+      label: `${ap.nome}, ${building.nome}`,
+      group: building.nome,
+    }));
+};

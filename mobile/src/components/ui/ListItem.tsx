@@ -8,6 +8,8 @@ import { Text } from './Text';
 type ListItemProps = {
   title: string;
   subtitle?: string;
+  /** More lines in the style of the subtitle (period, entries...). */
+  details?: string[];
   /** Third line, in bold support text ("Visto há 12 min"). */
   meta?: string;
   /** One badge, or several side by side (profile and "Inativo", for example). */
@@ -25,6 +27,7 @@ const STACK_FONT_SCALE = 1.3;
 export const ListItem = ({
   title,
   subtitle,
+  details = [],
   meta,
   badge,
   leading,
@@ -35,7 +38,9 @@ export const ListItem = ({
   // With a large system font the badge goes below the texts instead of squeezing them.
   const stacked = useWindowDimensions().fontScale >= STACK_FONT_SCALE;
   const badges = badge === undefined ? [] : Array.isArray(badge) ? badge : [badge];
-  const label = [title, subtitle, meta, ...badges.map(badgeLabel)].filter(Boolean).join(', ');
+  const label = [title, subtitle, ...details, meta, ...badges.map(badgeLabel)]
+    .filter(Boolean)
+    .join(', ');
 
   const content = (
     <>
@@ -59,6 +64,15 @@ export const ListItem = ({
                 {subtitle}
               </Text>
             ) : null}
+            {details.map((line) => (
+              <Text
+                key={line}
+                variant={theme.scale === 'admin' ? 'adminApoio' : 'pessoaApoio'}
+                color="textoApoio"
+              >
+                {line}
+              </Text>
+            ))}
             {meta ? (
               <Text
                 variant={theme.scale === 'admin' ? 'adminApoio' : 'pessoaApoio'}

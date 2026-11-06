@@ -1,21 +1,24 @@
 import { zodResolver } from '@hookform/resolvers/zod';
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useForm, useWatch } from 'react-hook-form';
 import { useToast } from '@/components/ui';
 import { loadErrorMessage } from '@/lib/apiMessages';
 import { toIsoDate } from '@/lib/dateValue';
-import { fetchAllPages } from '@/lib/fetchAllPages';
-import { perfilLabel } from '@/lib/perfil';
 import type { Autorizacao } from '@/lib/types/authorizations';
-import type { UsuarioCompleto } from '@/lib/types/users';
 import type { ApiError } from '@/service/ApiError';
 import type { ICreateAuthorizationService } from '@/service/IAuthorizationService';
 import type { IListAccessPointsService, IListBuildingsService } from '@/service/ILocationService';
 import type { IListUsersService } from '@/service/IUserService';
 import { applyFieldErrors } from '@/screens/Shared/form/applyFieldErrors';
 import { useDiscardGuard } from '@/screens/Shared/form/useDiscardGuard';
-import { useAccessPointsQuery, useBuildingsQuery } from '../../locations/locationsQueries';
+import {
+  placeOptions,
+  useAccessPointsQuery,
+  useBuildingsQuery,
+} from '../../locations/locationsQueries';
+import { personOption, usePeopleQuery } from '../../users/usersQueries';
+import { authorizationsQueryKeys } from '../authorizationsQueries';
 import { authorizationSaveError } from './authorizationForm.messages';
 import {
   authorizationFormSchema,
@@ -24,8 +27,6 @@ import {
 } from './authorizationForm.schema';
 import { buildSummary } from './authorizationForm.summary';
 import { nextSevenDays, onlyToday } from './period';
-
-export const authorizationsQueryKey = ['authorizations'] as const;
 
 const systemClock = () => new Date();
 
@@ -70,10 +71,7 @@ export const useNewAuthorizationModel = ({
   const inFlight = useRef(false);
 
   // Only active people and places can receive an authorization (the server answers 422).
-  const users = useQuery<UsuarioCompleto[], ApiError>({
-    queryKey: ['users', 'active'],
-    queryFn: () => fetchAllPages((page) => listUsersService.exec({ ...page, ativo: true })),
-  });
+  const users = usePeopleQuery(listUsersService, { onlyActive: true });
   const buildings = useBuildingsQuery(listBuildingsService);
   const accessPoints = useAccessPointsQuery(listAccessPointsService);
   const queries = [users, buildings, accessPoints];
@@ -83,35 +81,16 @@ export const useNewAuthorizationModel = ({
     [form],
   );
 
-  const personOptions = useMemo(
-    () =>
-      (users.data ?? [])
-        .filter((user) => user.ativo)
-        .map((user) => ({
-          value: user.id,
-          label: `${user.nome}, ${perfilLabel(user.perfil)}`,
-          description: user.email,
-        })),
-    [users.data],
-  );
+  const personOptions = useMemo(() => (users.data ?? []).map(personOption), [users.data]);
 
-  // Grouped by building: buildings and places in alphabetical order.
-  const placeOptions = useMemo(() => {
-    const byId = new Map((buildings.data ?? []).map((building) => [building.id, building]));
-    return (accessPoints.data ?? [])
-      .filter((ap) => ap.ativo && byId.get(ap.buildingId)?.ativo)
-      .map((ap) => ({ ap, building: byId.get(ap.buildingId)! }))
-      .sort(
-        (a, b) =>
-          a.building.nome.localeCompare(b.building.nome, 'pt-BR') ||
-          a.ap.nome.localeCompare(b.ap.nome, 'pt-BR'),
-      )
-      .map(({ ap, building }) => ({
-        value: ap.id,
-        label: `${ap.nome}, ${building.nome}`,
-        group: building.nome,
-      }));
-  }, [accessPoints.data, buildings.data]);
+  const activePlaceOptions = useMemo(
+    () =>
+      placeOptions(
+        (accessPoints.data ?? []).filter((ap) => ap.ativo),
+        (buildings.data ?? []).filter((building) => building.ativo),
+      ),
+    [accessPoints.data, buildings.data],
+  );
 
   // Built from the same object that goes to the API, and only when it would be accepted.
   const summary = useMemo(() => {
@@ -137,8 +116,8 @@ export const useNewAuthorizationModel = ({
   const save = useMutation<Autorizacao, ApiError, AuthorizationFormOutput>({
     mutationFn: (body) => createAuthorizationService.exec(body),
     onSuccess: () => {
-      // The list of F08 shows the new one at the top when it opens.
-      void queryClient.invalidateQueries({ queryKey: authorizationsQueryKey });
+      // The list refetches behind this screen: the new one is at the top on return.
+      void queryClient.invalidateQueries({ queryKey: authorizationsQueryKeys.all });
       toast.show('Autorização criada.');
       onClose();
     },
@@ -168,9 +147,9 @@ export const useNewAuthorizationModel = ({
     loadErrorMessage: error ? loadErrorMessage(error) : '',
     onRetryLoad: () => Promise.all(queries.map((query) => query.refetch())),
     personOptions,
-    placeOptions,
+    placeOptions: activePlaceOptions,
     hasNoPeople: loaded && personOptions.length === 0,
-    hasNoPlaces: loaded && placeOptions.length === 0,
+    hasNoPlaces: loaded && activePlaceOptions.length === 0,
     summary,
     // The picker of the end date does not even offer a day before the start.
     minEndDate: values.dataInicio ?? undefined,

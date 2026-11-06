@@ -2,6 +2,7 @@ import { QueryClient } from '@tanstack/react-query';
 import { fireEvent, render, screen, waitFor, within } from '@testing-library/react-native';
 import { useSessionStore } from '@/context/SessionStore';
 import { ApiError } from '@/service/ApiError';
+import { FakeAuthorizationDirectory } from '@/service/fakes/FakeAuthorizationDirectory';
 import { FakeCreateAuthorizationService } from '@/service/fakes/FakeAuthorizationServices';
 import { FakeLocationDirectory } from '@/service/fakes/FakeLocationDirectory';
 import {
@@ -20,11 +21,12 @@ const now = () => new Date(2026, 9, 20, 10, 0);
 
 const renderForm = ({ users = new FakeUserDirectory() } = {}) => {
   const locations = new FakeLocationDirectory({ now });
+  const authorizations = new FakeAuthorizationDirectory({ users, locations, now });
   const services = {
     listUsersService: new FakeListUsersService(users),
     listBuildingsService: new FakeListBuildingsService(locations),
     listAccessPointsService: new FakeListAccessPointsService(locations),
-    createAuthorizationService: new FakeCreateAuthorizationService({ users, locations, now }),
+    createAuthorizationService: new FakeCreateAuthorizationService(authorizations),
   };
   const navigation = { onClose: jest.fn(), onGoToUsers: jest.fn(), onGoToLocations: jest.fn() };
   const Screen = () => (
@@ -34,7 +36,12 @@ const renderForm = ({ users = new FakeUserDirectory() } = {}) => {
       onGoToLocations={navigation.onGoToLocations}
     />
   );
-  return { ...services, navigation, rendered: render(<Screen />, { wrapper: createWrapper() }) };
+  return {
+    ...services,
+    authorizations,
+    navigation,
+    rendered: render(<Screen />, { wrapper: createWrapper() }),
+  };
 };
 
 // Like a person in a long list: types the name in the search of the select, then picks it.
@@ -162,7 +169,7 @@ describe('Nova autorização (T24)', () => {
 
   it('cria com os oito campos do contrato, mostra "Autorização criada." e fecha', async () => {
     const invalidate = jest.spyOn(QueryClient.prototype, 'invalidateQueries');
-    const { createAuthorizationService, navigation, rendered } = renderForm();
+    const { createAuthorizationService, authorizations, navigation, rendered } = renderForm();
     await rendered;
 
     await fillPersonAndPlace();
@@ -180,7 +187,7 @@ describe('Nova autorização (T24)', () => {
         usosPermitidos: 1,
       },
     ]);
-    expect(createAuthorizationService.created[0].situacaoEfetiva).toBe('ATIVA');
+    expect(authorizations.list({ page: 1, pageSize: 1 }).data[0].situacaoEfetiva).toBe('ATIVA');
     expect(invalidate).toHaveBeenCalledWith({ queryKey: ['authorizations'] });
   });
 

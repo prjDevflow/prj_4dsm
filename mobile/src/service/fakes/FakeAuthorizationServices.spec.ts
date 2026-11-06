@@ -1,5 +1,12 @@
 import { useSessionStore } from '@/context/SessionStore';
-import { FakeCreateAuthorizationService } from './FakeAuthorizationServices';
+import { ApiError } from '../ApiError';
+import { FakeAuthorizationDirectory } from './FakeAuthorizationDirectory';
+import {
+  FakeCancelAuthorizationService,
+  FakeCreateAuthorizationService,
+  FakeGetAuthorizationService,
+  FakeListAuthorizationsService,
+} from './FakeAuthorizationServices';
 import { FakeLocationDirectory } from './FakeLocationDirectory';
 import { FakeUserDirectory } from './FakeUserDirectory';
 import { sampleAdmin, sampleUsers } from './sampleData';
@@ -10,90 +17,57 @@ const now = () => new Date(2026, 9, 20, 10, 0);
 const setup = () => {
   const users = new FakeUserDirectory();
   const locations = new FakeLocationDirectory({ now });
-  const service = new FakeCreateAuthorizationService({ users, locations, now });
-  const point = (nome: string) =>
-    locations.listAccessPoints(all).data.find((ap) => ap.nome === nome)!;
-  const user = (nome: string) => sampleUsers.find((u) => u.nome === nome)!;
-  return { service, point, user };
+  const directory = new FakeAuthorizationDirectory({ users, locations, now });
+  const point = locations.listAccessPoints(all).data.find((ap) => ap.nome === 'Catraca Social')!;
+  const maria = sampleUsers.find((u) => u.nome === 'Maria Souza')!;
+  const body = {
+    usuarioId: maria.id,
+    accessPointId: point.id,
+    dataInicio: '2026-10-20',
+    dataFim: '2026-10-25',
+    horaInicio: '08:00',
+    horaFim: '18:00',
+    usosPermitidos: 3,
+  };
+  return { directory, body };
 };
 
-const body = (usuarioId: string, accessPointId: string) => ({
-  usuarioId,
-  accessPointId,
-  dataInicio: '2026-10-20',
-  dataFim: '2026-10-25',
-  horaInicio: '08:00',
-  horaFim: '18:00',
-  usosPermitidos: 3,
-});
-
-describe('FakeCreateAuthorizationService', () => {
+describe('serviços falsos de autorizações', () => {
   beforeEach(() => useSessionStore.getState().signIn('fake-token-admin', sampleAdmin));
 
-  it('cria ativa, com os nomes da pessoa, do local e do edifício e quem criou', async () => {
-    const { service, point, user } = setup();
+  it('compartilham o diretório: a criada aparece na lista e no detalhe, feita por quem está logado', async () => {
+    const { directory, body } = setup();
+    const create = new FakeCreateAuthorizationService(directory);
 
-    const created = await service.exec(body(user('Maria Souza').id, point('Catraca Social').id));
+    const created = await create.exec(body);
 
-    expect(created).toMatchObject({
-      usuario: { nome: 'Maria Souza', perfil: 'CONDOMINO' },
-      local: { nome: 'Catraca Social', tipo: 'CATRACA', edificio: { nome: 'Edifício Central' } },
-      usosPermitidos: 3,
-      usosRealizados: 0,
-      usosRestantes: 3,
-      situacao: 'ATIVA',
-      situacaoEfetiva: 'ATIVA',
-      criadoPor: { id: sampleAdmin.id },
-    });
-    expect(service.calls).toHaveLength(1);
+    expect(created.criadoPor).toMatchObject({ id: sampleAdmin.id });
+    expect((await new FakeListAuthorizationsService(directory).exec(all)).data[0]).toEqual(created);
+    await expect(new FakeGetAuthorizationService(directory).exec(created.id)).resolves.toEqual(
+      created,
+    );
+    expect(create.calls).toEqual([body]);
   });
 
-  it('pessoa ou local que não existe dá 404', async () => {
-    const { service, point, user } = setup();
+  it('cancelar usa quem está logado e guarda a chamada', async () => {
+    const { directory, body } = setup();
+    const { id } = await new FakeCreateAuthorizationService(directory).exec(body);
+    const cancel = new FakeCancelAuthorizationService(directory);
 
-    await expect(
-      service.exec(body('nao-existe', point('Catraca Social').id)),
-    ).rejects.toMatchObject({
-      status: 404,
-    });
-    await expect(service.exec(body(user('Maria Souza').id, 'nao-existe'))).rejects.toMatchObject({
-      status: 404,
-    });
+    const cancelled = await cancel.exec(id, 'Pedido da moradora');
+
+    expect(cancelled.canceladoPor).toMatchObject({ id: sampleAdmin.id });
+    expect(cancel.calls).toEqual([{ id, motivo: 'Pedido da moradora' }]);
   });
 
-  it('pessoa ou local inativo dá 422 no campo', async () => {
-    const { service, point, user } = setup();
+  it('willFail faz qualquer um falhar com o erro dado, e null volta ao normal', async () => {
+    const { directory } = setup();
+    const list = new FakeListAuthorizationsService(directory);
+    list.willFail(new ApiError(null, 'NETWORK', 'Sem conexão'));
 
-    await expect(
-      service.exec(body(user('Eduarda Martins').id, point('Catraca Social').id)),
-    ).rejects.toMatchObject({
-      status: 422,
-      details: [expect.objectContaining({ field: 'usuarioId' })],
-    });
-    await expect(
-      service.exec(body(user('Maria Souza').id, point('Catraca do Anexo').id)),
-    ).rejects.toMatchObject({
-      status: 422,
-      details: [expect.objectContaining({ field: 'accessPointId' })],
-    });
-  });
+    await expect(list.exec(all)).rejects.toMatchObject({ code: 'NETWORK' });
 
-  it('data final no passado e horário final antes do inicial dão 422 nos campos', async () => {
-    const { service, point, user } = setup();
-
-    await expect(
-      service.exec({
-        ...body(user('Maria Souza').id, point('Catraca Social').id),
-        dataInicio: '2026-10-01',
-        dataFim: '2026-10-19',
-        horaFim: '07:00',
-      }),
-    ).rejects.toMatchObject({
-      status: 422,
-      details: [
-        expect.objectContaining({ field: 'dataFim' }),
-        expect.objectContaining({ field: 'horaFim' }),
-      ],
-    });
+    list.willFail(null);
+    await expect(list.exec(all)).resolves.toMatchObject({ total: 6 });
   });
 });

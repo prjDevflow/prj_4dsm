@@ -1,6 +1,16 @@
 import { createServices } from './container';
-import { FakeCreateAuthorizationService } from './fakes/FakeAuthorizationServices';
-import { CreateAuthorizationService } from './implementations/AuthorizationServices';
+import {
+  FakeCancelAuthorizationService,
+  FakeCreateAuthorizationService,
+  FakeGetAuthorizationService,
+  FakeListAuthorizationsService,
+} from './fakes/FakeAuthorizationServices';
+import {
+  CancelAuthorizationService,
+  CreateAuthorizationService,
+  GetAuthorizationService,
+  ListAuthorizationsService,
+} from './implementations/AuthorizationServices';
 import { FakeGetHealthService } from './fakes/FakeGetHealthService';
 import { FakeGetMeService } from './fakes/FakeGetMeService';
 import { FakeLoginUserService } from './fakes/FakeLoginUserService';
@@ -78,9 +88,16 @@ describe('createServices', () => {
   });
 
   it('autorizações são reais por padrão e falsas com "authorizations" na lista', () => {
-    expect(createServices([]).createAuthorization).toBeInstanceOf(CreateAuthorizationService);
-    expect(createServices(['authorizations']).createAuthorization).toBeInstanceOf(
-      FakeCreateAuthorizationService,
-    );
+    const real = createServices([]);
+    expect(real.createAuthorization).toBeInstanceOf(CreateAuthorizationService);
+    expect(real.listAuthorizations).toBeInstanceOf(ListAuthorizationsService);
+    expect(real.getAuthorization).toBeInstanceOf(GetAuthorizationService);
+    expect(real.cancelAuthorization).toBeInstanceOf(CancelAuthorizationService);
+
+    const fake = createServices(['authorizations']);
+    expect(fake.createAuthorization).toBeInstanceOf(FakeCreateAuthorizationService);
+    expect(fake.listAuthorizations).toBeInstanceOf(FakeListAuthorizationsService);
+    expect(fake.getAuthorization).toBeInstanceOf(FakeGetAuthorizationService);
+    expect(fake.cancelAuthorization).toBeInstanceOf(FakeCancelAuthorizationService);
   });
 });

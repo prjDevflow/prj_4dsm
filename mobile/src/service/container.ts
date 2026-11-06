@@ -1,7 +1,12 @@
 import { env } from '@/lib/env';
 import { FakeGetHealthService } from './fakes/FakeGetHealthService';
 import { FakeGetMeService } from './fakes/FakeGetMeService';
-import { FakeCreateAuthorizationService } from './fakes/FakeAuthorizationServices';
+import {
+  FakeCancelAuthorizationService,
+  FakeCreateAuthorizationService,
+  FakeGetAuthorizationService,
+  FakeListAuthorizationsService,
+} from './fakes/FakeAuthorizationServices';
 import { FakeClipboardService, FakeCurrentPositionService } from './fakes/FakeDeviceServices';
 import {
   FakeCreateAccessPointService,
@@ -23,7 +28,12 @@ import {
   FakeListUsersService,
   FakeUpdateUserService,
 } from './fakes/FakeUserServices';
-import { CreateAuthorizationService } from './implementations/AuthorizationServices';
+import {
+  CancelAuthorizationService,
+  CreateAuthorizationService,
+  GetAuthorizationService,
+  ListAuthorizationsService,
+} from './implementations/AuthorizationServices';
 import { CreateUserService } from './implementations/CreateUserService';
 import { ClipboardService, CurrentPositionService } from './implementations/DeviceServices';
 import { GetHealthService } from './implementations/GetHealthService';
@@ -50,11 +60,13 @@ import { UpdateUserService } from './implementations/UpdateUserService';
 
 // One entry per service; the names are the ones accepted in EXPO_PUBLIC_FAKE_SERVICES.
 // "users" switches the four /users services together, since the fakes share one directory;
-// "locations" does the same for buildings, access points and terminals.
+// "locations" does the same for buildings, access points and terminals, and "authorizations" for
+// the four /authorizations services.
 export const createServices = (fakeServices: string[]) => {
   const isFake = (name: string) => fakeServices.includes(name);
   const fakeUsers = isFake('users');
   const fakeLocations = isFake('locations');
+  const fakeAuthorizations = isFake('authorizations');
 
   return {
     getHealth: isFake('getHealth') ? new FakeGetHealthService() : new GetHealthService(),
@@ -83,9 +95,18 @@ export const createServices = (fakeServices: string[]) => {
     rotateTerminalKey: fakeLocations
       ? new FakeRotateTerminalKeyService()
       : new RotateTerminalKeyService(),
-    createAuthorization: isFake('authorizations')
+    createAuthorization: fakeAuthorizations
       ? new FakeCreateAuthorizationService()
       : new CreateAuthorizationService(),
+    listAuthorizations: fakeAuthorizations
+      ? new FakeListAuthorizationsService()
+      : new ListAuthorizationsService(),
+    getAuthorization: fakeAuthorizations
+      ? new FakeGetAuthorizationService()
+      : new GetAuthorizationService(),
+    cancelAuthorization: fakeAuthorizations
+      ? new FakeCancelAuthorizationService()
+      : new CancelAuthorizationService(),
     currentPosition: isFake('currentPosition')
       ? new FakeCurrentPositionService()
       : new CurrentPositionService(),

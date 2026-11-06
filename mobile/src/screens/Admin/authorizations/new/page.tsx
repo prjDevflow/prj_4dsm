@@ -3,7 +3,7 @@ import { services } from '@/service/container';
 import { useNewAuthorizationModel } from './newAuthorization.model';
 import { NewAuthorizationView } from './newAuthorization.view';
 
-/** "/admin/authorizations/new": T24. Until F08, it goes back to where it was opened. */
+/** "/admin/authorizations/new": T24. It goes back to the list, with the new one at the top. */
 export const NewAuthorizationPage = () => {
   const router = useRouter();
   const methods = useNewAuthorizationModel({
@@ -11,7 +11,7 @@ export const NewAuthorizationPage = () => {
     listBuildingsService: services.listBuildings,
     listAccessPointsService: services.listAccessPoints,
     createAuthorizationService: services.createAuthorization,
-    onClose: () => (router.canGoBack() ? router.back() : router.replace('/')),
+    onClose: () => (router.canGoBack() ? router.back() : router.replace('/admin/authorizations')),
   });
 
   return (

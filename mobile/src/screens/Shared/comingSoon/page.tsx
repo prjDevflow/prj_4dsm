@@ -12,7 +12,6 @@ export const ComingSoonPage = () => {
     <ComingSoonView
       area={found}
       onBack={() => (router.canGoBack() ? router.back() : router.replace('/'))}
-      onAction={(href) => router.push(href)}
     />
   );
 };

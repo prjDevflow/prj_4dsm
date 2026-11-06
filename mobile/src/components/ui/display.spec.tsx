@@ -150,6 +150,25 @@ describe('ListItem', () => {
     expect(screen.getAllByTestId('status-badge')).toHaveLength(2);
   });
 
+  it('mostra linhas de detalhe depois do subtítulo e lê todas', async () => {
+    await render(
+      <ListItem
+        title="Maria Souza"
+        subtitle="Catraca Social, Edifício Central"
+        details={['20/10 a 25/10 · 08:00 às 18:00', 'Entradas: 1 de 3']}
+        badge={{ status: 'ATIVA' }}
+        onPress={jest.fn()}
+      />,
+    );
+
+    expect(screen.getByText('Entradas: 1 de 3')).toBeOnTheScreen();
+    expect(
+      screen.getByRole('button', {
+        name: 'Maria Souza, Catraca Social, Edifício Central, 20/10 a 25/10 · 08:00 às 18:00, Entradas: 1 de 3, Ativa',
+      }),
+    ).toBeOnTheScreen();
+  });
+
   it('sem onPress não é botão', async () => {
     await render(<ListItem title="Catraca Social" subtitle="QR Code" />);
 
