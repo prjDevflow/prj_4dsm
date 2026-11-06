@@ -40,7 +40,7 @@ Legenda: **U** = unitário (doubles, sem banco) · **I** = integração (superte
 - [x] Tag duplicada → 409.
 - [ ] Desativar a tag impede o uso (verificado na B17). _Na B16 está provado que `ativa: false` fica gravado; o bloqueio da leitura é da B17._
 - [x] Só `ADMIN` acessa.
-- [x] (Opcional) o modo de cadastro expira sozinho em 60 s.
+- [x] (Opcional) o modo de cadastro expira sozinho em 60 s. _Provado na regra `isEnrollModeActive`; passa a valer de fato com a leitura da B17._
 
 **Definição de pronto**
 
