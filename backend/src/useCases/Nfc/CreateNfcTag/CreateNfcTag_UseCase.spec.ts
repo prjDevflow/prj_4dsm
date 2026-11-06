@@ -134,4 +134,25 @@ describe('CreateNfcTag', () => {
       status: 404,
     });
   });
+
+  it('deve checar o UID antes do usuário', async () => {
+    const { sut } = await makeSut();
+
+    await expect(sut.execute({ usuarioId: UNKNOWN_ID, uid: '04A1B2G3' })).rejects.toMatchObject({
+      status: 422,
+      details: [{ field: 'uid' }],
+    });
+  });
+
+  it('deve checar se o usuário está inativo antes da duplicidade', async () => {
+    const { sut, users, tags } = await makeSut();
+    const inactiveId = '00000000-0000-4000-8000-0000000000e2';
+    await users.save(makeUser({ id: inactiveId, ativo: false }));
+    await tags.save(makeNfcTag({ uid: '04A1B2C3' }));
+
+    await expect(sut.execute({ usuarioId: inactiveId, uid: '04A1B2C3' })).rejects.toMatchObject({
+      status: 422,
+      details: [{ field: 'usuarioId' }],
+    });
+  });
 });
