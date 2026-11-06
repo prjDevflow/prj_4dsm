@@ -18,34 +18,34 @@ Legenda: **U** = unitário (doubles, sem banco) · **I** = integração (superte
 
 - `POST /nfc-tags` `{ usuarioId, uid, descricao? }`: normaliza o UID (remove `:`, `-` e espaços, converte para maiúsculas, só hexadecimal, 8 a 20 caracteres). UID repetido → 409 `TAG_JA_CADASTRADA`. 💡 O usuário precisa existir (404) e estar ativo (422).
 - `GET /nfc-tags` (filtros `usuarioId`, `ativa`) e `PATCH /nfc-tags/:id` (ativar ou desativar). Sem exclusão.
-- 🟢 **Modo de cadastro pelo terminal (opcional):** `POST /terminals/:id/enroll-mode` `{ usuarioId }` grava `modoCadastroUsuarioId` e `modoCadastroAte = agora + 60 s` (`ENROLL_MODE_SECONDS`). A próxima leitura NFC naquele terminal vincula a tag (feito na B17).
+- 🟢 **Modo de cadastro pelo terminal (opcional):** `POST /terminals/:id/enroll-mode` `{ usuarioId }` grava `modoCadastroUsuarioId` e `modoCadastroAte = agora + 60 s` (`ENROLL_MODE_SECONDS`). A próxima leitura NFC naquele terminal vincula a tag (feito na B17). **Incluído na B16 por decisão do autor (2026-11-06)**; resposta e regras na seção 4.6 do arquivo 03.
 - Se faltar tempo, entregar só os dois primeiros itens: o administrador digita o UID no app (F13); o UID aparece na serial do terminal (I10).
 
 **Lista de testes**
 
-- [ ] U `normalizeUid`: `04:a1:b2:c3` e `04A1B2C3` resultam em `04A1B2C3`; também com hífens e espaços.
-- [ ] U `normalizeUid`: caractere não hexadecimal, 7 caracteres e 21 caracteres são rejeitados; 8 e 20 passam.
-- [ ] U `CreateNfcTag`: grava o UID normalizado e `ativa: true`.
-- [ ] U `CreateNfcTag`: UID duplicado, mesmo escrito de outro jeito, lança 409 `TAG_JA_CADASTRADA`.
-- [ ] U `CreateNfcTag`: usuário inexistente → 404; inativo → 422.
-- [ ] U `UpdateNfcTag`: desativar e reativar; tag inexistente → 404.
-- [ ] U `EnableEnrollMode` (se feito): grava prazo de 60 s e o modo expira sozinho (`FakeClock` T+61 s).
-- [ ] I UID inválido → 422; tag duplicada → 409; só `ADMIN` acessa (403 para os demais).
-- [ ] I filtros `usuarioId` e `ativa` da listagem.
+- [x] U `normalizeUid`: `04:a1:b2:c3` e `04A1B2C3` resultam em `04A1B2C3`; também com hífens e espaços.
+- [x] U `normalizeUid`: caractere não hexadecimal, 7 caracteres e 21 caracteres são rejeitados; 8 e 20 passam.
+- [x] U `CreateNfcTag`: grava o UID normalizado e `ativa: true`.
+- [x] U `CreateNfcTag`: UID duplicado, mesmo escrito de outro jeito, lança 409 `TAG_JA_CADASTRADA`.
+- [x] U `CreateNfcTag`: usuário inexistente → 404; inativo → 422.
+- [x] U `UpdateNfcTag`: desativar e reativar; tag inexistente → 404.
+- [x] U `EnableEnrollMode` (se feito): grava prazo de 60 s e o modo expira sozinho (`FakeClock` T+61 s).
+- [x] I UID inválido → 422; tag duplicada → 409; só `ADMIN` acessa (403 para os demais).
+- [x] I filtros `usuarioId` e `ativa` da listagem.
 
 **Critérios de aceitação**
 
-- [ ] `04:a1:b2:c3` e `04A1B2C3` resultam no mesmo UID salvo.
-- [ ] UID com caracteres inválidos ou tamanho errado → 422.
-- [ ] Tag duplicada → 409.
-- [ ] Desativar a tag impede o uso (verificado na B17).
-- [ ] Só `ADMIN` acessa.
-- [ ] (Opcional) o modo de cadastro expira sozinho em 60 s.
+- [x] `04:a1:b2:c3` e `04A1B2C3` resultam no mesmo UID salvo.
+- [x] UID com caracteres inválidos ou tamanho errado → 422.
+- [x] Tag duplicada → 409.
+- [ ] Desativar a tag impede o uso (verificado na B17). _Na B16 está provado que `ativa: false` fica gravado; o bloqueio da leitura é da B17._
+- [x] Só `ADMIN` acessa.
+- [x] (Opcional) o modo de cadastro expira sozinho em 60 s.
 
 **Definição de pronto**
 
-- [ ] Testes de normalização, duplicidade, desativação e perfil.
-- [ ] Swagger atualizado; Pedro avisado (★).
+- [x] Testes de normalização, duplicidade, desativação e perfil.
+- [ ] Swagger atualizado; Pedro avisado (★). _Swagger atualizado; falta avisar Pedro._
 
 ---
 
