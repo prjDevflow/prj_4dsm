@@ -166,6 +166,26 @@ Sucesso do QR: `"Acesso autorizado. Pode passar."`
 
 UID da tag: hexadecimal, maiúsculo, sem separadores, 8 a 20 caracteres.
 
+### 4.6 Tags NFC (administração)
+
+```json
+// POST /nfc-tags  → 201 (o UID pode vir com `:`, `-` e espaços, em qualquer caixa)
+{ "usuarioId": "<uuid>", "uid": "04:a1:b2:c3:d4", "descricao": "Chaveiro azul" }
+// resposta do POST e do PATCH, e cada item de GET /nfc-tags?usuarioId=&ativa=&page=&pageSize=
+{ "id": "<uuid>", "usuario": { "id": "<uuid>", "nome": "Maria Souza" }, "uid": "04A1B2C3D4",
+  "descricao": "Chaveiro azul", "ativa": true, "criadaEm": "2026-11-06T12:00:00.000Z" }
+
+// PATCH /nfc-tags/:id  → 200 (só este campo; qualquer outro dá 422)
+{ "ativa": false }
+
+// POST /terminals/:id/enroll-mode  → 200
+{ "usuarioId": "<uuid>" }
+// resposta
+{ "terminalId": "<uuid>", "usuarioId": "<uuid>", "modoCadastroAte": "2026-11-06T12:01:00.000Z" }
+```
+
+No `POST /nfc-tags`, a primeira checagem que falhar define a resposta: UID inválido (422 em `uid`), usuário inexistente (404), usuário inativo (422 em `usuarioId`) e UID já cadastrado (409 `TAG_JA_CADASTRADA`). No `enroll-mode`: terminal ou usuário inexistentes (404) e terminal ou usuário inativos (422 em `id` e `usuarioId`).
+
 ## 5. Regras de acesso
 
 ### 5.1 Ordem de avaliação do QR (`POST /access/qr/validate`)

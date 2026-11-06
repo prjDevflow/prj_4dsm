@@ -56,6 +56,7 @@ Variáveis do `.env`:
 | `GPS_MAX_AGE_MIN`                                      | `10`                    | idade máxima do GPS, em minutos, para ele valer            |
 | `QR_VALIDATE_MAX_PER_MINUTE`                           | `10`                    | validações de QR por minuto por usuário (acima, 429)       |
 | `MAX_DISTANCE_M`                                       | `100`                   | distância máxima, em metros, entre o celular e o terminal  |
+| `ENROLL_MODE_SECONDS`                                  | `60`                    | segundos do modo de cadastro de tag NFC no terminal        |
 | `SEED_*`                                               | ver `.env.example`      | credenciais e local do seed de desenvolvimento             |
 
 O `.env` nunca vai para o Git nem para a imagem Docker. Troque a senha do exemplo no seu `.env`.
@@ -293,6 +294,23 @@ curl -X PATCH http://localhost:3000/api/v1/authorizations/<id>/cancel \
   -H "Authorization: Bearer <accessToken do admin>" -H 'content-type: application/json' \
   -d '{"motivo":"Pedido da moradora"}'
 ```
+
+## Tags NFC
+
+Só `ADMIN` (rotas em `/nfc-tags` e `/terminals/{id}/enroll-mode`; contrato no Swagger). O administrador vincula a tag à pessoa; a validação da leitura no terminal chega com a B17.
+
+```bash
+curl -X POST http://localhost:3000/api/v1/nfc-tags \
+  -H "Authorization: Bearer <accessToken>" -H 'content-type: application/json' \
+  -d '{"usuarioId":"<id do usuário>","uid":"04:a1:b2:c3","descricao":"Chaveiro azul"}'
+# 201 {"id":"...","usuario":{"id":"...","nome":"Maria Souza"},"uid":"04A1B2C3","descricao":"Chaveiro azul","ativa":true,"criadaEm":"2026-11-06T12:00:00.000Z"}
+# 409 {"error":{"code":"TAG_JA_CADASTRADA","message":"Esta tag já está vinculada a alguém"}}
+```
+
+- O servidor normaliza o UID: tira `:`, `-` e espaços, passa para maiúsculas e exige hexadecimal de 8 a 20 caracteres (`422` no campo `uid`). `04:a1:b2:c3` e `04A1B2C3` são a mesma tag.
+- O UID é único, inclusive entre tags desativadas (`409 TAG_JA_CADASTRADA`). O usuário tem de existir (`404`) e estar ativo (`422`).
+- `GET /nfc-tags` filtra por `usuarioId` e `ativa`. `PATCH /nfc-tags/{id}` aceita só `ativa`; tags não são apagadas.
+- `POST /terminals/{id}/enroll-mode` com `{ "usuarioId": "..." }` abre o modo de cadastro por `ENROLL_MODE_SECONDS` (60 s) e devolve `modoCadastroAte`. Chamar de novo substitui o modo vigente; terminal ou usuário inativos dão `422`. A leitura que vincula a tag é da B17.
 
 ## Estrutura
 
