@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it } from 'vitest';
 import { PrismaTerminalRepository } from '../../src/infra/repositories/PrismaTerminalRepository';
-import { insertTerminal, prisma, resetDatabase, sha256Hex } from './helpers';
+import { insertTerminal, insertUser, prisma, resetDatabase, sha256Hex } from './helpers';
 
 const terminals = new PrismaTerminalRepository(prisma);
 
@@ -128,5 +128,49 @@ describe('PrismaTerminalRepository.updateHeartbeat', () => {
     expect(
       await terminals.updateHeartbeat('5eed0000-0000-4000-8000-0000000000ff', heartbeat, contact),
     ).toBe(false);
+  });
+});
+
+describe('PrismaTerminalRepository: modo de cadastro', () => {
+  beforeEach(resetDatabase);
+
+  it('setEnrollMode grava só as duas colunas: não desfaz o que outra requisição gravou depois da leitura', async () => {
+    const user = await insertUser();
+    const terminal = await insertTerminal({ apiKeyHash: sha256Hex('a') });
+    const contact = new Date('2026-10-20T14:00:00Z');
+    await prisma.terminal.update({
+      where: { id: terminal.id },
+      data: { apiKeyHash: sha256Hex('b'), nome: 'Renomeado', ultimoContatoEm: contact },
+    });
+    const ate = new Date('2026-11-06T12:01:00Z');
+
+    await terminals.setEnrollMode(terminal.id, { usuarioId: user.id, ate });
+
+    const row = await prisma.terminal.findUniqueOrThrow({ where: { id: terminal.id } });
+    expect(row).toMatchObject({
+      modoCadastroUsuarioId: user.id,
+      modoCadastroAte: ate,
+      apiKeyHash: sha256Hex('b'),
+      nome: 'Renomeado',
+      ultimoContatoEm: contact,
+    });
+  });
+
+  it('setEnrollMode chamado de novo substitui o modo vigente, e findById o devolve', async () => {
+    const first = await insertUser();
+    const second = await insertUser();
+    const terminal = await insertTerminal();
+    const ate = new Date('2026-11-06T12:01:00Z');
+    await terminals.setEnrollMode(terminal.id, {
+      usuarioId: first.id,
+      ate: new Date('2026-11-06T12:00:30Z'),
+    });
+
+    await terminals.setEnrollMode(terminal.id, { usuarioId: second.id, ate });
+
+    expect(await terminals.findById(terminal.id)).toMatchObject({
+      modoCadastroUsuarioId: second.id,
+      modoCadastroAte: ate,
+    });
   });
 });
