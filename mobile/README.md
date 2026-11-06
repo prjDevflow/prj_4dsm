@@ -44,8 +44,9 @@ O app abre no **login** (T02). Com a API real e o seed do backend, use:
 | Condômino     | `condomino@dev.local` | `Usuario-Dev-2026` | início da pessoa        |
 | Visitante     | `visitante@dev.local` | `Usuario-Dev-2026` | início da pessoa        |
 
-São as senhas públicas do `backend/.env.example`, só para desenvolvimento. Os inícios são provisórios
-(saudação, perfil e "Sair") até a F04 trazer a T03 e a T14.
+São as senhas públicas do `backend/.env.example`, só para desenvolvimento. A sessão fica guardada: ao
+reabrir o app, a abertura (T01) confere o token com `GET /auth/me` e leva direto ao início. Os blocos do
+administrador e os atalhos da pessoa abrem telas "Em breve" até as etapas seguintes.
 
 ## Apontar para a API real ou para o mock
 
@@ -76,7 +77,8 @@ EXPO_PUBLIC_FAKE_SERVICES=getHealth,loginUser
 ```
 
 Os nomes aceitos são as chaves de `createServices` em [src/service/container.ts](src/service/container.ts).
-Hoje: `getHealth` e `loginUser`. O login falso aceita os mesmos três usuários e senhas do seed.
+Hoje: `getHealth`, `loginUser` e `getMe`. O login falso aceita os mesmos três usuários e senhas do seed, e
+o `getMe` falso reconhece o token que ele devolve.
 
 ## Tema e componentes
 

@@ -1,4 +1,5 @@
 export { Alert, type AlertTone } from './Alert';
+export { Avatar } from './Avatar';
 export { Button, type ButtonProps, type ButtonVariant } from './Button';
 export { Card } from './Card';
 export { DateField, TimeField } from './DateField';
