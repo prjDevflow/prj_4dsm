@@ -2,9 +2,9 @@
 
 Atualize este arquivo no fim de cada sessão de trabalho e ao abrir ou integrar um PR. A IA lê aqui qual é a etapa atual antes de começar.
 
-**Etapa atual:** F04 (pronta na branch local, não enviada; empilhada na F03) → próxima: F10
-**Branch:** `feature/F04-session-home` (criada da `feature/F03-login`, porque os PRs #14, #16 e #19 ainda não foram integrados)
-**Último teste vermelho/verde:** navegação por sessão e perfil (green), 282 testes passando
+**Etapa atual:** F05 (pronta na branch local, não enviada; empilhada na F04, PR #25) → próxima: F10
+**Branch:** `feature/F05-users` (criada da `feature/F04-session-home`)
+**Último teste vermelho/verde:** lista, cadastro e edição de usuários (green), 381 testes passando
 
 Legenda: ⬜ pendente · 🟨 em andamento · ✅ pronta (critérios e DoD marcados, PR integrado em `develop`) · 🔴 essencial · 🟡 importante · 🟢 pode ser cortada · ❓ pergunta em aberto (lista no fim deste arquivo).
 
@@ -25,7 +25,7 @@ Hoje é 28/10 e o app começa do zero. 💡 Por isso a ordem muda em relação a
 | F09 | Minhas autorizações | T04, T05 | F04 | B09 (falso até sair) | 08/11 | 🔴 | ⬜ | |
 | — | Integração com backend e terminal, ensaio | — | F11, F09 | B15 | 09–10/11 | 🔴 | | |
 | — | **Review 2 (M4: QR ponta a ponta)** | | | | **11/11 19h30** | | | |
-| F05 | Usuários | T15, T16 | F04 | B06 ✅ | 13/11 | 🔴 | ⬜ | |
+| F05 | Usuários | T15, T16 | F04 | B06 ✅ | 13/11 | 🔴 | 🟨 | não enviada |
 | F06 | Locais e terminais | T17 a T22 | F04 | B07, B11 | 15/11 | 🔴 | ⬜ | |
 | F07 | Nova autorização | T24 | F05, F06 | B08 | 16/11 | 🔴 | ⬜ | |
 | F08 | Lista e cancelamento de autorizações | T23, T25 | F07 | B09 | 17/11 | 🔴 | ⬜ | |
@@ -105,6 +105,11 @@ Formato: data · decisão · motivo.
 - 2026-11-01 · Na F04, os blocos do administrador e os atalhos da pessoa abrem telas "Em breve" (`/admin/[area]` e `/em-breve/[area]`) · as telas de verdade chegam da F05 em diante; assim a navegação já fica pronta e testada.
 - 2026-11-01 · Ficam de fora da F04 o cartão "Você pode entrar agora" (❓ 3), o alerta de terminal offline (❓ 13), a opção de tema (❓ 2) e o contador de autorizações (F09) · são Ideias do design à espera do aval do grupo, ou dependem de outra etapa.
 - 2026-11-01 · A T14 ganhou "Sair" no rodapé, como a T03 · o card da F04 pede "Sair" no início do administrador; no Figma ele fica só em Minha conta.
+- 2026-11-02 · Na F05, o Perfil do cadastro é um grupo de opções à vista (`RadioGroup`), e não o `SelectField` · o Figma (T16) mostra as três opções na tela.
+- 2026-11-02 · Na F05, `EXPO_PUBLIC_FAKE_SERVICES=users` troca juntos os quatro serviços de `/users` · os falsos dividem uma lista em memória; trocar só um deixaria o cadastrado fora da lista.
+- 2026-11-02 · Na F05, "Mostrar usuários inativos" desligado envia `ativo=true`; ligado não envia `ativo` · ligado mostra todos, ativos e inativos, com o selo "Inativo".
+- 2026-11-02 · Na F05, a mensagem do 409 `AUTO_DESATIVACAO` depende do que foi enviado ("desativar a si mesmo", "alterar o próprio perfil" ou os dois) · a API usa um só código para os dois casos.
+- 2026-11-02 · Na F05, a faixa de erro do formulário fica no rodapé, acima de "Cancelar" e "Salvar" · no emulador ela ficava escondida no fim do formulário.
 - 2026-10-29 · Na F03, o login leva a inícios provisórios (Administração ou Início, com saudação, perfil e "Sair") · o card pede o início de cada perfil, mas a T03, a T14 e a sessão que sobrevive ao fechamento são da F04.
 - 2026-10-29 · A tela "API: ok" vira `/health`, ferramenta só de desenvolvimento aberta pelo rodapé do login · com o login, o app abre em `/login`, e `/` passou a ser o início do perfil.
 - 2026-10-29 · O topo do login segue o Figma (logo, "Controle de Acesso" pequeno e "Entre com sua conta" como título) e o botão tem 60 · o card pedia "Controle de Acesso" como título e botão de 56; o Figma e o `tokens.md` mandam no visual.
@@ -119,6 +124,7 @@ Formato: data · decisão · motivo.
 | 2026-10-28 | F02 | Tema do `tokens.md` (cores conferidas pelo teste contra o próprio `tokens.md`, contraste WCAG), fonte Atkinson com a splash, formas, `Icon` e 25 componentes em `components/ui`; catálogo em `/catalog` só em `__DEV__`; teste que percorre o catálogo e exige papel e rótulo em todo elemento interativo. Conferido no emulador a 100% e a 200% (161 testes) | Testar o catálogo no celular; revisão do Rafael e do Eduardo; F03 |
 | 2026-10-28 | F01, F02 | Revisão: no celular do Pedro (Expo Go), "API: ok" com o mock e "API: fora do ar" sem ele, sem fechar o app. Corrigidos na F02: anúncio do erro de campo, dos avisos e dos estados no iOS (`useAnnounce`), aviso curto lido uma vez, rodapé em linha com fragmento, "Voltar" do catálogo aberto por link; o teste de contraste cobre as partes que não são texto (175 testes) | F01: celular com o Docker e revisor no #14; F02: catálogo no celular e revisão do Eduardo |
 | 2026-10-29 | F03 | Login (T02): schema, mensagens, `LoginUserService` e falso com os usuários do seed, model com toque duplo, senha limpa e foco, faixa que some ao digitar e aviso de sessão expirada; guards por sessão (`Stack.Protected` com `redirectTo`) e inícios provisórios; `/health` vira ferramenta de desenvolvimento. Emulador contra a API real no Docker: os três perfis, senha errada, sem internet, voltar do Android, fonte em 200% com teclado. Corrigido no aparelho: o foco não ia para a senha depois do erro | Abrir o PR (base #16); GIF; ouvir com TalkBack/VoiceOver; Eduardo confirmar o contrato; teste com uma pessoa; F04 |
+| 2026-11-02 | F05 | Lista de usuários (T15): busca 400 ms depois de parar de digitar, filtro de perfil, inativos, rolagem infinita, puxar para atualizar e estados; cadastro e edição (T16) com `RadioGroup` de perfil, 409 no campo E-mail, `AUTO_DESATIVACAO` e `ULTIMO_ADMIN` na faixa, 422 nos campos, PATCH só com o que mudou e "Descartar alterações?" (também no voltar do Android). Serviços de `/users` e falsos com as regras do B06. Emulador contra a API real (seed mais 22 pessoas de teste): paginação, busca com filtro, e-mail repetido, cadastrar, desativar a si mesmo e outra pessoa, inativos, fonte em 200%. Corrigidos no aparelho: faixa de erro escondida, teclado sobre o formulário, selos espremendo o e-mail | Abrir o PR (base #25); GIF; F10 |
 | 2026-11-01 | F04 | Abertura (T01) que restaura a sessão com `GET /auth/me`; início da pessoa (T03) e do administrador (T14) com o Figma; Minha conta (T13); "Sair" com diálogo de confirmação que limpa token e cache; `/admin` só para ADMIN; telas "Em breve"; faixa "Sem internet" (netinfo). Emulador contra a API real: reabrir já logado, Sair e voltar, admin → visitante, modo avião no início e na abertura | Abrir o PR (base #19); GIF de abrir já logado, sair e entrar com outro perfil; F10 |
 
 ---

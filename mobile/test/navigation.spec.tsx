@@ -1,4 +1,4 @@
-import { act, fireEvent, screen, within } from '@testing-library/react-native';
+import { act, fireEvent, screen, waitFor, within } from '@testing-library/react-native';
 import * as SecureStore from 'expo-secure-store';
 import { router } from 'expo-router';
 import { renderRouter } from 'expo-router/testing-library';
@@ -6,9 +6,14 @@ import { http, HttpResponse } from 'msw';
 import { useSessionStore } from '@/context/SessionStore';
 import { TOKEN_KEY } from '@/context/tokenStorage';
 import type { Usuario } from '@/lib/types/auth';
+import { FakeUserDirectory } from '@/service/fakes/FakeUserDirectory';
 import { sampleAdmin, sampleCondomino, sampleVisitante } from '@/service/fakes/sampleData';
 import { API_URL } from '@test/msw/handlers';
 import { server } from '@test/msw/server';
+import { usersHandlers } from '@test/msw/usersHandlers';
+
+// Each test walks through several real screens; a slow machine passes Jest's default of 5 s.
+jest.setTimeout(20_000);
 
 // Real routes of src/app, real services, API answered by MSW.
 const answerLogin = (usuario: Usuario) =>
@@ -138,7 +143,7 @@ describe('sessão e navegação por perfil', () => {
   it('condômino que abre um endereço do administrador volta ao início', async () => {
     await SecureStore.setItemAsync(TOKEN_KEY, 'token-salvo');
     answerMe(sampleCondomino);
-    await renderApp('/admin/usuarios');
+    await renderApp('/admin/users');
 
     expect(await screen.findByRole('header', { name: 'Olá, Condômino' })).toBeOnTheScreen();
     expect(screen.queryByRole('header', { name: 'Usuários' })).toBeNull();
@@ -225,9 +230,9 @@ describe('sessão e navegação por perfil', () => {
     await login(sampleAdmin);
     await screen.findByRole('header', { name: 'Administração' });
 
-    await fireEvent.press(screen.getByRole('button', { name: /^Usuários,/ }));
-    expect(await screen.findByRole('header', { name: 'Usuários' })).toBeOnTheScreen();
-    expect(screen.getByText('Esta tela chega na etapa F05 do app.')).toBeOnTheScreen();
+    await fireEvent.press(screen.getByRole('button', { name: /^Locais e terminais,/ }));
+    expect(await screen.findByRole('header', { name: 'Locais e terminais' })).toBeOnTheScreen();
+    expect(screen.getByText('Esta tela chega na etapa F06 do app.')).toBeOnTheScreen();
 
     await fireEvent.press(screen.getByRole('button', { name: 'Voltar' }));
     await fireEvent.press(await screen.findByRole('button', { name: 'Abrir catraca' }));
@@ -240,5 +245,99 @@ describe('sessão e navegação por perfil', () => {
     await renderApp('/em-breve/qualquer-coisa');
 
     expect(await screen.findByRole('header', { name: 'Olá, Condômino' })).toBeOnTheScreen();
+  });
+});
+
+describe('administração de usuários (F05)', () => {
+  beforeEach(async () => {
+    await SecureStore.deleteItemAsync(TOKEN_KEY);
+    useSessionStore.setState({ token: null, usuario: null, expired: false });
+    server.use(...usersHandlers(new FakeUserDirectory(), sampleAdmin.id));
+  });
+
+  const openUsers = async () => {
+    await renderApp();
+    await login(sampleAdmin);
+    await fireEvent.press(await screen.findByRole('button', { name: /^Usuários,/ }));
+    expect(await screen.findByRole('header', { name: 'Usuários' })).toBeOnTheScreen();
+  };
+
+  // The row of a user: its accessible name starts with the name and a comma.
+  const rowName = (nome: string) => new RegExp(`^${nome.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')},`);
+  const row = (nome: string) => screen.findByRole('button', { name: rowName(nome) });
+
+  it('o bloco "Usuários" abre a lista com os ativos, e o voltar retorna ao início', async () => {
+    await openUsers();
+
+    expect(await row('Administrador (dev)')).toBeOnTheScreen();
+    expect(screen.queryByRole('button', { name: /^Eduarda Martins,/ })).toBeNull();
+
+    await fireEvent.press(screen.getByRole('button', { name: 'Voltar' }));
+    expect(await screen.findByRole('header', { name: 'Administração' })).toBeOnTheScreen();
+  });
+
+  it('cria um usuário: o e-mail repetido aparece no campo e, corrigido, ele entra na lista', async () => {
+    await openUsers();
+    await fireEvent.press(screen.getByRole('button', { name: 'Novo usuário' }));
+    expect(await screen.findByRole('header', { name: 'Novo usuário' })).toBeOnTheScreen();
+
+    await fireEvent.changeText(screen.getByLabelText('Nome completo'), 'Aaron Teste');
+    await fireEvent.changeText(screen.getByLabelText('E-mail'), 'condomino@dev.local');
+    await fireEvent.press(screen.getByRole('radio', { name: 'Visitante' }));
+    await fireEvent.changeText(screen.getByLabelText('Senha'), 'Senha-Valida-123');
+    await fireEvent.changeText(screen.getByLabelText('Confirmar senha'), 'Senha-Valida-123');
+    await fireEvent.press(screen.getByRole('button', { name: 'Salvar' }));
+    expect(await screen.findByText('Este e-mail já está cadastrado.')).toBeOnTheScreen();
+
+    await fireEvent.changeText(screen.getByLabelText('E-mail'), 'aaron@email.com');
+    await fireEvent.press(screen.getByRole('button', { name: 'Salvar' }));
+
+    expect(await screen.findByRole('header', { name: 'Usuários' })).toBeOnTheScreen();
+    expect(await row('Aaron Teste')).toBeOnTheScreen();
+    expect(screen.getByText('Usuário cadastrado.')).toBeOnTheScreen();
+  });
+
+  it('desativar a si mesmo mostra a mensagem amigável e não sai da tela', async () => {
+    await openUsers();
+    await fireEvent.press(await row('Administrador (dev)'));
+
+    await fireEvent.press(await screen.findByRole('switch', { name: 'Usuário ativo' }));
+    await fireEvent.press(screen.getByRole('button', { name: 'Salvar' }));
+
+    expect(await screen.findByText('Você não pode desativar a si mesmo.')).toBeOnTheScreen();
+    expect(screen.getByRole('header', { name: 'Editar usuário' })).toBeOnTheScreen();
+  });
+
+  it('desativa outra pessoa: ela sai da lista e volta com "Mostrar usuários inativos"', async () => {
+    await openUsers();
+    await fireEvent.press(await row('Condômino (dev)'));
+    await fireEvent.press(await screen.findByRole('switch', { name: 'Usuário ativo' }));
+    await fireEvent.press(screen.getByRole('button', { name: 'Salvar' }));
+
+    expect(await screen.findByText('Alterações salvas.')).toBeOnTheScreen();
+    await screen.findByRole('header', { name: 'Usuários' });
+    // The list refetches in the background: the old page shows for a moment.
+    await waitFor(() =>
+      expect(screen.queryByRole('button', { name: rowName('Condômino (dev)') })).toBeNull(),
+    );
+
+    await fireEvent.press(screen.getByRole('switch', { name: 'Mostrar usuários inativos' }));
+    expect(
+      await screen.findByRole('button', {
+        name: 'Condômino (dev), condomino@dev.local, Condômino, Inativo',
+      }),
+    ).toBeOnTheScreen();
+  });
+
+  it('"Cancelar" com alterações pergunta, e "Descartar" volta para a lista', async () => {
+    await openUsers();
+    await fireEvent.press(screen.getByRole('button', { name: 'Novo usuário' }));
+    await fireEvent.changeText(await screen.findByLabelText('Nome completo'), 'Alguém');
+
+    await fireEvent.press(screen.getByRole('button', { name: 'Cancelar' }));
+    await pressLast('Descartar');
+
+    expect(await screen.findByRole('header', { name: 'Usuários' })).toBeOnTheScreen();
+    expect(router.canGoBack()).toBe(true);
   });
 });

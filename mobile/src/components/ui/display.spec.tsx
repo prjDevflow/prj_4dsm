@@ -134,6 +134,22 @@ describe('ListItem', () => {
     expect(onPress).toHaveBeenCalledTimes(1);
   });
 
+  it('aceita mais de um selo (perfil e "Inativo") e lê todos', async () => {
+    await render(
+      <ListItem
+        title="Ana Lima"
+        subtitle="ana.lima@email.com"
+        badge={[{ tone: 'neutro', label: 'Condômino' }, { status: 'INATIVO' }]}
+        onPress={jest.fn()}
+      />,
+    );
+
+    expect(
+      screen.getByRole('button', { name: 'Ana Lima, ana.lima@email.com, Condômino, Inativo' }),
+    ).toBeOnTheScreen();
+    expect(screen.getAllByTestId('status-badge')).toHaveLength(2);
+  });
+
   it('sem onPress não é botão', async () => {
     await render(<ListItem title="Catraca Social" subtitle="QR Code" />);
 

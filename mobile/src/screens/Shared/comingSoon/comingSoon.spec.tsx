@@ -7,7 +7,6 @@ describe('Em breve', () => {
     ['catraca', 'Abrir catraca', 'F10'],
     ['minhas-autorizacoes', 'Minhas autorizações', 'F09'],
     ['meu-historico', 'Meu histórico', 'F12'],
-    ['usuarios', 'Usuários', 'F05'],
     ['locais', 'Locais e terminais', 'F06'],
     ['autorizacoes', 'Autorizações', 'F08'],
     ['tags', 'Tags NFC', 'F13'],
@@ -16,17 +15,18 @@ describe('Em breve', () => {
     expect(comingSoonArea(area)).toMatchObject({ title, step });
   });
 
-  it('área desconhecida não existe', () => {
+  it('área desconhecida (ou que já chegou, como "usuarios") não existe', () => {
     expect(comingSoonArea('qualquer')).toBeNull();
+    expect(comingSoonArea('usuarios')).toBeNull();
   });
 
   it('a tela mostra o título, que a tela chega em breve, e o "Voltar"', async () => {
     const onBack = jest.fn();
-    await render(<ComingSoonView area={comingSoonArea('usuarios')!} onBack={onBack} />);
+    await render(<ComingSoonView area={comingSoonArea('locais')!} onBack={onBack} />);
 
     await fireEvent.press(screen.getByRole('button', { name: 'Voltar' }));
 
-    expect(screen.getByRole('header', { name: 'Usuários' })).toBeOnTheScreen();
+    expect(screen.getByRole('header', { name: 'Locais e terminais' })).toBeOnTheScreen();
     expect(screen.getByText('Em breve')).toBeOnTheScreen();
     expect(onBack).toHaveBeenCalledTimes(1);
   });
