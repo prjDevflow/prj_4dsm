@@ -282,4 +282,17 @@ describe('parseEnv', () => {
       );
     },
   );
+
+  it('deve usar 60 como padrão de ENROLL_MODE_SECONDS e converter para número', () => {
+    expect(parseEnv(validSource).ENROLL_MODE_SECONDS).toBe(60);
+    expect(parseEnv({ ...validSource, ENROLL_MODE_SECONDS: '30' }).ENROLL_MODE_SECONDS).toBe(30);
+  });
+
+  it('deve rejeitar ENROLL_MODE_SECONDS zero, negativo, decimal ou não numérico', () => {
+    for (const value of ['0', '-1', 'abc', '2.5']) {
+      expect(() => parseEnv({ ...validSource, ENROLL_MODE_SECONDS: value })).toThrow(
+        /ENROLL_MODE_SECONDS/,
+      );
+    }
+  });
 });
