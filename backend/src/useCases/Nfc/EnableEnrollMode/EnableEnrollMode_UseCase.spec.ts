@@ -117,4 +117,34 @@ describe('EnableEnrollMode', () => {
     });
     expect((await terminals.findById(TERMINAL_ID))?.modoCadastroUsuarioId).toBeNull();
   });
+
+  it('deve trazer os dois campos quando o terminal e o usuário estão inativos', async () => {
+    const { sut, terminals, users } = await makeSut();
+    await terminals.updateDetails(TERMINAL_ID, { ativo: false });
+    await users.save(makeUser({ id: OTHER_USER_ID, email: 'outra@teste.local', ativo: false }));
+
+    await expect(sut.execute(TERMINAL_ID, { usuarioId: OTHER_USER_ID })).rejects.toMatchObject({
+      status: 422,
+      details: [{ field: 'id' }, { field: 'usuarioId' }],
+    });
+  });
+
+  it('deve lançar 404 antes de 422 quando o terminal está inativo e o usuário não existe', async () => {
+    const { sut, terminals } = await makeSut();
+    await terminals.updateDetails(TERMINAL_ID, { ativo: false });
+
+    await expect(sut.execute(TERMINAL_ID, { usuarioId: UNKNOWN_ID })).rejects.toMatchObject({
+      status: 404,
+      message: 'Usuário não encontrado',
+    });
+  });
+
+  it('deve indicar o terminal quando o terminal e o usuário não existem', async () => {
+    const { sut } = await makeSut();
+
+    await expect(sut.execute(UNKNOWN_ID, { usuarioId: UNKNOWN_ID })).rejects.toMatchObject({
+      status: 404,
+      message: 'Terminal não encontrado',
+    });
+  });
 });
