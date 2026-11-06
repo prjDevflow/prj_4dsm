@@ -154,7 +154,10 @@ describe('rotas /api/v1/nfc-tags', () => {
       const res = await post(admin, { usuarioId: newId(), uid: '04A1B2C3' });
 
       expect(res.status).toBe(404);
-      expect(res.body.error.code).toBe('NOT_FOUND');
+      expect(res.body.error).toMatchObject({
+        code: 'NOT_FOUND',
+        message: 'Usuário não encontrado',
+      });
     });
 
     it('422 para usuário inativo', async () => {
@@ -252,7 +255,7 @@ describe('rotas /api/v1/nfc-tags', () => {
       const res = await patch(admin, id, { ativa: false });
 
       expect(res.status).toBe(404);
-      expect(res.body.error.code).toBe('NOT_FOUND');
+      expect(res.body.error).toMatchObject({ code: 'NOT_FOUND', message: 'Tag não encontrada' });
     });
 
     it('422 com corpo vazio ou ativa que não é booleano', async () => {
