@@ -1,8 +1,8 @@
 # Backend CI: lint, typecheck, build and tests (unit with coverage, integration with PostgreSQL).
+# The Expo app has its own workflow: mobile-ci.yml.
 #
-# The workflow always runs, so the single required check `backend-ci` never stays "pending" on pull
-# requests that only touch other folders (mobile/, terminal/, ...). Heavy steps run only when
-# backend/** (or this file) changed.
+# The workflow always runs, so the check `backend-ci` never stays "pending" on pull requests that
+# only touch other folders. Heavy steps run only when backend/** (or this file) changed.
 name: Backend CI
 
 on:

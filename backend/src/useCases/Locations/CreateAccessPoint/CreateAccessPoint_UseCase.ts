@@ -1,0 +1,39 @@
+import type { AccessPoint } from '../../../entities/AccessPoint';
+import type { IIdGenerator } from '../../../providers/IIdGenerator';
+import type { ILocationUnitOfWork } from '../../../repositories/ILocationUnitOfWork';
+import { NotFoundError, ValidationError } from '../../../shared/errors/AppError';
+import type { ICreateAccessPointDTO } from './CreateAccessPoint_DTO';
+
+export class CreateAccessPointUseCase {
+  constructor(
+    private uow: ILocationUnitOfWork,
+    private ids: IIdGenerator,
+  ) {}
+
+  async execute(input: ICreateAccessPointDTO): Promise<AccessPoint> {
+    return this.uow.run(async ({ buildings, accessPoints }) => {
+      // The share lock keeps the building from being deactivated until this point is stored.
+      const building = await buildings.findByIdForShare(input.buildingId);
+      if (!building) throw new NotFoundError('Edifício não encontrado');
+      if (!building.ativo) {
+        throw new ValidationError('Dados inválidos', [
+          { field: 'buildingId', message: 'Edifício inativo' },
+        ]);
+      }
+
+      const accessPoint: AccessPoint = {
+        id: this.ids.next(),
+        buildingId: input.buildingId,
+        tipo: input.tipo,
+        nome: input.nome,
+        identificacao: input.identificacao,
+        latitude: input.latitude,
+        longitude: input.longitude,
+        ativo: input.ativo ?? true,
+      };
+      // `save` rejects a repeated identification in the building (409), even between simultaneous requests.
+      await accessPoints.save(accessPoint);
+      return accessPoint;
+    });
+  }
+}

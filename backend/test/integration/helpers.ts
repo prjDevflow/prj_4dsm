@@ -66,6 +66,9 @@ export function tokenFor(user: { id: string; perfil: 'ADMIN' | 'CONDOMINO' | 'VI
   return container.tokens.sign({ sub: user.id, perfil: user.perfil });
 }
 
+/** The `Authorization` header value for `user`. */
+export const bearer = (user: Parameters<typeof tokenFor>[0]) => `Bearer ${tokenFor(user)}`;
+
 /** A correctly signed token that expired long ago. */
 export function expiredTokenFor(user: { id: string; perfil: 'ADMIN' | 'CONDOMINO' | 'VISITANTE' }) {
   const past = new FakeClock(new Date('2020-01-01T00:00:00Z'));

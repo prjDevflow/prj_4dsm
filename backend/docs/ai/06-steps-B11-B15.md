@@ -25,29 +25,29 @@ Ordem de construção sugerida dentro do bloco: B11 e B12 (independentes) → B1
 
 **Lista de testes**
 
-- [ ] U `resolveReferencePosition` em `GPS_COM_FALLBACK`: com fix e contato recente usa o GPS.
-- [ ] U `resolveReferencePosition` em `GPS_COM_FALLBACK`: GPS antigo (mais de 10 min) cai no cadastro; sem fix cai no cadastro.
-- [ ] U `resolveReferencePosition` em `CADASTRO`: sempre as coordenadas do ponto.
-- [ ] U `resolveReferencePosition` em `GPS`: sem fix ou GPS antigo falha de forma explícita.
-- [ ] U `RegisterHeartbeat`: grava contato, firmware, rssi e posição; devolve `serverTime` e `config`.
-- [ ] U `RegisterHeartbeat`: com `gpsFix` falso não grava latitude nem longitude.
-- [ ] U `RegisterHeartbeat`: segundo heartbeat em menos de 2 s lança 429 (`FakeClock`).
-- [ ] I corpo com latitude fora da faixa → 422.
-- [ ] I chave inválida → 401.
-- [ ] I depois de um heartbeat, `GET /terminals` mostra o terminal online com posição e hora do contato.
-- [ ] I sem heartbeat por mais de 30 s o terminal aparece offline (inserir `ultimoContatoEm` antigo no banco).
+- [x] U `resolveReferencePosition` em `GPS_COM_FALLBACK`: com fix e contato recente usa o GPS.
+- [x] U `resolveReferencePosition` em `GPS_COM_FALLBACK`: GPS antigo (mais de 10 min) cai no cadastro; sem fix cai no cadastro.
+- [x] U `resolveReferencePosition` em `CADASTRO`: sempre as coordenadas do ponto.
+- [x] U `resolveReferencePosition` em `GPS`: sem fix ou GPS antigo falha de forma explícita.
+- [x] U `RegisterHeartbeat`: grava contato, firmware, rssi e posição; devolve `serverTime` e `config`.
+- [x] U `RegisterHeartbeat`: com `gpsFix` falso não grava latitude nem longitude.
+- [x] U `RegisterHeartbeat`: segundo heartbeat em menos de 2 s lança 429 (`FakeClock`).
+- [x] I corpo com latitude fora da faixa → 422.
+- [x] I chave inválida → 401.
+- [x] I depois de um heartbeat, `GET /terminals` mostra o terminal online com posição e hora do contato.
+- [x] I sem heartbeat por mais de 30 s o terminal aparece offline (inserir `ultimoContatoEm` antigo no banco).
 
 **Critérios de aceitação**
 
-- [ ] Depois de um heartbeat, `GET /terminals` mostra o terminal online com a posição e a hora do contato.
-- [ ] Sem heartbeat por mais de 30 s o terminal aparece offline.
-- [ ] A resposta devolve `serverTime` em UTC e o bloco `config`.
-- [ ] A função de posição de referência tem teste nos três modos, incluindo "GPS antigo" e "sem fix".
-- [ ] Chave inválida → 401.
+- [x] Depois de um heartbeat, `GET /terminals` mostra o terminal online com a posição e a hora do contato.
+- [x] Sem heartbeat por mais de 30 s o terminal aparece offline.
+- [x] A resposta devolve `serverTime` em UTC e o bloco `config`.
+- [x] A função de posição de referência tem teste nos três modos, incluindo "GPS antigo" e "sem fix".
+- [x] Chave inválida → 401.
 
 **Definição de pronto**
 
-- [ ] Testes de integração e unitários da função de posição.
+- [x] Testes de integração e unitários da função de posição.
 - [ ] Pedro avisado para testar com o terminal de desenvolvimento (★).
 
 ---

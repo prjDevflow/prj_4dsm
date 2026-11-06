@@ -4,6 +4,15 @@ const portMessage = 'deve ser um número inteiro entre 1 e 65535';
 const durationMessage = 'deve ser um número inteiro positivo seguido de s, m, h ou d (ex.: 12h)';
 const costMessage = 'deve ser um inteiro entre 4 e 15';
 const loginLimitMessage = 'deve ser um número inteiro maior que zero';
+const onlineWindowMessage = 'deve ser um número inteiro de segundos maior que zero';
+const positiveIntMessage = 'deve ser um número inteiro maior que zero';
+
+const positiveInt = (defaultValue: number) =>
+  z.coerce
+    .number({ error: positiveIntMessage })
+    .int(positiveIntMessage)
+    .min(1, positiveIntMessage)
+    .default(defaultValue);
 
 const SECONDS_PER_UNIT = { s: 1, m: 60, h: 3600, d: 86400 } as const;
 
@@ -59,6 +68,25 @@ const EnvSchema = z.object({
     .int(loginLimitMessage)
     .min(1, loginLimitMessage)
     .default(5),
+  // A terminal is online when its last contact is less than this many seconds old.
+  TERMINAL_ONLINE_WINDOW_S: z.coerce
+    .number({ error: onlineWindowMessage })
+    .int(onlineWindowMessage)
+    .min(1, onlineWindowMessage)
+    .default(30),
+  // Heartbeat (B11): minimum seconds between two heartbeats of one terminal, and the settings the
+  // reply hands to the terminal (all in milliseconds).
+  HEARTBEAT_MIN_INTERVAL_S: positiveInt(2),
+  QR_REFRESH_MS: positiveInt(10000),
+  COMMAND_POLL_MS: positiveInt(1000),
+  OPEN_DURATION_MS: positiveInt(5000),
+  // Where the proximity check takes the terminal position from, and how old a GPS reading may be (minutes).
+  TERMINAL_POSITION_SOURCE: z
+    .enum(['GPS_COM_FALLBACK', 'CADASTRO', 'GPS'], {
+      error: 'deve ser GPS_COM_FALLBACK, CADASTRO ou GPS',
+    })
+    .default('GPS_COM_FALLBACK'),
+  GPS_MAX_AGE_MIN: positiveInt(10),
 });
 
 export type Env = z.infer<typeof EnvSchema>;

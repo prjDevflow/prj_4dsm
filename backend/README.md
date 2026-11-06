@@ -31,20 +31,25 @@ aleatório com 32 caracteres ou mais serve para desenvolvimento).
 
 Variáveis do `.env`:
 
-| Variável                                            | Padrão                  | Uso                                                     |
-| --------------------------------------------------- | ----------------------- | ------------------------------------------------------- |
-| `PORT`                                              | `3000`                  | porta HTTP                                              |
-| `NODE_ENV`                                          | `development`           | `development`, `test` ou `production`                   |
-| `CORS_ORIGINS`                                      | `http://localhost:8081` | origens permitidas, separadas por vírgula               |
-| `LOG_LEVEL`                                         | `info`                  | nível de log do pino                                    |
-| `POSTGRES_USER`, `POSTGRES_PASSWORD`, `POSTGRES_DB` | `access`, —, `access`   | banco local do docker compose                           |
-| `DB_PORT`                                           | `5432`                  | porta do PostgreSQL no seu computador                   |
-| `DATABASE_URL`                                      | —                       | conexão dos comandos `npm` (dev, testes) fora do Docker |
-| `JWT_SECRET`                                        | — (obrigatória)         | segredo que assina os tokens, mínimo 32 caracteres      |
-| `JWT_EXPIRES_IN`                                    | `12h`                   | validade do token: inteiro + `s`, `m`, `h` ou `d`       |
-| `BCRYPT_COST`                                       | `10`                    | custo do bcrypt (4 a 15), na API e no seed              |
-| `LOGIN_MAX_PER_MINUTE`                              | `5`                     | tentativas de login por minuto por IP e e-mail          |
-| `SEED_*`                                            | ver `.env.example`      | credenciais e local do seed de desenvolvimento          |
+| Variável                                               | Padrão                  | Uso                                                     |
+| ------------------------------------------------------ | ----------------------- | ------------------------------------------------------- |
+| `PORT`                                                 | `3000`                  | porta HTTP                                              |
+| `NODE_ENV`                                             | `development`           | `development`, `test` ou `production`                   |
+| `CORS_ORIGINS`                                         | `http://localhost:8081` | origens permitidas, separadas por vírgula               |
+| `LOG_LEVEL`                                            | `info`                  | nível de log do pino                                    |
+| `POSTGRES_USER`, `POSTGRES_PASSWORD`, `POSTGRES_DB`    | `access`, —, `access`   | banco local do docker compose                           |
+| `DB_PORT`                                              | `5432`                  | porta do PostgreSQL no seu computador                   |
+| `DATABASE_URL`                                         | —                       | conexão dos comandos `npm` (dev, testes) fora do Docker |
+| `JWT_SECRET`                                           | — (obrigatória)         | segredo que assina os tokens, mínimo 32 caracteres      |
+| `JWT_EXPIRES_IN`                                       | `12h`                   | validade do token: inteiro + `s`, `m`, `h` ou `d`       |
+| `BCRYPT_COST`                                          | `10`                    | custo do bcrypt (4 a 15), na API e no seed              |
+| `LOGIN_MAX_PER_MINUTE`                                 | `5`                     | tentativas de login por minuto por IP e e-mail          |
+| `TERMINAL_ONLINE_WINDOW_S`                             | `30`                    | segundos sem contato até o terminal aparecer offline    |
+| `HEARTBEAT_MIN_INTERVAL_S`                             | `2`                     | segundos mínimos entre dois heartbeats do terminal      |
+| `QR_REFRESH_MS`, `COMMAND_POLL_MS`, `OPEN_DURATION_MS` | `10000`, `1000`, `5000` | o que o heartbeat devolve ao terminal, em milissegundos |
+| `TERMINAL_POSITION_SOURCE`                             | `GPS_COM_FALLBACK`      | origem da posição na checagem de proximidade (B15)      |
+| `GPS_MAX_AGE_MIN`                                      | `10`                    | idade máxima do GPS, em minutos, para ele valer         |
+| `SEED_*`                                               | ver `.env.example`      | credenciais e local do seed de desenvolvimento          |
 
 O `.env` nunca vai para o Git nem para a imagem Docker. Troque a senha do exemplo no seu `.env`.
 A senha e a porta da `DATABASE_URL` precisam ser as mesmas de `POSTGRES_PASSWORD` e `DB_PORT`. Se a
@@ -122,6 +127,31 @@ estão em [docs/ambiente-dev.md](docs/ambiente-dev.md) e são **só para desenvo
 recusa a rodar com `NODE_ENV=production`. O modelo de dados (9 tabelas) está em
 [docs/modelo-de-dados.md](docs/modelo-de-dados.md).
 
+### Banco em nuvem (Neon)
+
+O banco de homologação é um PostgreSQL gerenciado no [Neon](https://neon.tech). A string de conexão é **segredo**:
+nunca a coloque em arquivo versionado, em issue, em PR ou em log. Quem precisa dela pede ao responsável pelo backend.
+
+O Neon entrega duas strings para o mesmo banco, e cada uma serve a um uso:
+
+- **Direta** (host sem `-pooler`): use para **migrar** (`db:deploy`). O Prisma Migrate usa travas de sessão que o pooler pode não repassar.
+- **Pooled** (host com `-pooler`): use para a **API** rodando em homologação (B10), que abre várias conexões curtas.
+
+As duas incluem `sslmode=require`. Para aplicar as migrações na nuvem, passe a URL direta só para esse comando,
+sem gravá-la no `.env` (o `read -s` não mostra o que você digita nem guarda no histórico; é do bash, e no zsh e no PowerShell o comando muda):
+
+```bash
+read -rs -p "DATABASE_URL direta do Neon: " NEON_URL; echo
+DATABASE_URL="$NEON_URL" npm run db:deploy
+DATABASE_URL="$NEON_URL" npx prisma migrate status   # deve dizer "Database schema is up to date!"
+unset NEON_URL
+```
+
+**Não rode `db:seed`, `db:reset` nem `db:migrate` contra a nuvem.** O seed usa credenciais públicas e só se recusa a rodar com
+`NODE_ENV=production`; sem essa variável a trava não protege e ele roda contra a URL que estiver na sessão. Além disso, `reset` e `migrate dev` apagam ou alteram dados. Para a nuvem existe só `db:deploy`.
+
+O plano gratuito do Neon suspende o banco quando fica ocioso; a primeira conexão depois disso demora mais.
+
 ## Rodar sem Docker
 
 ```bash
@@ -164,6 +194,64 @@ curl http://localhost:3000/api/v1/auth/me -H "Authorization: Bearer <accessToken
 - Token ausente, expirado, adulterado ou de usuário desativado dá `401 UNAUTHORIZED`. A cada requisição o usuário é recarregado do banco, então desativar uma conta ou mudar o perfil vale na hora.
 - Mais de `LOGIN_MAX_PER_MINUTE` tentativas por minuto para o mesmo IP e e-mail dão `429 RATE_LIMITED`. O contador fica na memória do processo (um reinício o zera).
 - Rotas protegidas usam `authenticate()` e `authorize('ADMIN', ...)` de `src/main/middlewares.ts`.
+
+## Locais e terminais
+
+Só `ADMIN` (rotas em `/buildings`, `/access-points` e `/terminals`; contrato no Swagger).
+
+- Nada é apagado: desativa-se com `PATCH` `ativo: false`. Desativar um **ponto de acesso** dá `409 LOCAL_COM_AUTORIZACOES_ATIVAS` se ele ainda tem autorização ativa e não expirada; desativar um **edifício** faz o mesmo teste nos pontos dele e, se passar, desativa todos eles junto (reativar o edifício não reativa os pontos).
+- `POST /terminals` e `POST /terminals/{id}/rotate-key` devolvem a `apiKey` **uma única vez**; o banco guarda só o SHA-256. `rotate-key` invalida a chave antiga na hora.
+- O terminal se identifica com os cabeçalhos `X-Terminal-Id` e `X-Terminal-Key` (middleware `authenticateTerminal`, em `src/main/middlewares.ts`): chave errada ou ausente dá `401`, terminal inativo dá `403`. O log oculta a chave. Teste com o terminal do seed em [docs/ambiente-dev.md](docs/ambiente-dev.md).
+
+## Canal do terminal
+
+Rotas que o terminal chama com os cabeçalhos `X-Terminal-Id` e `X-Terminal-Key` (contrato no Swagger).
+
+| Rota                       | O que faz                                                                     |
+| -------------------------- | ----------------------------------------------------------------------------- |
+| `POST /terminal/heartbeat` | informa que o terminal está vivo e onde está; devolve `serverTime` e `config` |
+
+```bash
+curl -X POST http://localhost:3000/api/v1/terminal/heartbeat \
+  -H 'X-Terminal-Id: 5eed0000-0000-4000-8000-000000000006' \
+  -H 'X-Terminal-Key: terminal-dev-key-1234567890abcdef1234567890' -H 'content-type: application/json' \
+  -d '{"latitude":-23.30512,"longitude":-45.96551,"gpsFix":true,"gpsSimulado":false,"firmware":"0.3.0","wifiRssi":-61}'
+```
+
+- O instante do contato é o relógio do servidor. Depois do heartbeat, `GET /terminals` mostra o terminal `online` (contato com menos de `TERMINAL_ONLINE_WINDOW_S`), com posição e hora do contato.
+- Com `gpsFix: false` a latitude e a longitude enviadas são ignoradas e a última posição conhecida continua gravada; com `gpsFix: true` elas são obrigatórias (`422`). `wifiRssi` vira `rssi`; `uptimeS` e `eventosPendentes` são aceitos e não guardados.
+- No máximo um heartbeat a cada `HEARTBEAT_MIN_INTERVAL_S` por terminal: antes disso `429 RATE_LIMITED`, sem gravar nada. A checagem é um `UPDATE` condicional, então heartbeats simultâneos não passam todos.
+- `config` (`qrRefreshMs`, `commandPollMs`, `aberturaMs`) vem do ambiente do servidor, para ajustar o terminal sem reprogramá-lo.
+
+## Autorizações
+
+Criar, listar e cancelar: só `ADMIN`. Ler uma e listar "as minhas": cada usuário, as próprias (contrato no Swagger).
+
+| Rota                                                                                                    | Quem                                                                            |
+| ------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------- |
+| `POST /authorizations`                                                                                  | `ADMIN`                                                                         |
+| `GET /authorizations` (filtros `usuarioId`, `accessPointId`, `situacao`, `dataDe`, `dataAte`; paginada) | `ADMIN`                                                                         |
+| `GET /authorizations/{id}`                                                                              | `ADMIN` lê qualquer uma; os demais, só as próprias (a de outra pessoa dá `404`) |
+| `PATCH /authorizations/{id}/cancel`                                                                     | `ADMIN`                                                                         |
+| `GET /me/authorizations`                                                                                | qualquer perfil, só as do token                                                 |
+
+```bash
+curl -X POST http://localhost:3000/api/v1/authorizations \
+  -H "Authorization: Bearer <accessToken do admin>" -H 'content-type: application/json' \
+  -d '{"usuarioId":"<id do visitante>","accessPointId":"<id do ponto>","dataInicio":"2026-10-20","dataFim":"2026-10-25","horaInicio":"08:00","horaFim":"18:00","usosPermitidos":3}'
+```
+
+- Usuário ou ponto inexistente dá `404`; inativo dá `422` no campo `usuarioId` ou `accessPointId`. `dataFim` não pode ser anterior a `dataInicio` nem ao dia de hoje em São Paulo, e `horaFim` tem de ser depois de `horaInicio` (sem virada de meia-noite).
+- A resposta traz `usosRestantes` e `situacaoEfetiva` (`ATIVA`, `CANCELADA`, `EXPIRADA` ou `ESGOTADA`), calculadas na hora.
+- A criação trava o usuário e o ponto (`FOR SHARE`) até gravar: desativar qualquer um dos dois ao mesmo tempo espera, ou já foi confirmado e a criação é recusada.
+- O filtro `situacao` usa a situação **efetiva** e é aplicado na consulta. `dataDe` e `dataAte` mantêm as autorizações cujo período se sobrepõe ao intervalo (as pontas valem). A lista do admin vem das mais recentes para as mais antigas; `/me/authorizations` vem por `dataFim`, as que terminam primeiro à frente.
+- Cancelar é idempotente: cancelar de novo devolve `200` com o estado atual e não muda quem cancelou, quando nem o motivo (`motivo` opcional, até 200 caracteres).
+
+```bash
+curl -X PATCH http://localhost:3000/api/v1/authorizations/<id>/cancel \
+  -H "Authorization: Bearer <accessToken do admin>" -H 'content-type: application/json' \
+  -d '{"motivo":"Pedido da moradora"}'
+```
 
 ## Estrutura
 
@@ -243,6 +331,11 @@ npm run test:cov && npm run test:int
 novo em `.github/workflows/` (ex.: `mobile-ci.yml`) com `name` próprio, rode em `push` e `pull_request`,
 use o mesmo padrão de detecção de mudanças da sua pasta e termine com um job de passagem de nome único
 (ex.: `mobile-ci`) para ser o check obrigatório da sua parte.
+
+O [`mobile-ci.yml`](../.github/workflows/mobile-ci.yml) ("Mobile CI") segue outro caminho: filtra por
+`paths` (`mobile/**` e `docs/app-mobile/**`), então o workflow nem começa em PRs que não mexem no app. O
+preço é que, se o `mobile-ci` virar check obrigatório, um PR fora desses caminhos ficaria esperando um
+check que nunca roda; nesse caso, troque o `paths` pela detecção de mudanças do `ci.yml`.
 
 ## Scripts
 

@@ -11,4 +11,12 @@ export class FakeHashProvider implements IHashProvider {
     this.compareCalls += 1;
     return hash === `hashed:${plain}`;
   }
+
+  sha256(text: string) {
+    return `sha256:${text}`;
+  }
+
+  sha256Matches(plain: string, hexHash: string) {
+    return hexHash === this.sha256(plain);
+  }
 }

@@ -29,4 +29,20 @@ describe('BcryptHashProvider', () => {
   it('deve recusar, sem lançar exceção, um hash malformado', async () => {
     expect(await makeSut().compare('Senha-Valida-123', 'isto-nao-e-um-hash')).toBe(false);
   });
+
+  it('deve calcular o SHA-256 em hexadecimal', () => {
+    // Known test vector of the SHA-256 specification (FIPS 180-4).
+    expect(makeSut().sha256('abc')).toBe(
+      'ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad',
+    );
+  });
+
+  it('deve confirmar o SHA-256 certo e recusar o errado, inclusive de outro tamanho', () => {
+    const sut = makeSut();
+    const hash = sut.sha256('chave-do-terminal');
+
+    expect(sut.sha256Matches('chave-do-terminal', hash)).toBe(true);
+    expect(sut.sha256Matches('chave-do-terminaL', hash)).toBe(false);
+    expect(sut.sha256Matches('chave-do-terminal', hash.slice(0, 10))).toBe(false);
+  });
 });

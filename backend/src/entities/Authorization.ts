@@ -22,3 +22,32 @@ export interface Authorization {
   canceladoEm: Date | null;
   motivoCancelamento: string | null;
 }
+
+/** What the caller decides; the rest starts from a fixed state. */
+export type NewAuthorization = Pick<
+  Authorization,
+  | 'id'
+  | 'usuarioId'
+  | 'accessPointId'
+  | 'dataInicio'
+  | 'dataFim'
+  | 'horaInicio'
+  | 'horaFim'
+  | 'usosPermitidos'
+  | 'criadoPorId'
+  | 'criadoEm'
+>;
+
+export const Authorization = {
+  /** A new authorization is active, unused and not cancelled. */
+  create(input: NewAuthorization): Authorization {
+    return {
+      ...input,
+      usosRealizados: 0,
+      situacao: 'ATIVA',
+      canceladoPorId: null,
+      canceladoEm: null,
+      motivoCancelamento: null,
+    };
+  },
+};

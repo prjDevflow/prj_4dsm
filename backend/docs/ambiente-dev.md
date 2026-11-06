@@ -48,6 +48,31 @@ Para o simulador e para o ESP32 de bancada (autenticação por cabeçalho, a par
 A chave vem de `SEED_TERMINAL_KEY`; o banco guarda só o SHA-256 dela, então ela não pode ser recuperada
 do banco.
 
+O middleware `authenticateTerminal` (B07) confere os dois cabeçalhos: chave errada, ausente ou id desconhecido dão
+`401 UNAUTHORIZED` (a mesma mensagem nos três casos); terminal inativo com a chave certa dá `403 FORBIDDEN`. As rotas
+`/terminal/*` que o usam chegam aos poucos: o heartbeat (B11) já existe; o QR, os comandos e as validações vêm nas
+etapas seguintes. O administrador vê o terminal do seed em `GET /terminals` (campo `online`).
+
+Heartbeat de teste (o terminal deve mandar a cada 10 s; menos de 2 s entre dois dá `429`):
+
+```bash
+curl -s -X POST http://localhost:3000/api/v1/terminal/heartbeat \
+  -H 'X-Terminal-Id: 5eed0000-0000-4000-8000-000000000006' \
+  -H 'X-Terminal-Key: terminal-dev-key-1234567890abcdef1234567890' -H 'content-type: application/json' \
+  -d '{"latitude":-23.30512,"longitude":-45.96551,"gpsFix":true,"gpsSimulado":false,"firmware":"0.3.0","wifiRssi":-61}'
+# {"serverTime":"2026-10-20T14:32:07Z","config":{"qrRefreshMs":10000,"commandPollMs":1000,"aberturaMs":5000}}
+```
+
+Para o administrador cadastrar um terminal novo ou trocar a chave (a chave só aparece na resposta):
+
+```bash
+TOKEN=$(curl -s -X POST http://localhost:3000/api/v1/auth/login -H 'content-type: application/json' \
+  -d '{"email":"admin@dev.local","senha":"Admin-Dev-2026"}' | sed 's/.*"accessToken":"\([^"]*\)".*/\1/')
+curl -s http://localhost:3000/api/v1/terminals -H "Authorization: Bearer $TOKEN"
+curl -s -X POST http://localhost:3000/api/v1/terminals/5eed0000-0000-4000-8000-000000000006/rotate-key \
+  -H "Authorization: Bearer $TOKEN"   # a chave de dev deixa de valer: rode o seed de novo para restaurá-la
+```
+
 ## Local e autorização de teste
 
 | Item           | Valor                                                                                           |
