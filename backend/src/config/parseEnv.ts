@@ -110,6 +110,8 @@ const EnvSchema = z.object({
   // between the phone and the terminal.
   QR_VALIDATE_MAX_PER_MINUTE: positiveInt(10),
   MAX_DISTANCE_M: positiveInt(100),
+  // NFC enrollment mode (B16): seconds in which the next tag read on the terminal is linked to the chosen user.
+  ENROLL_MODE_SECONDS: positiveInt(60),
 });
 
 export type Env = z.infer<typeof EnvSchema>;
