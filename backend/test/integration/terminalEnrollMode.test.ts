@@ -57,7 +57,7 @@ describe('POST /api/v1/terminals/:id/enroll-mode', () => {
     const admin = await asAdmin();
     const user = await insertUser();
     const terminal = await insertTerminal();
-    await post(admin, terminal.id, { usuarioId: user.id });
+    expect((await post(admin, terminal.id, { usuarioId: user.id })).status).toBe(200);
 
     const res = await request(app)
       .get(`/api/v1/terminals/${terminal.id}`)

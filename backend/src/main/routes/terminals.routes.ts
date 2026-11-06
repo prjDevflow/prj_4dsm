@@ -1,5 +1,6 @@
 import { Router } from 'express';
 import { adapt } from '../../infra/http/adapt';
+import { enableEnrollModeController } from '../../useCases/Nfc/EnableEnrollMode';
 import { createTerminalController } from '../../useCases/Terminals/CreateTerminal';
 import { getTerminalController } from '../../useCases/Terminals/GetTerminal';
 import { listTerminalsController } from '../../useCases/Terminals/ListTerminals';
@@ -16,6 +17,7 @@ export function buildTerminalsRoutes() {
   router.get('/terminals/:id', ...adminOnly, adapt(getTerminalController));
   router.patch('/terminals/:id', ...adminOnly, adapt(updateTerminalController));
   router.post('/terminals/:id/rotate-key', ...adminOnly, adapt(rotateTerminalKeyController));
+  router.post('/terminals/:id/enroll-mode', ...adminOnly, adapt(enableEnrollModeController));
 
   return router;
 }
