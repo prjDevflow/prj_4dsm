@@ -5,6 +5,7 @@ export { Card } from './Card';
 export { DateField, TimeField } from './DateField';
 export { Dialog } from './Dialog';
 export { Fab } from './Fab';
+export { FieldRow } from './FieldRow';
 export { FilterChip } from './FilterChip';
 export { Header } from './Header';
 export { ListItem } from './ListItem';

@@ -6,11 +6,13 @@ import { http, HttpResponse } from 'msw';
 import { useSessionStore } from '@/context/SessionStore';
 import { TOKEN_KEY } from '@/context/tokenStorage';
 import type { Usuario } from '@/lib/types/auth';
+import { FakeCreateAuthorizationService } from '@/service/fakes/FakeAuthorizationServices';
 import { FakeLocationDirectory } from '@/service/fakes/FakeLocationDirectory';
 import { FakeUserDirectory } from '@/service/fakes/FakeUserDirectory';
 import { sampleAdmin, sampleCondomino, sampleVisitante } from '@/service/fakes/sampleData';
 import { API_URL } from '@test/msw/handlers';
 import { server } from '@test/msw/server';
+import { authorizationsHandlers } from '@test/msw/authorizationsHandlers';
 import { locationsHandlers } from '@test/msw/locationsHandlers';
 import { usersHandlers } from '@test/msw/usersHandlers';
 
@@ -444,5 +446,49 @@ describe('locais e terminais (F06)', () => {
     expect(await screen.findByRole('header', { name: 'Chave do terminal' })).toBeOnTheScreen();
     await fireEvent.press(screen.getByRole('button', { name: 'Concluir' }));
     expect(await screen.findByRole('header', { name: 'Terminal Social' })).toBeOnTheScreen();
+  });
+});
+
+describe('nova autorização (F07)', () => {
+  let service: FakeCreateAuthorizationService;
+
+  beforeEach(async () => {
+    await SecureStore.deleteItemAsync(TOKEN_KEY);
+    useSessionStore.setState({ token: null, usuario: null, expired: false });
+    const users = new FakeUserDirectory();
+    const locations = new FakeLocationDirectory();
+    service = new FakeCreateAuthorizationService({ users, locations });
+    server.use(
+      ...usersHandlers(users, sampleAdmin.id),
+      ...locationsHandlers(locations),
+      ...authorizationsHandlers(service),
+    );
+  });
+
+  it('o bloco "Autorizações" leva à nova autorização; criada, aparece o aviso e volta', async () => {
+    await renderApp();
+    await login(sampleAdmin);
+    await fireEvent.press(await screen.findByRole('button', { name: /^Autorizações,/ }));
+    await fireEvent.press(await screen.findByRole('button', { name: 'Nova autorização' }));
+    expect(await screen.findByRole('header', { name: 'Nova autorização' })).toBeOnTheScreen();
+
+    await fireEvent.press(await screen.findByRole('button', { name: 'Pessoa' }));
+    await fireEvent.changeText(await screen.findByLabelText('Buscar'), 'Maria Souza');
+    await fireEvent.press(await screen.findByRole('radio', { name: 'Maria Souza, Condômino' }));
+    await fireEvent.press(screen.getByRole('button', { name: 'Local de acesso' }));
+    await fireEvent.press(
+      await screen.findByRole('radio', { name: 'Catraca Social, Edifício Central' }),
+    );
+    await fireEvent.press(screen.getByRole('button', { name: 'Criar autorização' }));
+
+    expect(await screen.findByText('Autorização criada.')).toBeOnTheScreen();
+    expect(await screen.findByRole('header', { name: 'Autorizações' })).toBeOnTheScreen();
+    expect(service.created).toEqual([
+      expect.objectContaining({
+        usuario: expect.objectContaining({ nome: 'Maria Souza' }),
+        local: expect.objectContaining({ nome: 'Catraca Social' }),
+        situacaoEfetiva: 'ATIVA',
+      }),
+    ]);
   });
 });

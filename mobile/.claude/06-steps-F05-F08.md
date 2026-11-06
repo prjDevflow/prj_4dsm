@@ -120,19 +120,19 @@ Não há campo "situação": toda autorização nasce ativa. Sem pessoas ou loca
 
 **Lista de testes**
 
-- [ ] U schema: cada mensagem; `dataFim` igual à inicial passa; `horaFim` igual à inicial é recusada; 0 e 1001 recusados.
-- [ ] U `buildSummary`: o resumo bate exatamente com o que será enviado (inclusive "1 vez" e "3 vezes").
-- [ ] U atalhos "Só hoje" e "Próximos 7 dias" com relógio controlado no teste.
-- [ ] U model: envia os campos com os nomes do contrato; 422 vai para o campo certo.
+- [x] U schema: cada mensagem; `dataFim` igual à inicial passa; `horaFim` igual à inicial é recusada; 0 e 1001 recusados.
+- [x] U `buildSummary`: o resumo bate exatamente com o que será enviado (inclusive "1 vez" e "3 vezes").
+- [x] U atalhos "Só hoje" e "Próximos 7 dias" com relógio controlado no teste.
+- [x] U model: envia os campos com os nomes do contrato; 422 vai para o campo certo.
 
 **Critérios de aceitação**
 
-- [ ] Não dá para escolher data final antes da inicial nem horário final igual ou antes do inicial.
-- [ ] Depois de criar, a autorização aparece na lista com "Ativa" e o visitante a vê na T04.
+- [x] Não dá para escolher data final antes da inicial nem horário final igual ou antes do inicial.
+- [ ] Depois de criar, a autorização aparece na lista com "Ativa" e o visitante a vê na T04. (criada pelo app aparece na API com "Ativa"; a lista é a F08 e a T04 é a F09)
 
 **Definição de pronto**
 
-- [ ] Autorização criada pelo app aparece no Swagger com os mesmos valores.
+- [x] Autorização criada pelo app aparece no Swagger com os mesmos valores. (conferido pelo Pedro no Swagger em 03/11: Bruna Lopes, Catraca do Bloco B, 03/11 a 09/11/2026, 08:00 às 18:00, 3 usos, ATIVA)
 
 ---
 

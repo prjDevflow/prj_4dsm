@@ -30,4 +30,20 @@ describe('Em breve', () => {
     expect(screen.getByText('Em breve')).toBeOnTheScreen();
     expect(onBack).toHaveBeenCalledTimes(1);
   });
+
+  it('"Autorizações" já oferece "Nova autorização" enquanto a lista não chega', async () => {
+    const onAction = jest.fn();
+    await render(
+      <ComingSoonView
+        area={comingSoonArea('autorizacoes')!}
+        onBack={jest.fn()}
+        onAction={onAction}
+      />,
+    );
+
+    expect(screen.getByText('A lista chega na etapa F08 do app.')).toBeOnTheScreen();
+    await fireEvent.press(screen.getByRole('button', { name: 'Nova autorização' }));
+
+    expect(onAction).toHaveBeenCalledWith('/admin/authorizations/new');
+  });
 });

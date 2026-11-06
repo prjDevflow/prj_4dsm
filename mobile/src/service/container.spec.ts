@@ -1,4 +1,6 @@
 import { createServices } from './container';
+import { FakeCreateAuthorizationService } from './fakes/FakeAuthorizationServices';
+import { CreateAuthorizationService } from './implementations/AuthorizationServices';
 import { FakeGetHealthService } from './fakes/FakeGetHealthService';
 import { FakeGetMeService } from './fakes/FakeGetMeService';
 import { FakeLoginUserService } from './fakes/FakeLoginUserService';
@@ -73,5 +75,12 @@ describe('createServices', () => {
       FakeCurrentPositionService,
     );
     expect(createServices(['clipboard']).clipboard).toBeInstanceOf(FakeClipboardService);
+  });
+
+  it('autorizações são reais por padrão e falsas com "authorizations" na lista', () => {
+    expect(createServices([]).createAuthorization).toBeInstanceOf(CreateAuthorizationService);
+    expect(createServices(['authorizations']).createAuthorization).toBeInstanceOf(
+      FakeCreateAuthorizationService,
+    );
   });
 });
