@@ -75,21 +75,21 @@ Coordenadas: aceite vírgula ou ponto na digitação e envie número (❓ 9).
 
 **Lista de testes**
 
-- [ ] U schema: limites de latitude e longitude (−90, 90, −180, 180 passam; 90,0001 não); vírgula decimal convertida.
-- [ ] U model "Usar minha localização": preenche os dois campos; permissão negada mostra a mensagem.
-- [ ] U model do terminal: a chave da resposta aparece na T22 e não é guardada em nenhum outro lugar.
-- [ ] U model: 409 `LOCAL_COM_AUTORIZACOES_ATIVAS` mostra "Este local ainda tem autorizações ativas. Cancele-as antes."
-- [ ] U tela T20: selo Online/Offline e "Visto há" com relógio controlado no teste.
+- [x] U schema: limites de latitude e longitude (−90, 90, −180, 180 passam; 90,0001 não); vírgula decimal convertida.
+- [x] U model "Usar minha localização": preenche os dois campos; permissão negada mostra a mensagem.
+- [x] U model do terminal: a chave da resposta aparece na T22 e não é guardada em nenhum outro lugar.
+- [x] U model: 409 `LOCAL_COM_AUTORIZACOES_ATIVAS` mostra "Este local ainda tem autorizações ativas. Cancele-as antes."
+- [x] U tela T20: selo Online/Offline e "Visto há" com relógio controlado no teste.
 
 **Critérios de aceitação**
 
-- [ ] Dá para criar edifício → ponto de acesso → terminal em sequência, só pelo app.
-- [ ] A chave aparece uma única vez e "Copiar chave" funciona.
-- [ ] O selo Online/Offline acompanha o terminal ligado e desligado (com a B11 pronta).
+- [x] Dá para criar edifício → ponto de acesso → terminal em sequência, só pelo app.
+- [x] A chave aparece uma única vez e "Copiar chave" funciona.
+- [x] O selo Online/Offline acompanha o terminal ligado e desligado (com a B11 pronta).
 
 **Definição de pronto**
 
-- [ ] O Matheus cadastrou o terminal dele pelo app e o terminal entrou online com a chave copiada.
+- [ ] O Matheus cadastrou o terminal dele pelo app e o terminal entrou online com a chave copiada. (fluxo conferido no emulador com a API real e um heartbeat simulado com a chave copiada; falta o terminal de verdade)
 
 ---
 

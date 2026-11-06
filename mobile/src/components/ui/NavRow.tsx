@@ -1,6 +1,7 @@
 import { Pressable, StyleSheet, View } from 'react-native';
 import { Icon, type IconName } from '@/components/Icon';
 import { useTheme } from '@/theme';
+import { StatusBadge, badgeLabel, type StatusBadgeProps } from './StatusBadge';
 import { Text } from './Text';
 
 type NavRowProps = {
@@ -8,17 +9,19 @@ type NavRowProps = {
   label: string;
   /** Counter or summary under the text ("4 terminais, 1 offline"). */
   detail?: string;
+  /** Highlight before the chevron ("1 offline"). */
+  badge?: StatusBadgeProps;
   onPress: () => void;
 };
 
 /** Navigation row: high surface, corner 20, 64 tall, primary icon and chevron. */
-export const NavRow = ({ icon, label, detail, onPress }: NavRowProps) => {
+export const NavRow = ({ icon, label, detail, badge, onPress }: NavRowProps) => {
   const theme = useTheme();
 
   return (
     <Pressable
       accessibilityRole="button"
-      accessibilityLabel={detail ? `${label}, ${detail}` : label}
+      accessibilityLabel={[label, detail, badge && badgeLabel(badge)].filter(Boolean).join(', ')}
       onPress={onPress}
       style={({ pressed }) => [
         styles.row,
@@ -39,6 +42,7 @@ export const NavRow = ({ icon, label, detail, onPress }: NavRowProps) => {
           </Text>
         ) : null}
       </View>
+      {badge ? <StatusBadge {...badge} /> : null}
       <Icon name="chevron_right" color={theme.colors.textoApoio} />
     </Pressable>
   );

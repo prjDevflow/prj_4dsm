@@ -8,6 +8,7 @@ export type AdminArea = 'autorizacoes' | 'usuarios' | 'locais' | 'tags' | 'histo
 // Areas that already have their screens; the others open "Em breve" (/admin/[area]).
 const areaRoutes: Partial<Record<AdminArea, Href>> = {
   usuarios: '/admin/users',
+  locais: '/admin/locations',
 };
 
 // T14: home of the administrator.

@@ -12,6 +12,14 @@ export default function AdminLayout() {
         <Stack.Screen name="users/index" />
         <Stack.Screen name="users/new" />
         <Stack.Screen name="users/[id]" />
+        <Stack.Screen name="locations/index" />
+        <Stack.Screen name="locations/buildings/new" />
+        <Stack.Screen name="locations/buildings/[id]" />
+        <Stack.Screen name="locations/points/new" />
+        <Stack.Screen name="locations/points/[id]" />
+        <Stack.Screen name="terminals/index" />
+        <Stack.Screen name="terminals/new" />
+        <Stack.Screen name="terminals/[id]" />
         <Stack.Screen name="[area]" />
       </Stack.Protected>
     </Stack>

@@ -1,34 +1,20 @@
+import { connectionMessage, detailsToFields, SAVE_FAILED } from '@/lib/apiMessages';
 import type { CreateUserBody, UpdateUserBody } from '@/lib/types/users';
 import type { ApiError } from '@/service/ApiError';
 
 // Texts of the user screens (06-steps, F05). The API code never reaches the screen.
 
-const NO_CONNECTION = 'Sem conexão com o servidor. Verifique sua internet e tente de novo.';
-const TIMEOUT = 'O servidor demorou para responder. Tente de novo.';
-
-const connectionMessage = (error: ApiError) =>
-  error.code === 'NETWORK' ? NO_CONNECTION : error.code === 'TIMEOUT' ? TIMEOUT : null;
-
-/** Message under the title of the error state, when a list or a user does not load. */
-export const loadErrorMessage = (error: ApiError) =>
-  connectionMessage(error) ?? 'Tente novamente em instantes.';
+export { loadErrorMessage } from '@/lib/apiMessages';
 
 export type UserFormField = 'nome' | 'email' | 'perfil' | 'senha';
 
-const formFields: readonly string[] = ['nome', 'email', 'perfil', 'senha'];
+const formFields: readonly UserFormField[] = ['nome', 'email', 'perfil', 'senha'];
 
 export type SaveError = {
   /** Errors shown under each field. */
   fields: Partial<Record<UserFormField, string>>;
   /** Error shown in the strip above the buttons. */
   banner: string | null;
-};
-
-/** "deve ter no mínimo 3 caracteres" → "Deve ter no mínimo 3 caracteres." */
-const sentence = (text: string) => {
-  const trimmed = text.trim();
-  const capitalized = trimmed.charAt(0).toUpperCase() + trimmed.slice(1);
-  return /[.!?]$/.test(capitalized) ? capitalized : `${capitalized}.`;
 };
 
 const selfChangeMessage = (sent: Partial<UpdateUserBody>) => {
@@ -59,18 +45,12 @@ export const saveError = (
   }
 
   if (error.status === 422) {
-    const known = error.details.filter((detail) => formFields.includes(detail.field));
-    const fields = Object.fromEntries(
-      known.map((detail) => [detail.field, sentence(detail.message)]),
-    );
+    const { fields, allOnFields } = detailsToFields(error, formFields);
     // A detail about something the screen has no field for still needs to be seen.
-    const allOnFields = known.length > 0 && known.length === error.details.length;
     return { fields, banner: allOnFields ? null : 'Confira os dados e tente de novo.' };
   }
   if (error.status === 403) return banner('Você não tem permissão para gerenciar usuários.');
   if (error.status === 404) return banner('Este usuário não existe mais. Volte para a lista.');
 
-  return banner(
-    connectionMessage(error) ?? 'Não foi possível salvar agora. Tente novamente em instantes.',
-  );
+  return banner(connectionMessage(error) ?? SAVE_FAILED);
 };

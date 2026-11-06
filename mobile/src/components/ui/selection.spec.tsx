@@ -3,6 +3,7 @@ import { useState } from 'react';
 import { colors } from '@/theme';
 import { RadioGroup } from './RadioGroup';
 import { SearchField } from './SearchField';
+import { SegmentedField } from './SegmentedField';
 
 const perfis = [
   { value: 'ADMIN', label: 'Administrador' },
@@ -104,5 +105,56 @@ describe('SearchField', () => {
     await fireEvent.press(screen.getByRole('button', { name: 'Limpar busca' }));
 
     expect(screen.getByLabelText('Buscar por nome ou e-mail')).toHaveProp('value', '');
+  });
+});
+
+describe('SegmentedField', () => {
+  const tipos = [
+    { value: 'PORTARIA', label: 'Portaria' },
+    { value: 'PORTA', label: 'Porta' },
+    { value: 'CATRACA', label: 'Catraca' },
+  ];
+
+  const ControlledSegmented = ({ error }: { error?: string }) => {
+    const [value, setValue] = useState<string | null>(null);
+    return (
+      <SegmentedField
+        label="Tipo"
+        options={tipos}
+        value={value}
+        onChange={setValue}
+        error={error}
+      />
+    );
+  };
+
+  it('é um grupo com o rótulo; cada parte é um rádio de 48 de altura', async () => {
+    await render(<ControlledSegmented />);
+
+    expect(screen.getByLabelText('Tipo')).toHaveProp('accessibilityRole', 'radiogroup');
+    for (const { label } of tipos) {
+      const segment = screen.getByRole('radio', { name: label });
+      expect(segment).not.toBeChecked();
+      expect(segment).toHaveStyle({ minHeight: 48 });
+    }
+  });
+
+  it('a parte escolhida fica marcada, com check e no container primário', async () => {
+    await render(<ControlledSegmented />);
+
+    await fireEvent.press(screen.getByRole('radio', { name: 'Catraca' }));
+
+    expect(screen.getByRole('radio', { name: 'Catraca' })).toBeChecked();
+    expect(screen.getByRole('radio', { name: 'Catraca' })).toHaveStyle({
+      backgroundColor: colors.primariaContainer,
+    });
+    expect(screen.getByTestId('segment-check', { includeHiddenElements: true })).toBeOnTheScreen();
+    expect(screen.getByRole('radio', { name: 'Porta' })).not.toBeChecked();
+  });
+
+  it('mostra o erro embaixo', async () => {
+    await render(<ControlledSegmented error="Escolha o tipo." />);
+
+    expect(screen.getByText('Escolha o tipo.')).toBeOnTheScreen();
   });
 });
