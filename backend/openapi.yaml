@@ -25,6 +25,10 @@ tags:
     description: >-
       Rotas que o próprio terminal chama, autenticadas com `X-Terminal-Id` e `X-Terminal-Key`
       (não usam o token de usuário).
+  - name: Nfc
+    description: >-
+      Tags NFC e o vínculo delas com as pessoas (só ADMIN). O app não lê NFC: o UID é digitado ou vem
+      do modo de cadastro do terminal.
   - name: Authorizations
     description: >-
       Autorizações de acesso. Criar, listar e cancelar: só ADMIN. Ler uma e listar "as minhas":
@@ -806,6 +810,186 @@ paths:
           $ref: '#/components/responses/Forbidden'
         '404':
           $ref: '#/components/responses/ResourceNotFound'
+        '500':
+          $ref: '#/components/responses/InternalError'
+  /terminals/{id}/enroll-mode:
+    parameters:
+      - $ref: '#/components/parameters/IdPath'
+    post:
+      tags: [Nfc]
+      summary: Abrir o modo de cadastro de tag no terminal
+      description: >-
+        Só `ADMIN`. Durante `ENROLL_MODE_SECONDS` (padrão 60), a próxima tag lida neste terminal é
+        vinculada ao usuário informado; a leitura em si chega com `POST /terminal/nfc`. Chamar de novo
+        substitui o modo vigente. O terminal e o usuário têm de existir (404) e estar ativos (422 nos
+        campos `id` e `usuarioId`).
+      operationId: enableEnrollMode
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AbrirModoCadastro'
+            example:
+              usuarioId: 5eed0000-0000-4000-8000-000000000002
+      responses:
+        '200':
+          description: Modo aberto, com o prazo para o app fazer a contagem
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ModoCadastro'
+              example:
+                terminalId: 5eed0000-0000-4000-8000-000000000006
+                usuarioId: 5eed0000-0000-4000-8000-000000000002
+                modoCadastroAte: '2026-11-06T12:01:00.000Z'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/ResourceNotFound'
+        '422':
+          $ref: '#/components/responses/ValidationError'
+        '500':
+          $ref: '#/components/responses/InternalError'
+  /nfc-tags:
+    post:
+      tags: [Nfc]
+      summary: Vincular uma tag a uma pessoa
+      description: >-
+        Só `ADMIN`. O servidor normaliza o UID: tira `:`, `-` e espaços, passa para maiúsculas e
+        exige hexadecimal de 8 a 20 caracteres (422 no campo `uid`). O usuário tem de existir (404) e
+        estar ativo (422 no campo `usuarioId`). UID já cadastrado, mesmo desativado ou escrito de outro
+        jeito, dá 409 `TAG_JA_CADASTRADA`.
+      operationId: createNfcTag
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CriarTagNfc'
+            example:
+              usuarioId: 5eed0000-0000-4000-8000-000000000002
+              uid: '04:a1:b2:c3:d4'
+              descricao: Chaveiro azul
+      responses:
+        '201':
+          description: Tag vinculada, com o UID já normalizado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TagNfc'
+              example:
+                id: 5eed0000-0000-4000-8000-000000000010
+                usuario:
+                  id: 5eed0000-0000-4000-8000-000000000002
+                  nome: Maria Souza
+                uid: 04A1B2C3D4
+                descricao: Chaveiro azul
+                ativa: true
+                criadaEm: '2026-11-06T12:00:00.000Z'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/ResourceNotFound'
+        '409':
+          $ref: '#/components/responses/TagNfcConflict'
+        '422':
+          $ref: '#/components/responses/TagNfcValidationError'
+        '500':
+          $ref: '#/components/responses/InternalError'
+    get:
+      tags: [Nfc]
+      summary: Listar tags
+      description: >-
+        Só `ADMIN`. Da mais nova para a mais antiga. Cada tag traz o id e o nome da pessoa. Para saber
+        se o modo de cadastro já vinculou a tag, consulte esta lista filtrando por `usuarioId`.
+      operationId: listNfcTags
+      parameters:
+        - name: usuarioId
+          in: query
+          schema:
+            type: string
+            format: uuid
+        - name: ativa
+          in: query
+          schema:
+            type: boolean
+        - $ref: '#/components/parameters/Page'
+        - $ref: '#/components/parameters/PageSize'
+      responses:
+        '200':
+          description: Página de tags
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ListaTagsNfc'
+              example:
+                data:
+                  - id: 5eed0000-0000-4000-8000-000000000010
+                    usuario:
+                      id: 5eed0000-0000-4000-8000-000000000002
+                      nome: Maria Souza
+                    uid: 04A1B2C3D4
+                    descricao: Chaveiro azul
+                    ativa: true
+                    criadaEm: '2026-11-06T12:00:00.000Z'
+                page: 1
+                pageSize: 20
+                total: 1
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '422':
+          $ref: '#/components/responses/ValidationError'
+        '500':
+          $ref: '#/components/responses/InternalError'
+  /nfc-tags/{id}:
+    parameters:
+      - $ref: '#/components/parameters/IdPath'
+    patch:
+      tags: [Nfc]
+      summary: Ativar ou desativar uma tag
+      description: >-
+        Só `ADMIN`. Aceita só `ativa`: qualquer outro campo dá 422, porque o UID e a pessoa de uma tag
+        não mudam. Tags não são apagadas.
+      operationId: updateNfcTag
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AtualizarTagNfc'
+            example:
+              ativa: false
+      responses:
+        '200':
+          description: Tag atualizada
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TagNfc'
+              example:
+                id: 5eed0000-0000-4000-8000-000000000010
+                usuario:
+                  id: 5eed0000-0000-4000-8000-000000000002
+                  nome: Maria Souza
+                uid: 04A1B2C3D4
+                descricao: Chaveiro azul
+                ativa: false
+                criadaEm: '2026-11-06T12:00:00.000Z'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/ResourceNotFound'
+        '422':
+          $ref: '#/components/responses/ValidationError'
         '500':
           $ref: '#/components/responses/InternalError'
   /authorizations:
@@ -2152,6 +2336,93 @@ components:
         total:
           type: integer
           description: Total de terminais, antes da paginação.
+    CriarTagNfc:
+      type: object
+      required: [usuarioId, uid]
+      properties:
+        usuarioId:
+          type: string
+          format: uuid
+        uid:
+          type: string
+          description: >-
+            Pode vir com `:`, `-` e espaços, em qualquer caixa. Sem os separadores, tem de ser
+            hexadecimal de 8 a 20 caracteres.
+        descricao:
+          type: string
+          maxLength: 120
+          description: Em branco é o mesmo que não informar.
+    AtualizarTagNfc:
+      type: object
+      required: [ativa]
+      additionalProperties: false
+      properties:
+        ativa:
+          type: boolean
+    TagNfc:
+      type: object
+      required: [id, usuario, uid, descricao, ativa, criadaEm]
+      properties:
+        id:
+          type: string
+          format: uuid
+        usuario:
+          type: object
+          required: [id, nome]
+          properties:
+            id:
+              type: string
+              format: uuid
+            nome:
+              type: string
+        uid:
+          type: string
+          pattern: '^[0-9A-F]{8,20}$'
+          description: Hexadecimal, maiúsculo, sem separadores.
+        descricao:
+          type: [string, 'null']
+        ativa:
+          type: boolean
+        criadaEm:
+          type: string
+          format: date-time
+    ListaTagsNfc:
+      type: object
+      required: [data, page, pageSize, total]
+      properties:
+        data:
+          type: array
+          items:
+            $ref: '#/components/schemas/TagNfc'
+        page:
+          type: integer
+        pageSize:
+          type: integer
+        total:
+          type: integer
+          description: Total de tags que passaram no filtro, antes da paginação.
+    AbrirModoCadastro:
+      type: object
+      required: [usuarioId]
+      properties:
+        usuarioId:
+          type: string
+          format: uuid
+          description: A pessoa que receberá a próxima tag lida no terminal.
+    ModoCadastro:
+      type: object
+      required: [terminalId, usuarioId, modoCadastroAte]
+      properties:
+        terminalId:
+          type: string
+          format: uuid
+        usuarioId:
+          type: string
+          format: uuid
+        modoCadastroAte:
+          type: string
+          format: date-time
+          description: Até este instante, inclusive, a próxima leitura vincula a tag.
     CriarAutorizacao:
       type: object
       required: [usuarioId, accessPointId, dataInicio, dataFim, horaInicio, horaFim, usosPermitidos]
@@ -2338,6 +2609,7 @@ components:
                   AUTO_DESATIVACAO,
                   ULTIMO_ADMIN,
                   LOCAL_COM_AUTORIZACOES_ATIVAS,
+                  TAG_JA_CADASTRADA,
                   CONFLICT,
                   RATE_LIMITED,
                   INTERNAL_ERROR,
@@ -2452,8 +2724,43 @@ components:
               details:
                 - field: latitude
                   message: deve estar entre -90 e 90
+    TagNfcConflict:
+      description: '`TAG_JA_CADASTRADA`: o UID já está cadastrado, mesmo que a tag esteja desativada.'
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          example:
+            error:
+              code: TAG_JA_CADASTRADA
+              message: Esta tag já está vinculada a alguém
+    TagNfcValidationError:
+      description: Corpo inválido, UID fora do formato ou usuário inativo, com o campo em `details`
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          examples:
+            uidInvalido:
+              value:
+                error:
+                  code: VALIDATION_ERROR
+                  message: Dados inválidos
+                  details:
+                    - field: uid
+                      message: deve ter de 8 a 20 caracteres hexadecimais
+            usuarioInativo:
+              value:
+                error:
+                  code: VALIDATION_ERROR
+                  message: Dados inválidos
+                  details:
+                    - field: usuarioId
+                      message: Usuário inativo
     ResourceNotFound:
-      description: Recurso inexistente (edifício, ponto de acesso ou terminal), ou `id` que não é UUID
+      description: >-
+        Recurso inexistente (edifício, ponto de acesso, terminal, tag ou usuário), ou `id` que não é
+        UUID
       content:
         application/json:
           schema:
