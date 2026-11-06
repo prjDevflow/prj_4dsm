@@ -11,17 +11,21 @@ type NavRowProps = {
   detail?: string;
   /** Highlight before the chevron ("1 offline"). */
   badge?: StatusBadgeProps;
+  /** Number in a circle before the chevron; the screen reader reads `label` ("2 ativas"). */
+  count?: { value: number; label: string };
   onPress: () => void;
 };
 
 /** Navigation row: high surface, corner 20, 64 tall, primary icon and chevron. */
-export const NavRow = ({ icon, label, detail, badge, onPress }: NavRowProps) => {
+export const NavRow = ({ icon, label, detail, badge, count, onPress }: NavRowProps) => {
   const theme = useTheme();
 
   return (
     <Pressable
       accessibilityRole="button"
-      accessibilityLabel={[label, detail, badge && badgeLabel(badge)].filter(Boolean).join(', ')}
+      accessibilityLabel={[label, detail, badge && badgeLabel(badge), count?.label]
+        .filter(Boolean)
+        .join(', ')}
       onPress={onPress}
       style={({ pressed }) => [
         styles.row,
@@ -43,6 +47,13 @@ export const NavRow = ({ icon, label, detail, badge, onPress }: NavRowProps) => 
         ) : null}
       </View>
       {badge ? <StatusBadge {...badge} /> : null}
+      {count ? (
+        <View style={[styles.count, { backgroundColor: theme.colors.primaria }]}>
+          <Text variant="adminItem" color="primariaSobre">
+            {count.value}
+          </Text>
+        </View>
+      ) : null}
       <Icon name="chevron_right" color={theme.colors.textoApoio} />
     </Pressable>
   );
@@ -57,5 +68,13 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
   },
   texts: { flex: 1, gap: 2 },
+  count: {
+    minWidth: 32,
+    minHeight: 32,
+    borderRadius: 16,
+    paddingHorizontal: 6,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
   pressed: { opacity: 0.85 },
 });

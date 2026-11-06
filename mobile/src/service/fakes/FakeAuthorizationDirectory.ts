@@ -3,6 +3,7 @@ import type {
   Autorizacao,
   CreateAuthorizationBody,
   ListAuthorizationsParams,
+  ListMyAuthorizationsParams,
   SituacaoEfetiva,
 } from '@/lib/types/authorizations';
 import type { Page } from '@/lib/types/page';
@@ -83,6 +84,48 @@ const samples: Sample[] = [
     horas: ['08:00', '12:00'],
     usos: [0, 1],
   },
+  // The seed visitor signs in on the fake login: one of each state, to see T04 and its warning.
+  {
+    pessoa: 'Visitante (dev)',
+    local: 'Catraca Social',
+    de: -1,
+    ate: 5,
+    horas: ['00:00', '23:59'],
+    usos: [1, 3],
+  },
+  {
+    pessoa: 'Visitante (dev)',
+    local: 'Porta da Garagem',
+    de: -19,
+    ate: 70,
+    horas: ['06:00', '09:00'],
+    usos: [22, 60],
+  },
+  {
+    pessoa: 'Visitante (dev)',
+    local: 'Portaria Principal',
+    de: 0,
+    ate: 0,
+    horas: ['09:00', '12:00'],
+    usos: [2, 2],
+  },
+  {
+    pessoa: 'Visitante (dev)',
+    local: 'Catraca Social',
+    de: -30,
+    ate: -20,
+    horas: ['08:00', '12:00'],
+    usos: [0, 1],
+  },
+  {
+    pessoa: 'Visitante (dev)',
+    local: 'Porta da Garagem',
+    de: -10,
+    ate: 10,
+    horas: ['08:00', '18:00'],
+    usos: [4, 20],
+    motivoCancelamento: 'Pedido do morador',
+  },
 ];
 
 /**
@@ -121,6 +164,21 @@ export class FakeAuthorizationDirectory {
       .filter((a) => dataDe === undefined || a.dataFim >= dataDe)
       .filter((a) => dataAte === undefined || a.dataInicio <= dataAte)
       .sort((a, b) => b.criadoEm.localeCompare(a.criadoEm) || b.id.localeCompare(a.id));
+    const start = (page - 1) * pageSize;
+
+    return { data: found.slice(start, start + pageSize), page, pageSize, total: found.length };
+  }
+
+  /** GET /me/authorizations: only the ones of this person, the ones ending first on top. */
+  listMine(
+    usuarioId: string,
+    { situacao, page, pageSize }: ListMyAuthorizationsParams,
+  ): Page<Autorizacao> {
+    const found = this.authorizations
+      .map((authorization) => this.withState(authorization))
+      .filter((a) => a.usuario.id === usuarioId)
+      .filter((a) => situacao === undefined || a.situacaoEfetiva === situacao)
+      .sort((a, b) => a.dataFim.localeCompare(b.dataFim) || a.id.localeCompare(b.id));
     const start = (page - 1) * pageSize;
 
     return { data: found.slice(start, start + pageSize), page, pageSize, total: found.length };

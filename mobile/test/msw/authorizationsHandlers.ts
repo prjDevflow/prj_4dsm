@@ -36,6 +36,16 @@ export const authorizationsHandlers = (directory: FakeAuthorizationDirectory, au
       }),
     );
   }),
+  http.get(`${API_URL}/me/authorizations`, ({ request }) => {
+    const params = new URL(request.url).searchParams;
+    return answer(() =>
+      directory.listMine(author.id, {
+        situacao: (params.get('situacao') ?? undefined) as ListAuthorizationsParams['situacao'],
+        page: Number(params.get('page') ?? 1),
+        pageSize: Number(params.get('pageSize') ?? 20),
+      }),
+    );
+  }),
   http.get(`${API_URL}/authorizations/:id`, ({ params }) =>
     answer(() => directory.get(String(params.id))),
   ),

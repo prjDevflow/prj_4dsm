@@ -217,7 +217,6 @@ describe('sessão e navegação por perfil', () => {
     await screen.findByRole('header', { name: 'Olá, Visitante' });
 
     for (const [button, title] of [
-      ['Minhas autorizações', 'Minhas autorizações'],
       ['Meu histórico', 'Meu histórico'],
       ['Abrir catraca', 'Abrir catraca'],
     ]) {
@@ -227,6 +226,66 @@ describe('sessão e navegação por perfil', () => {
       await fireEvent.press(screen.getByRole('button', { name: 'Voltar' }));
       expect(await screen.findByRole('header', { name: 'Olá, Visitante' })).toBeOnTheScreen();
     }
+  });
+
+  const authorizationsDirectory = () =>
+    new FakeAuthorizationDirectory({
+      users: new FakeUserDirectory(),
+      locations: new FakeLocationDirectory(),
+    });
+
+  it('o início conta as ativas, e "Minhas autorizações" abre as da pessoa', async () => {
+    server.use(...authorizationsHandlers(authorizationsDirectory(), sampleVisitante));
+    await renderApp();
+    await login(sampleVisitante);
+
+    await fireEvent.press(
+      await screen.findByRole('button', { name: 'Minhas autorizações, 2 ativas' }),
+    );
+
+    expect(await screen.findByRole('header', { name: 'Minhas autorizações' })).toBeOnTheScreen();
+    expect(await screen.findByRole('button', { name: 'Ver anteriores (3)' })).toBeOnTheScreen();
+    expect(screen).toHavePathname('/me/authorizations');
+
+    await fireEvent.press(screen.getByRole('button', { name: 'Voltar' }));
+    expect(await screen.findByRole('header', { name: 'Olá, Visitante' })).toBeOnTheScreen();
+  });
+
+  it('"Abrir catraca" nas autorizações leva ao lugar do leitor', async () => {
+    await renderApp();
+    await login(sampleVisitante);
+    await fireEvent.press(await screen.findByRole('button', { name: 'Minhas autorizações' }));
+    await screen.findByRole('header', { name: 'Minhas autorizações' });
+
+    await fireEvent.press(await screen.findByRole('button', { name: 'Abrir catraca' }));
+
+    expect(await screen.findByRole('header', { name: 'Abrir catraca' })).toBeOnTheScreen();
+  });
+
+  it('sair e entrar com outra conta não mostra as autorizações da anterior', async () => {
+    const directory = authorizationsDirectory();
+    server.use(
+      http.get(`${API_URL}/me/authorizations`, ({ request }) => {
+        const owner =
+          request.headers.get('authorization') === 'Bearer token-VISITANTE'
+            ? sampleVisitante
+            : sampleCondomino;
+        return HttpResponse.json(directory.listMine(owner.id, { page: 1, pageSize: 100 }));
+      }),
+    );
+    await renderApp();
+    await login(sampleVisitante);
+    await screen.findByRole('button', { name: 'Minhas autorizações, 2 ativas' });
+
+    await fireEvent.press(screen.getByRole('button', { name: 'Sair' }));
+    await pressLast('Sair');
+    await loginScreen();
+    await login(sampleCondomino);
+    await screen.findByRole('header', { name: 'Olá, Condômino' });
+
+    await fireEvent.press(await screen.findByRole('button', { name: 'Minhas autorizações' }));
+
+    expect(await screen.findByText('Você ainda não tem autorizações.')).toBeOnTheScreen();
   });
 
   it('os blocos do administrador abrem as áreas "Em breve"', async () => {

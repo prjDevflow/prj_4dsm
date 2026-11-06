@@ -30,12 +30,40 @@ const names = (directory: FakeAuthorizationDirectory, params = {}) =>
   directory.list({ ...all, ...params }).data.map(({ usuario }) => usuario.nome);
 
 describe('FakeAuthorizationDirectory', () => {
+  it('listMine devolve só as da pessoa, as que terminam primeiro no topo', () => {
+    const { directory, user } = setup();
+
+    const { data, total } = directory.listMine(user('Maria Souza').id, all);
+
+    expect(total).toBe(2);
+    expect(data.every(({ usuario }) => usuario.nome === 'Maria Souza')).toBe(true);
+    expect(data.map(({ dataFim }) => dataFim)).toEqual([...data.map((a) => a.dataFim)].sort());
+  });
+
+  it('listMine filtra pela situação efetiva e pagina', () => {
+    const { directory, user } = setup();
+    const visitante = user('Visitante (dev)').id;
+
+    expect(directory.listMine(visitante, { ...all, situacao: 'EXPIRADA' }).total).toBe(1);
+    expect(directory.listMine(visitante, { page: 2, pageSize: 2 }).data).toHaveLength(2);
+  });
+
+  it('o visitante do seed tem exemplos das quatro situações, para ver a T04 no modo falso', () => {
+    const { directory, user } = setup();
+
+    const states = directory
+      .listMine(user('Visitante (dev)').id, all)
+      .data.map((a) => a.situacaoEfetiva);
+
+    expect(new Set(states)).toEqual(new Set(['ATIVA', 'CANCELADA', 'EXPIRADA', 'ESGOTADA']));
+  });
+
   it('começa com exemplos das quatro situações, as mais recentes primeiro', () => {
     const { directory } = setup();
 
     const { data, total } = directory.list(all);
 
-    expect(total).toBe(6);
+    expect(total).toBe(11);
     expect(new Set(data.map((a) => a.situacaoEfetiva))).toEqual(
       new Set(['ATIVA', 'CANCELADA', 'ESGOTADA', 'EXPIRADA']),
     );
@@ -91,8 +119,8 @@ describe('FakeAuthorizationDirectory', () => {
     expect(directory.list({ page: 2, pageSize: 4 })).toMatchObject({
       page: 2,
       pageSize: 4,
-      total: 6,
-      data: [expect.anything(), expect.anything()],
+      total: 11,
+      data: Array(4).fill(expect.anything()),
     });
   });
 

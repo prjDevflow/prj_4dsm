@@ -41,6 +41,26 @@ describe('FilterChip', () => {
 });
 
 describe('StatusBadge', () => {
+  it.each<[BadgeStatus, string]>([
+    ['ATIVA', 'Ativa'],
+    ['CANCELADA', 'Cancelada'],
+    ['EXPIRADA', 'Expirada'],
+    ['ESGOTADA', 'Esgotada'],
+  ])('com withIcon, %s mostra ícone, texto e cor', async (status, label) => {
+    await render(<StatusBadge status={status} withIcon />);
+
+    expect(screen.getByText(label)).toBeOnTheScreen();
+    expect(
+      screen.getByTestId('status-pill-icon', { includeHiddenElements: true }),
+    ).toBeOnTheScreen();
+  });
+
+  it('sem withIcon, o selo continua só com texto e cor', async () => {
+    await render(<StatusBadge status="ATIVA" />);
+
+    expect(screen.queryByTestId('status-pill-icon', { includeHiddenElements: true })).toBeNull();
+  });
+
   it.each<[BadgeStatus, string, string, string]>([
     ['ATIVA', 'Ativa', colors.sucessoContainer, colors.sucessoContainerSobre],
     ['CANCELADA', 'Cancelada', colors.erroContainer, colors.erroContainerSobre],
@@ -178,6 +198,20 @@ describe('ListItem', () => {
 });
 
 describe('NavRow', () => {
+  it('o contador aparece como número e é lido por extenso', async () => {
+    await render(
+      <NavRow
+        icon="confirmation_number"
+        label="Minhas autorizações"
+        count={{ value: 2, label: '2 ativas' }}
+        onPress={jest.fn()}
+      />,
+    );
+
+    expect(screen.getByText('2')).toBeOnTheScreen();
+    expect(screen.getByRole('button', { name: 'Minhas autorizações, 2 ativas' })).toBeOnTheScreen();
+  });
+
   it('é um botão com o texto e o detalhe, na superfície alta, raio 20 e 64 de altura', async () => {
     const onPress = jest.fn();
     await render(

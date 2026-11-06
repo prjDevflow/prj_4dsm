@@ -59,3 +59,9 @@ export interface ListAuthorizationsParams {
   page: number;
   pageSize: number;
 }
+
+/** GET /me/authorizations: whose they are comes from the token. */
+export type ListMyAuthorizationsParams = Pick<
+  ListAuthorizationsParams,
+  'situacao' | 'page' | 'pageSize'
+>;

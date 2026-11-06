@@ -8,6 +8,7 @@ import {
   CreateAuthorizationService,
   GetAuthorizationService,
   ListAuthorizationsService,
+  ListMyAuthorizationsService,
 } from './AuthorizationServices';
 
 // Example of backend/openapi.yaml.
@@ -153,6 +154,21 @@ describe('consulta e cancelamento de autorizações', () => {
     await new ListAuthorizationsService().exec({ page: 1, pageSize: 20 });
 
     expect(query).toEqual({ page: '1', pageSize: '20' });
+  });
+
+  it('ListMyAuthorizationsService: GET /me/authorizations com a página, sem dizer de quem', async () => {
+    let query = '';
+    server.use(
+      http.get(`${API_URL}/me/authorizations`, ({ request }) => {
+        query = new URL(request.url).search;
+        return HttpResponse.json({ data: [created], page: 1, pageSize: 100, total: 1 });
+      }),
+    );
+
+    const result = await new ListMyAuthorizationsService().exec({ page: 1, pageSize: 100 });
+
+    expect(query).toBe('?page=1&pageSize=100');
+    expect(result.data).toEqual([created]);
   });
 
   it('GetAuthorizationService: GET /authorizations/:id', async () => {

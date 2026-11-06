@@ -3,6 +3,7 @@ import type {
   Autorizacao,
   CreateAuthorizationBody,
   ListAuthorizationsParams,
+  ListMyAuthorizationsParams,
 } from '@/lib/types/authorizations';
 import type { Page } from '@/lib/types/page';
 import type { ApiError } from '../ApiError';
@@ -11,6 +12,7 @@ import type {
   ICreateAuthorizationService,
   IGetAuthorizationService,
   IListAuthorizationsService,
+  IListMyAuthorizationsService,
 } from '../IAuthorizationService';
 import { FakeAuthorizationDirectory } from './FakeAuthorizationDirectory';
 import { sharedLocationDirectory } from './FakeLocationServices';
@@ -65,6 +67,16 @@ export class FakeListAuthorizationsService
   async exec(params: ListAuthorizationsParams): Promise<Page<Autorizacao>> {
     this.record(params);
     return this.directory.list(params);
+  }
+}
+
+export class FakeListMyAuthorizationsService
+  extends FakeAuthorizationService<ListMyAuthorizationsParams>
+  implements IListMyAuthorizationsService
+{
+  async exec(params: ListMyAuthorizationsParams): Promise<Page<Autorizacao>> {
+    this.record(params);
+    return this.directory.listMine(loggedIn().id, params);
   }
 }
 
