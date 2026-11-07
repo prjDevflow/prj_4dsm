@@ -5,6 +5,7 @@ const props = {
   nome: 'Maria Souza',
   greeting: 'Olá, Maria',
   isOffline: false,
+  activeCount: 0,
   onOpenAccount: jest.fn(),
   onOpenScanner: jest.fn(),
   onOpenAuthorizations: jest.fn(),
@@ -47,6 +48,22 @@ describe('UserHomeView (T03)', () => {
     expect(onOpenScanner).toHaveBeenCalledTimes(1);
     expect(onOpenAuthorizations).toHaveBeenCalledTimes(1);
     expect(onOpenHistory).toHaveBeenCalledTimes(1);
+  });
+
+  it('sem autorização ativa, "Minhas autorizações" não mostra contador', async () => {
+    await render(<UserHomeView {...props} />);
+
+    expect(screen.getByRole('button', { name: 'Minhas autorizações' })).toBeOnTheScreen();
+  });
+
+  it.each([
+    [1, 'Minhas autorizações, 1 ativa'],
+    [2, 'Minhas autorizações, 2 ativas'],
+  ])('com %i ativa(s), o contador é lido por extenso', async (activeCount, name) => {
+    await render(<UserHomeView {...props} activeCount={activeCount} />);
+
+    expect(screen.getByRole('button', { name })).toBeOnTheScreen();
+    expect(screen.getByText(String(activeCount))).toBeOnTheScreen();
   });
 
   it('o "Abrir catraca" do início tem 100 de altura, na cor da ação', async () => {

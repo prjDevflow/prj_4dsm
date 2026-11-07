@@ -8,12 +8,12 @@ import type { useUserHomeModel } from './home.model';
 
 type UserHomeViewProps = ReturnType<typeof useUserHomeModel>;
 
-// T03 (Figma "Passe"). The "Você pode entrar agora" card is an Idea in the design (❓ 3) and the
-// authorizations counter comes with F09.
+// T03 (Figma "Passe"). The "Você pode entrar agora" card is an Idea in the design (❓ 3).
 export const UserHomeView = ({
   nome,
   greeting,
   isOffline,
+  activeCount,
   onOpenAccount,
   onOpenScanner,
   onOpenAuthorizations,
@@ -54,6 +54,11 @@ export const UserHomeView = ({
       <NavRow
         icon="confirmation_number"
         label="Minhas autorizações"
+        count={
+          activeCount > 0
+            ? { value: activeCount, label: activeCount === 1 ? '1 ativa' : `${activeCount} ativas` }
+            : undefined
+        }
         onPress={onOpenAuthorizations}
       />
       <NavRow icon="history" label="Meu histórico" onPress={onOpenHistory} />
