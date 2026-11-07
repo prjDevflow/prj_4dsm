@@ -1,7 +1,8 @@
 import type { IClock } from '../../../providers/IClock';
 import type { ITerminalRepository } from '../../../repositories/ITerminalRepository';
 import type { IUserRepository } from '../../../repositories/IUserRepository';
-import { NotFoundError, ValidationError } from '../../../shared/errors/AppError';
+import { NotFoundError } from '../../../shared/errors/AppError';
+import { requireActiveUser } from '../requireActiveUser';
 import type { IEnableEnrollModeDTO } from './EnableEnrollMode_DTO';
 
 export interface EnrollModeConfig {
@@ -30,13 +31,7 @@ export class EnableEnrollModeUseCase {
     const terminal = await this.terminals.findById(terminalId);
     if (!terminal) throw new NotFoundError('Terminal não encontrado');
 
-    const user = await this.users.findById(input.usuarioId);
-    if (!user) throw new NotFoundError('Usuário não encontrado');
-    if (!user.ativo) {
-      throw new ValidationError('Dados inválidos', [
-        { field: 'usuarioId', message: 'Usuário inativo' },
-      ]);
-    }
+    const user = await requireActiveUser(this.users, input.usuarioId);
 
     const expiraEm = new Date(this.clock.now().getTime() + this.config.enrollModeSeconds * 1000);
     // Only the two enroll columns are written; false means the terminal vanished after the read above.

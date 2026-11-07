@@ -4,7 +4,8 @@ import type { IClock } from '../../../providers/IClock';
 import type { IIdGenerator } from '../../../providers/IIdGenerator';
 import type { INfcTagRepository } from '../../../repositories/INfcTagRepository';
 import type { IUserRepository } from '../../../repositories/IUserRepository';
-import { NotFoundError, ValidationError } from '../../../shared/errors/AppError';
+import { ValidationError } from '../../../shared/errors/AppError';
+import { requireActiveUser } from '../requireActiveUser';
 import { UID_MESSAGE } from '../uidField';
 import type { ICreateNfcTagDTO } from './CreateNfcTag_DTO';
 
@@ -22,13 +23,7 @@ export class CreateNfcTagUseCase {
     if (!uid)
       throw new ValidationError('Dados inválidos', [{ field: 'uid', message: UID_MESSAGE }]);
 
-    const user = await this.users.findById(input.usuarioId);
-    if (!user) throw new NotFoundError('Usuário não encontrado');
-    if (!user.ativo) {
-      throw new ValidationError('Dados inválidos', [
-        { field: 'usuarioId', message: 'Usuário inativo' },
-      ]);
-    }
+    const user = await requireActiveUser(this.users, input.usuarioId);
 
     const tag: NfcTag = {
       id: this.ids.next(),
