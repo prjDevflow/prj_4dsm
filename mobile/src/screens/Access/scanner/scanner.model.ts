@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { AppState } from 'react-native';
 import { isSystemQr } from '@/lib/qr';
 import type {
@@ -40,7 +40,16 @@ export const useScannerModel = ({
   const [noticeVisible, setNoticeVisible] = useState(false);
   const [torchOn, setTorchOn] = useState(false);
   const alreadyRead = useRef(false);
+  const wentToSettings = useRef(false);
   const noticeTimer = useRef<ReturnType<typeof setTimeout>>(undefined);
+
+  const askAccess = useCallback(async () => {
+    try {
+      setStatus(accessStatus[await requestCameraAccessService.exec()]);
+    } catch {
+      setStatus('unavailable');
+    }
+  }, [requestCameraAccessService]);
 
   useEffect(() => {
     const loadAccess = async () => {
@@ -52,16 +61,23 @@ export const useScannerModel = ({
     };
 
     void loadAccess();
-    // Coming back from the system settings: the person may have just allowed the camera.
+    // Expo Go keeps a "no" per project and ignores the settings until the app asks again, so the
+    // way back from the settings asks. Only that way: closing the system's question also fires this.
     const subscription = AppState.addEventListener('change', (state) => {
-      if (state === 'active') void loadAccess();
+      if (state !== 'active') return;
+      if (wentToSettings.current) {
+        wentToSettings.current = false;
+        void askAccess();
+      } else {
+        void loadAccess();
+      }
     });
 
     return () => {
       subscription.remove();
       clearTimeout(noticeTimer.current);
     };
-  }, [getCameraAccessService]);
+  }, [getCameraAccessService, askAccess]);
 
   const onRead = (text: string) => {
     if (alreadyRead.current) return;
@@ -84,8 +100,11 @@ export const useScannerModel = ({
     status,
     noticeVisible,
     torchOn,
-    onAllow: async () => setStatus(accessStatus[await requestCameraAccessService.exec()]),
-    onOpenSettings: () => openSettingsService.exec(),
+    onAllow: askAccess,
+    onOpenSettings: async () => {
+      wentToSettings.current = true;
+      await openSettingsService.exec();
+    },
     onCameraError: () => setStatus('unavailable'),
     onToggleTorch: () => setTorchOn((on) => !on),
     onRead,

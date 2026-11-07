@@ -74,18 +74,72 @@ describe('useScannerModel: permissão', () => {
     expect(openSettingsService.calls).toBe(1);
   });
 
-  it('voltar das configurações com a permissão liberada abre a câmera', async () => {
+  const watchAppState = () => {
     let onChange: (state: AppStateStatus) => void = () => {};
     jest.spyOn(AppState, 'addEventListener').mockImplementation((_, listener) => {
       onChange = listener;
       return { remove: jest.fn() } as never;
     });
-    const { result, getCameraAccessService } = await setup('denied');
+    return { backToApp: () => act(async () => onChange('active')) };
+  };
 
-    getCameraAccessService.access = 'granted';
-    await act(async () => onChange('active'));
+  it('voltar das configurações pede de novo: o Expo Go guarda o "não" e só a pergunta o libera', async () => {
+    const { backToApp } = watchAppState();
+    const { result, requestCameraAccessService } = await setup('denied', 'granted');
+
+    await act(() => result.current.onOpenSettings());
+    await backToApp();
 
     await waitFor(() => expect(result.current.status).toBe('ready'));
+    expect(requestCameraAccessService.calls).toBe(1);
+  });
+
+  it('voltar das configurações sem liberar continua na explicação', async () => {
+    const { backToApp } = watchAppState();
+    const { result } = await setup('denied', 'denied');
+
+    await act(() => result.current.onOpenSettings());
+    await backToApp();
+
+    expect(result.current.status).toBe('denied');
+  });
+
+  it('a pergunta do sistema ao fechar não pergunta de novo: isso viraria um laço', async () => {
+    const { backToApp } = watchAppState();
+    const { result, getCameraAccessService, requestCameraAccessService } = await setup(
+      'undetermined',
+      'denied',
+    );
+
+    await act(() => result.current.onAllow());
+    getCameraAccessService.access = 'denied';
+    await backToApp();
+    await backToApp();
+
+    expect(requestCameraAccessService.calls).toBe(1);
+    expect(result.current.status).toBe('denied');
+  });
+
+  it('voltar ao app por conta própria só confere a permissão, sem perguntar', async () => {
+    const { backToApp } = watchAppState();
+    const { result, getCameraAccessService, requestCameraAccessService } = await setup('denied');
+
+    getCameraAccessService.access = 'granted';
+    await backToApp();
+
+    await waitFor(() => expect(result.current.status).toBe('ready'));
+    expect(requestCameraAccessService.calls).toBe(0);
+  });
+
+  it('só a primeira volta depois das configurações pergunta', async () => {
+    const { backToApp } = watchAppState();
+    const { result, requestCameraAccessService } = await setup('denied', 'denied');
+
+    await act(() => result.current.onOpenSettings());
+    await backToApp();
+    await backToApp();
+
+    expect(requestCameraAccessService.calls).toBe(1);
   });
 
   it('se não der para ler a permissão, trata como câmera indisponível, sem travar', async () => {
