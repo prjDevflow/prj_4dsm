@@ -48,6 +48,12 @@ export interface ITerminalRepository {
     heartbeat: TerminalHeartbeat,
     previousContactUntil: Date,
   ): Promise<boolean>;
+  /**
+   * Puts the terminal in enroll mode: the next tag it reads is linked to `usuarioId` until `ate`. Writes only
+   * these two columns, so a key rotated or a contact stored meanwhile is never undone; a second call replaces
+   * the first. False when the terminal does not exist.
+   */
+  updateEnrollMode(id: string, usuarioId: string, ate: Date): Promise<boolean>;
   /** Ordered by name. */
   list(filter: TerminalListFilter): Promise<TerminalListResult>;
 }

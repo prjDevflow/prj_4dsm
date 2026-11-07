@@ -56,6 +56,7 @@ Variáveis do `.env`:
 | `GPS_MAX_AGE_MIN`                                      | `10`                    | idade máxima do GPS, em minutos, para ele valer            |
 | `QR_VALIDATE_MAX_PER_MINUTE`                           | `10`                    | validações de QR por minuto por usuário (acima, 429)       |
 | `MAX_DISTANCE_M`                                       | `100`                   | distância máxima, em metros, entre o celular e o terminal  |
+| `ENROLL_MODE_SECONDS`                                  | `60`                    | segundos do modo de cadastro de tag NFC no terminal        |
 | `SEED_*`                                               | ver `.env.example`      | credenciais e local do seed de desenvolvimento             |
 
 O `.env` nunca vai para o Git nem para a imagem Docker. Troque a senha do exemplo no seu `.env`.
@@ -263,6 +264,29 @@ curl -X POST http://localhost:3000/api/v1/access/qr/validate \
 - Duas leituras simultâneas do mesmo QR, ou de dois QRs com um uso restante, aprovam só uma: a outra recebe `CREDENCIAL_REUTILIZADA` ou `USOS_ESGOTADOS`. Isso é provado contra o PostgreSQL real.
 - A distância é medida até a posição do terminal (`TERMINAL_POSITION_SOURCE`): o GPS recente do heartbeat ou as coordenadas do ponto. Vale até `MAX_DISTANCE_M` (100 m), com a ponta incluída.
 - No máximo `QR_VALIDATE_MAX_PER_MINUTE` validações por minuto por usuário; as seguintes dão `429`. Roteiro de teste com o `dev:qr`: [docs/ambiente-dev.md](docs/ambiente-dev.md).
+
+## Tags NFC
+
+Só `ADMIN` (contrato no Swagger). O administrador vincula a tag a um usuário digitando o UID, ou liga o modo de cadastro no terminal e encosta a tag (a leitura em si, `POST /terminal/nfc`, chega na B17).
+
+| Rota                                                     | O que faz                                                                       |
+| -------------------------------------------------------- | ------------------------------------------------------------------------------- |
+| `POST /nfc-tags` (`usuarioId`, `uid`, `descricao?`)      | vincula a tag a um usuário (`201`)                                              |
+| `GET /nfc-tags` (filtros `usuarioId`, `ativa`; paginada) | lista da mais nova para a mais antiga                                           |
+| `PATCH /nfc-tags/{id}` (`ativa`)                         | ativa ou desativa a tag; não existe `DELETE`                                    |
+| `POST /terminals/{id}/enroll-mode` (`usuarioId`)         | liga o modo de cadastro por `ENROLL_MODE_SECONDS` (60 s) e devolve o `expiraEm` |
+
+```bash
+curl -X POST http://localhost:3000/api/v1/nfc-tags \
+  -H "Authorization: Bearer <accessToken do admin>" -H 'content-type: application/json' \
+  -d '{"usuarioId":"5eed0000-0000-4000-8000-000000000003","uid":"04:a1:b2:c3","descricao":"Cartão azul"}'
+# 201 {"id":"...","usuarioId":"5eed0000-0000-4000-8000-000000000003","uid":"04A1B2C3","descricao":"Cartão azul","ativa":true,"criadaEm":"..."}
+```
+
+- O UID é normalizado: `:`, `-` e espaços saem e as letras ficam maiúsculas, então `04:a1:b2:c3` e `04A1B2C3` são a mesma tag. Só hexadecimal, de 8 a 20 caracteres (`422` no campo `uid`).
+- O UID é único no sistema, de qualquer usuário: repetir dá `409 TAG_JA_CADASTRADA`, também com pedidos simultâneos (quem decide é o índice único do banco). O usuário precisa existir (`404`) e estar ativo (`422` em `usuarioId`).
+- Desativar a tag (`ativa: false`) é o que a impede de abrir a catraca (a conferência é da B17). O `PATCH` só muda `ativa`: enviar `uid`, `usuarioId` ou outro campo dá `422`.
+- O modo de cadastro grava só o usuário e o prazo no terminal. A próxima tag lida por ele nesse prazo é vinculada ao usuário, sem abrir a catraca e sem gastar uso (B17). O prazo ainda vale no instante exato do `expiraEm`; depois dele o modo acaba sozinho, sem job. Ligar de novo substitui o anterior.
 
 ## Autorizações
 

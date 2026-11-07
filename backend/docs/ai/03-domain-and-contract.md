@@ -166,6 +166,28 @@ Sucesso do QR: `"Acesso autorizado. Pode passar."`
 
 UID da tag: hexadecimal, maiúsculo, sem separadores, 8 a 20 caracteres.
 
+### 4.6 Tags NFC e modo de cadastro (B16)
+
+Só `ADMIN`. Formatos adotados na B16 (o `openapi.yaml` é a fonte final; pergunta #13 no `STATUS.md`).
+
+```json
+// POST /nfc-tags   { "usuarioId": "uuid", "uid": "04:a1:b2:c3", "descricao": "Cartão azul" }   (descricao é opcional, até 120)
+// 201
+{ "id": "uuid", "usuarioId": "uuid", "uid": "04A1B2C3", "descricao": "Cartão azul", "ativa": true, "criadaEm": "2026-11-07T14:32:07.000Z" }
+
+// GET /nfc-tags?usuarioId=&ativa=&page=&pageSize=   → formato paginado padrão, da mais nova para a mais antiga (criadaEm, id)
+// PATCH /nfc-tags/:id   { "ativa": false }   (só este campo; strict) → 200 com a tag
+
+// POST /terminals/:id/enroll-mode   { "usuarioId": "uuid" }
+// 200
+{ "terminalId": "uuid", "usuarioId": "uuid", "expiraEm": "2026-11-07T14:33:07.000Z" }
+```
+
+- O UID é normalizado ao gravar (`:`, `-` e espaços saem; maiúsculas) e é único no sistema, de qualquer usuário. UID que não é hexadecimal de 8 a 20 caracteres: 422 no campo `uid`. UID repetido: 409 `TAG_JA_CADASTRADA`.
+- Usuário inexistente: 404 `NOT_FOUND`; inativo: 422 no campo `usuarioId`. Vale para a tag e para o modo de cadastro. Terminal inexistente (ou `:id` que não é UUID): 404.
+- Tags não se apagam: desativar é `ativa: false`. `uid` e `usuarioId` não mudam (422 no `PATCH`).
+- Modo de cadastro: grava `modoCadastroUsuarioId` e `modoCadastroAte = agora + ENROLL_MODE_SECONDS`. O prazo ainda vale no instante exato do `modoCadastroAte` (inclusivo, como o QR e os comandos). Ligar de novo substitui o anterior. Terminal inativo é aceito. `GET /terminals` não mostra o modo.
+
 ## 5. Regras de acesso
 
 ### 5.1 Ordem de avaliação do QR (`POST /access/qr/validate`)

@@ -95,6 +95,15 @@ export class PrismaTerminalRepository implements ITerminalRepository {
     return count > 0;
   }
 
+  async updateEnrollMode(id: string, usuarioId: string, ate: Date) {
+    // Only the two enroll columns, so a key rotated or a heartbeat stored meanwhile is never undone.
+    const { count } = await this.prisma.terminal.updateMany({
+      where: { id },
+      data: { modoCadastroUsuarioId: usuarioId, modoCadastroAte: ate },
+    });
+    return count > 0;
+  }
+
   async list(filter: TerminalListFilter): Promise<TerminalListResult> {
     const [rows, total] = await this.prisma.$transaction([
       this.prisma.terminal.findMany({

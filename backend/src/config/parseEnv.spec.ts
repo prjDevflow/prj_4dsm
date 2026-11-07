@@ -256,6 +256,19 @@ describe('parseEnv', () => {
     }
   });
 
+  it('deve usar 60 s como padrão de ENROLL_MODE_SECONDS e converter para número', () => {
+    expect(parseEnv(validSource).ENROLL_MODE_SECONDS).toBe(60);
+    expect(parseEnv({ ...validSource, ENROLL_MODE_SECONDS: '90' }).ENROLL_MODE_SECONDS).toBe(90);
+  });
+
+  it('deve rejeitar ENROLL_MODE_SECONDS zero, negativo, decimal ou não numérico', () => {
+    for (const value of ['0', '-1', 'abc', '2.5']) {
+      expect(() => parseEnv({ ...validSource, ENROLL_MODE_SECONDS: value })).toThrow(
+        /ENROLL_MODE_SECONDS/,
+      );
+    }
+  });
+
   it('deve aceitar tolerância do QR igual a zero e rejeitar negativa, decimal ou não numérica', () => {
     expect(parseEnv({ ...validSource, QR_TOLERANCE_SECONDS: '0' }).QR_TOLERANCE_SECONDS).toBe(0);
     for (const value of ['-1', 'abc', '2.5']) {

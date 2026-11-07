@@ -156,6 +156,45 @@ curl -s -X POST http://localhost:3000/api/v1/terminals/5eed0000-0000-4000-8000-0
   -H "Authorization: Bearer $TOKEN"   # a chave de dev deixa de valer: rode o seed de novo para restaurá-la
 ```
 
+## Tags NFC (B16)
+
+O administrador vincula uma tag a um usuário. O visitante do seed (`5eed0000-0000-4000-8000-000000000003`) serve
+para o teste. Para o ESP32 de bancada (I10), o UID lido aparece na serial; é esse texto que se digita aqui:
+
+```bash
+B=http://localhost:3000/api/v1
+TOKEN=$(curl -s -X POST $B/auth/login -H 'content-type: application/json' \
+  -d '{"email":"admin@dev.local","senha":"Admin-Dev-2026"}' | sed 's/.*"accessToken":"\([^"]*\)".*/\1/')
+
+# vincula a tag (o UID pode vir com ":" ou "-" e em minúsculas: vira 04A1B2C3)
+curl -s -X POST $B/nfc-tags -H "Authorization: Bearer $TOKEN" -H 'content-type: application/json' \
+  -d '{"usuarioId":"5eed0000-0000-4000-8000-000000000003","uid":"04:a1:b2:c3","descricao":"Cartão azul"}'
+# 201 {"id":"...","usuarioId":"5eed0000-0000-4000-8000-000000000003","uid":"04A1B2C3","descricao":"Cartão azul","ativa":true,"criadaEm":"..."}
+# o mesmo UID de novo, escrito de qualquer jeito, dá 409:
+# 409 {"error":{"code":"TAG_JA_CADASTRADA","message":"Esta tag já está cadastrada"}}
+
+curl -s "$B/nfc-tags?usuarioId=5eed0000-0000-4000-8000-000000000003&ativa=true" -H "Authorization: Bearer $TOKEN"
+
+# desativa (a tag deixa de abrir a catraca quando a B17 existir); {"ativa":true} reativa
+curl -s -X PATCH $B/nfc-tags/<id> -H "Authorization: Bearer $TOKEN" -H 'content-type: application/json' \
+  -d '{"ativa":false}'
+```
+
+Modo de cadastro (I11): em vez de digitar o UID, o administrador liga o modo no terminal e encosta a tag nele. Esta
+etapa só grava o modo; quem vincula a tag na leitura é o `POST /terminal/nfc` da B17.
+
+```bash
+curl -s -X POST $B/terminals/5eed0000-0000-4000-8000-000000000006/enroll-mode \
+  -H "Authorization: Bearer $TOKEN" -H 'content-type: application/json' \
+  -d '{"usuarioId":"5eed0000-0000-4000-8000-000000000003"}'
+# 200 {"terminalId":"5eed0000-0000-4000-8000-000000000006","usuarioId":"5eed0000-0000-4000-8000-000000000003","expiraEm":"2026-11-07T14:33:07.000Z"}
+```
+
+- O modo dura `ENROLL_MODE_SECONDS` (60 s) e acaba sozinho; ligar de novo antes disso troca o usuário e renova o prazo.
+  `GET /terminals` não mostra o modo.
+- UID que não é hexadecimal de 8 a 20 caracteres dá `422` no campo `uid`; usuário inexistente dá `404`; usuário
+  inativo dá `422` no campo `usuarioId`.
+
 ## Local e autorização de teste
 
 | Item           | Valor                                                                                           |
