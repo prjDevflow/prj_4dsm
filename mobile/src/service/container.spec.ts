@@ -29,12 +29,26 @@ import { GetUserService } from './implementations/GetUserService';
 import { ListUsersService } from './implementations/ListUsersService';
 import { LoginUserService } from './implementations/LoginUserService';
 import { UpdateUserService } from './implementations/UpdateUserService';
-import { FakeClipboardService, FakeCurrentPositionService } from './fakes/FakeDeviceServices';
+import {
+  FakeClipboardService,
+  FakeCurrentPositionService,
+  FakeGetCameraAccessService,
+  FakeOpenSettingsService,
+  FakeRequestCameraAccessService,
+  FakeVibrateService,
+} from './fakes/FakeDeviceServices';
 import {
   FakeListBuildingsService,
   FakeRotateTerminalKeyService,
 } from './fakes/FakeLocationServices';
-import { ClipboardService, CurrentPositionService } from './implementations/DeviceServices';
+import {
+  ClipboardService,
+  CurrentPositionService,
+  GetCameraAccessService,
+  OpenSettingsService,
+  RequestCameraAccessService,
+  VibrateService,
+} from './implementations/DeviceServices';
 import { ListBuildingsService } from './implementations/LocationServices';
 import { RotateTerminalKeyService } from './implementations/TerminalServices';
 
@@ -87,6 +101,20 @@ describe('createServices', () => {
       FakeCurrentPositionService,
     );
     expect(createServices(['clipboard']).clipboard).toBeInstanceOf(FakeClipboardService);
+  });
+
+  it('câmera, vibração e configurações são reais por padrão e falsas com "camera" na lista', () => {
+    const real = createServices([]);
+    const fake = createServices(['camera']);
+
+    expect(real.getCameraAccess).toBeInstanceOf(GetCameraAccessService);
+    expect(real.requestCameraAccess).toBeInstanceOf(RequestCameraAccessService);
+    expect(real.vibrate).toBeInstanceOf(VibrateService);
+    expect(real.openSettings).toBeInstanceOf(OpenSettingsService);
+    expect(fake.getCameraAccess).toBeInstanceOf(FakeGetCameraAccessService);
+    expect(fake.requestCameraAccess).toBeInstanceOf(FakeRequestCameraAccessService);
+    expect(fake.vibrate).toBeInstanceOf(FakeVibrateService);
+    expect(fake.openSettings).toBeInstanceOf(FakeOpenSettingsService);
   });
 
   it('autorizações são reais por padrão e falsas com "authorizations" na lista', () => {

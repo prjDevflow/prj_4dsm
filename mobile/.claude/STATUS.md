@@ -2,9 +2,11 @@
 
 Atualize este arquivo no fim de cada sessão de trabalho e ao abrir ou integrar um PR. A IA lê aqui qual é a etapa atual antes de começar.
 
-**Etapa atual:** F09 (PR #38 aberto, empilhado na F08, #31) → próxima: F10, para a Review 2 de 11/11
-**Branch:** `feature/F09-my-authorizations` (criada da `feature/F08-authorizations-list`)
-**Último teste vermelho/verde:** anteriores contam as entradas usadas, sem barra (green), 648 testes passando
+**Etapa atual:** F10 (PR #41 aberto, falta o segundo celular real) → próxima: F11, para a Review 2 de 11/11
+**Branch:** `feature/F10-qr-reader` (criada da `feature/F09-my-authorizations`; PR #41 sobre `develop`)
+**Último teste vermelho/verde:** voltar das configurações pede a câmera de novo (green), 704 testes passando
+
+**Atenção (07/11):** os PRs #28, #29, #30, #31 e #38 foram integrados nas branches de base, não em `develop`. O `develop` só tem a F04 da pilha; F05 a F09 estão juntas em `feature/F08-authorizations-list`. O merge simulado com `develop` não tem conflito. O PR #40 leva tudo para `develop`, por merge commit, e a F10 entra depois dele.
 
 Legenda: ⬜ pendente · 🟨 em andamento · ✅ pronta (critérios e DoD marcados, PR integrado em `develop`) · 🔴 essencial · 🟡 importante · 🟢 pode ser cortada · ❓ pergunta em aberto (lista no fim deste arquivo).
 
@@ -20,7 +22,7 @@ Hoje é 28/10 e o app começa do zero. 💡 Por isso a ordem muda em relação a
 | F02 | Tema e componentes base | Fundamentos, componentes, T31 | F01 | — | 01/11 | 🔴 | 🟨 | [#16](https://github.com/prjDevflow/prj_4dsm/pull/16) |
 | F03 | Login | T02 | F02 | B05 ✅ | 03/11 | 🔴 | 🟨 | [#19](https://github.com/prjDevflow/prj_4dsm/pull/19) |
 | F04 | Abertura, navegação por perfil, início e sessão | T01, T03, T13, T14 | F03 | B05 ✅ | 04/11 | 🔴 | 🟨 | PR #25 |
-| F10 | Leitor de QR Code | T06, T07 | F04 | (B12 para QR real) | 05/11 | 🔴 | ⬜ | |
+| F10 | Leitor de QR Code | T06, T07 | F04 | (B12 para QR real) | 05/11 | 🔴 | 🟨 | PR #41 |
 | F11 | Validação do acesso e resultado | T08, T09, T10, T11 | F10 | B15 (falso até sair) | 07/11 | 🔴 | ⬜ | |
 | F09 | Minhas autorizações | T04, T05 | F04 | B09 ✅ | 08/11 | 🔴 | 🟨 | PR #38 |
 | — | Integração com backend e terminal, ensaio | — | F11, F09 | B15 | 09–10/11 | 🔴 | | |
@@ -108,6 +110,10 @@ Formato: data · decisão · motivo.
 - 2026-11-03 · Na F07, depois de criar, o app volta para a tela de onde veio (hoje, "Autorizações" com "Em breve") em vez da lista · a lista é a F08; a criação já invalida `['authorizations']`, então a F08 mostra a nova no topo quando chegar.
 - 2026-11-03 · Na F07, o resumo diz "poderá entrar em Catraca Social (Edifício Central)" em vez de "na Catraca Social do Edifício Central" · o app não sabe se o nome do local pede "na" ou "no"; o texto do card fica igual em todo o resto.
 - 2026-11-03 · Na F07, o resumo só aparece quando o formulário passaria na validação, e é montado do mesmo objeto enviado à API · assim ele nunca mostra algo que o servidor recusaria.
+- 2026-11-07 · Na volta das configurações, o leitor pede a câmera de novo em vez de só consultar · no Android, o Expo Go guarda por projeto quem negou e ignora o sistema até o app perguntar; quem negava ficava preso, mesmo reiniciando. Só pergunta se a pessoa saiu pelo botão "Abrir configurações", porque fechar a pergunta do sistema também devolve o app à frente e isso viraria um laço.
+- 2026-11-07 · O selo "Localização pronta" da T07 e o pedido antecipado de localização ficam para a F11 · dependem da T08; no card são só uma sugestão para ganhar tempo.
+- 2026-11-07 · Até a F11 existir, um QR válido vai para a tela "Em breve" da validação, com `replace` · o "voltar" não pode retornar a uma câmera que já parou de ler.
+- 2026-11-07 · O campo de colar aparece em `__DEV__` também com a câmera aberta · sem ele, testar exigiria um QR físico a cada vez. Em produção não existe.
 - 2026-11-05 · Na F09, os selos da T04 têm ícone (`withIcon`), e as telas do administrador seguem só com texto e cor · o card pede texto, ícone e cor; o Figma e o `tokens.md` mostram só texto, e o ícone espremeria as listas do administrador.
 - 2026-11-05 · Na F09, as anteriores contam as entradas usadas ("Usadas 0 de 2"), sem barra · "Restam 2 de 2" com a barra cheia numa expirada parecia válida. O Figma não desenha esse estado.
 - 2026-11-05 · Na F09, o aviso "Agora está fora do horário permitido." também vale antes do primeiro dia do período · a API nega nesse caso (`FORA_DO_PERIODO`), e a pessoa não pode achar que entra.
@@ -145,6 +151,7 @@ Formato: data · decisão · motivo.
 | 2026-10-28 | F02 | Tema do `tokens.md` (cores conferidas pelo teste contra o próprio `tokens.md`, contraste WCAG), fonte Atkinson com a splash, formas, `Icon` e 25 componentes em `components/ui`; catálogo em `/catalog` só em `__DEV__`; teste que percorre o catálogo e exige papel e rótulo em todo elemento interativo. Conferido no emulador a 100% e a 200% (161 testes) | Testar o catálogo no celular; revisão do Rafael e do Eduardo; F03 |
 | 2026-10-28 | F01, F02 | Revisão: no celular do Pedro (Expo Go), "API: ok" com o mock e "API: fora do ar" sem ele, sem fechar o app. Corrigidos na F02: anúncio do erro de campo, dos avisos e dos estados no iOS (`useAnnounce`), aviso curto lido uma vez, rodapé em linha com fragmento, "Voltar" do catálogo aberto por link; o teste de contraste cobre as partes que não são texto (175 testes) | F01: celular com o Docker e revisor no #14; F02: catálogo no celular e revisão do Eduardo |
 | 2026-10-29 | F03 | Login (T02): schema, mensagens, `LoginUserService` e falso com os usuários do seed, model com toque duplo, senha limpa e foco, faixa que some ao digitar e aviso de sessão expirada; guards por sessão (`Stack.Protected` com `redirectTo`) e inícios provisórios; `/health` vira ferramenta de desenvolvimento. Emulador contra a API real no Docker: os três perfis, senha errada, sem internet, voltar do Android, fonte em 200% com teclado. Corrigido no aparelho: o foco não ia para a senha depois do erro | Abrir o PR (base #16); GIF; ouvir com TalkBack/VoiceOver; Eduardo confirmar o contrato; teste com uma pessoa; F04 |
+| 2026-11-07 | F10 | Leitor de QR Code: permissão da câmera (T06) com pedido, recusa e configurações, leitor (T07) com moldura, lanterna, dica e aviso de QR de outro tipo, leitura congelada e vibração. Conferido no emulador com leitura real pela câmera (`-camera-back imagefile:`), em 100% e 200%, e no iPhone do Pedro, que leu um QR fixo e abriu a validação. 704 testes, 96,5% de linhas. PRs #40 (F05 a F09 para `develop`) e #41 (F10) | Aceitar o #40 e depois o #41; testar no segundo celular real, medir os 2 s e a distância de 20 a 40 cm, com vídeo no PR; depois, F11 |
 | 2026-11-05 | F09 | Minhas autorizações (T04): ativas, anteriores recolhidas, aviso de fora do horário em São Paulo, selos com texto, ícone e cor, vazio, erro e puxar para atualizar; contador no início. Conferido no emulador contra a API real, em 100% e 200%, com o aparelho em UTC. 648 testes, 96,4% de linhas | Revisão do PR #38; teste de 10 s com quem não conhece o sistema; "Abrir catraca" leva ao "Em breve" até a F10; depois, F10 |
 | 2026-11-03 | F08 | Lista de autorizações (T23) com filtros sozinhos e combinados, paginação e puxar para atualizar; detalhe (T25) com auditoria; cancelamento confirmado com motivo opcional, que muda o selo na lista e no detalhe sem reabrir. Conferido no emulador contra a API real, em 100% e 200%, inclusive dois administradores cancelando a mesma. 591 testes, 96,3% de linhas | Revisão do PR #31; a negação no acesso depois de cancelar depende da B15 e da F11; depois, F10 |
 | 2026-11-03 | F07 | Nova autorização (T24): pessoa com busca (só ativas, nome e perfil), local agrupado por edifício (só ativos), datas com padrão hoje, horários 08:00 e 18:00, utilizações de 1 a 1000, atalhos "Só hoje" e "Próximos 7 dias", resumo que acompanha o que será enviado, "Criando…", 404 e 422 nos lugares do card, descartar; "Autorizações" oferece "Nova autorização" até a F08. Emulador contra a API real: pessoas e locais ativos, horário final antes do inicial recusado, criada e conferida pela API com os mesmos valores e "Ativa", fonte em 200%. Corrigido no aparelho: datas quebrando e botões do rodapé sobrepostos com fonte grande | Abrir o PR (base #29); conferir no Swagger do Eduardo; F08 |

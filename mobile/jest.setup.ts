@@ -28,6 +28,20 @@ jest.mock('@react-native-community/netinfo', () =>
   jest.requireActual('@react-native-community/netinfo/jest/netinfo-mock.js'),
 );
 
+// expo-camera has no native side under Jest: the camera is a plain view, and a test "reads" a QR by
+// firing `barcodeScanned` on it. The permission is granted unless a test says otherwise.
+jest.mock('expo-camera', () => {
+  const { createElement } = jest.requireActual<typeof import('react')>('react');
+  const { View } = jest.requireActual<typeof import('react-native')>('react-native');
+  return {
+    Camera: {
+      getCameraPermissionsAsync: jest.fn(async () => ({ status: 'granted' })),
+      requestCameraPermissionsAsync: jest.fn(async () => ({ status: 'granted' })),
+    },
+    CameraView: (props: object) => createElement(View, { testID: 'camera', ...props }),
+  };
+});
+
 // Fonts (Atkinson and the icon font) count as loaded: there are no font files under Jest.
 jest.mock('expo-font', () => ({
   ...jest.requireActual('expo-font'),

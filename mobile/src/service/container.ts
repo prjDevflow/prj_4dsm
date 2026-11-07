@@ -8,7 +8,14 @@ import {
   FakeListAuthorizationsService,
   FakeListMyAuthorizationsService,
 } from './fakes/FakeAuthorizationServices';
-import { FakeClipboardService, FakeCurrentPositionService } from './fakes/FakeDeviceServices';
+import {
+  FakeClipboardService,
+  FakeCurrentPositionService,
+  FakeGetCameraAccessService,
+  FakeOpenSettingsService,
+  FakeRequestCameraAccessService,
+  FakeVibrateService,
+} from './fakes/FakeDeviceServices';
 import {
   FakeCreateAccessPointService,
   FakeCreateBuildingService,
@@ -37,7 +44,14 @@ import {
   ListMyAuthorizationsService,
 } from './implementations/AuthorizationServices';
 import { CreateUserService } from './implementations/CreateUserService';
-import { ClipboardService, CurrentPositionService } from './implementations/DeviceServices';
+import {
+  ClipboardService,
+  CurrentPositionService,
+  GetCameraAccessService,
+  OpenSettingsService,
+  RequestCameraAccessService,
+  VibrateService,
+} from './implementations/DeviceServices';
 import { GetHealthService } from './implementations/GetHealthService';
 import { GetMeService } from './implementations/GetMeService';
 import { GetUserService } from './implementations/GetUserService';
@@ -63,12 +77,14 @@ import { UpdateUserService } from './implementations/UpdateUserService';
 // One entry per service; the names are the ones accepted in EXPO_PUBLIC_FAKE_SERVICES.
 // "users" switches the four /users services together, since the fakes share one directory;
 // "locations" does the same for buildings, access points and terminals, and "authorizations" for
-// the services of /authorizations and /me/authorizations.
+// the services of /authorizations and /me/authorizations. "camera" switches what the QR reader
+// asks of the phone: the permission, the vibration and the settings.
 export const createServices = (fakeServices: string[]) => {
   const isFake = (name: string) => fakeServices.includes(name);
   const fakeUsers = isFake('users');
   const fakeLocations = isFake('locations');
   const fakeAuthorizations = isFake('authorizations');
+  const fakeCamera = isFake('camera');
 
   return {
     getHealth: isFake('getHealth') ? new FakeGetHealthService() : new GetHealthService(),
@@ -116,6 +132,12 @@ export const createServices = (fakeServices: string[]) => {
       ? new FakeCurrentPositionService()
       : new CurrentPositionService(),
     clipboard: isFake('clipboard') ? new FakeClipboardService() : new ClipboardService(),
+    getCameraAccess: fakeCamera ? new FakeGetCameraAccessService() : new GetCameraAccessService(),
+    requestCameraAccess: fakeCamera
+      ? new FakeRequestCameraAccessService()
+      : new RequestCameraAccessService(),
+    vibrate: fakeCamera ? new FakeVibrateService() : new VibrateService(),
+    openSettings: fakeCamera ? new FakeOpenSettingsService() : new OpenSettingsService(),
   };
 };
 

@@ -13,7 +13,7 @@ export const MyAuthorizationsPage = () => {
     <MyAuthorizationsView
       {...methods}
       onBack={() => (router.canGoBack() ? router.back() : router.replace('/'))}
-      onOpenScanner={() => router.push('/em-breve/catraca')}
+      onOpenScanner={() => router.push('/access/scanner')}
     />
   );
 };
