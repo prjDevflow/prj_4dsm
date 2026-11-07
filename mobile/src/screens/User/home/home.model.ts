@@ -21,7 +21,7 @@ export const useUserHomeModel = ({ listMyAuthorizationsService }: UserHomeModelP
     isOffline: isConnected === false,
     activeCount: authorizations.filter((a) => a.situacaoEfetiva === 'ATIVA').length,
     onOpenAccount: () => router.push('/me/account'),
-    onOpenScanner: () => router.push('/em-breve/catraca'),
+    onOpenScanner: () => router.push('/access/scanner'),
     onOpenAuthorizations: () => router.push('/me/authorizations'),
     onOpenHistory: () => router.push('/em-breve/meu-historico'),
     ...useLogoutModel(),

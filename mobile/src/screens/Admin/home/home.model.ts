@@ -23,7 +23,7 @@ export const useAdminHomeModel = () => {
     isOffline: isConnected === false,
     onOpenAccount: () => router.push('/me/account'),
     onOpenArea: (area: AdminArea) => router.push(areaRoutes[area] ?? `/admin/${area}`),
-    onOpenScanner: () => router.push('/em-breve/catraca'),
+    onOpenScanner: () => router.push('/access/scanner'),
     ...useLogoutModel(),
   };
 };

@@ -326,7 +326,7 @@ describe('sessão e navegação por perfil', () => {
 
     await fireEvent.press(screen.getByRole('button', { name: 'Voltar' }));
     await fireEvent.press(await screen.findByRole('button', { name: 'Abrir catraca' }));
-    expect(await screen.findByText('Esta tela chega na etapa F10 do app.')).toBeOnTheScreen();
+    expect(await screen.findByRole('header', { name: leitor })).toBeOnTheScreen();
   });
 
   it('endereço de área que não existe volta ao início', async () => {
