@@ -26,6 +26,7 @@ export const useCatalogModel = () => {
   const [scale, setScale] = useState<Scale>('pessoa');
   const [nome, setNome] = useState('Maria Souza');
   const [email, setEmail] = useState('');
+  const [busca, setBusca] = useState('');
   const [senha, setSenha] = useState('');
   const [perfil, setPerfil] = useState<string | null>('CONDOMINO');
   const [local, setLocal] = useState<string | null>(null);
@@ -58,6 +59,7 @@ export const useCatalogModel = () => {
       error: nome.trim().length < 3 ? 'Informe o nome completo (mínimo 3 letras).' : undefined,
     },
     email: { value: email, onChangeText: setEmail },
+    busca: { value: busca, onChangeText: setBusca },
     senha: { value: senha, onChangeText: setSenha },
     perfil: { options: PERFIS, value: perfil, onChange: setPerfil },
     local: { options: LOCAIS, value: local, onChange: setLocal },

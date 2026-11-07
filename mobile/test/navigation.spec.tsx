@@ -1,4 +1,4 @@
-import { act, fireEvent, screen, within } from '@testing-library/react-native';
+import { act, fireEvent, screen, waitFor, within } from '@testing-library/react-native';
 import * as SecureStore from 'expo-secure-store';
 import { router } from 'expo-router';
 import { renderRouter } from 'expo-router/testing-library';
@@ -6,9 +6,19 @@ import { http, HttpResponse } from 'msw';
 import { useSessionStore } from '@/context/SessionStore';
 import { TOKEN_KEY } from '@/context/tokenStorage';
 import type { Usuario } from '@/lib/types/auth';
+import { sampleAccessGranted } from '@/service/fakes/FakeAccessServices';
+import { FakeAuthorizationDirectory } from '@/service/fakes/FakeAuthorizationDirectory';
+import { FakeLocationDirectory } from '@/service/fakes/FakeLocationDirectory';
+import { FakeUserDirectory } from '@/service/fakes/FakeUserDirectory';
 import { sampleAdmin, sampleCondomino, sampleVisitante } from '@/service/fakes/sampleData';
 import { API_URL } from '@test/msw/handlers';
 import { server } from '@test/msw/server';
+import { authorizationsHandlers } from '@test/msw/authorizationsHandlers';
+import { locationsHandlers } from '@test/msw/locationsHandlers';
+import { usersHandlers } from '@test/msw/usersHandlers';
+
+// Each test walks through several real screens; a slow machine passes Jest's default of 5 s.
+jest.setTimeout(20_000);
 
 // Real routes of src/app, real services, API answered by MSW.
 const answerLogin = (usuario: Usuario) =>
@@ -69,6 +79,12 @@ const pressLast = async (name: string) => {
 };
 
 const loginScreen = () => screen.findByRole('header', { name: 'Entre com sua conta' });
+
+const leitor = 'Aponte a câmera para o QR Code da catraca.';
+const QR = 'ACS1:q3F8k2Zr1pLw9XbTn0YhVA';
+
+const denied = (code: string) =>
+  HttpResponse.json({ error: { code, message: 'Texto da API' } }, { status: 403 });
 
 describe('sessão e navegação por perfil', () => {
   beforeEach(async () => {
@@ -138,7 +154,7 @@ describe('sessão e navegação por perfil', () => {
   it('condômino que abre um endereço do administrador volta ao início', async () => {
     await SecureStore.setItemAsync(TOKEN_KEY, 'token-salvo');
     answerMe(sampleCondomino);
-    await renderApp('/admin/usuarios');
+    await renderApp('/admin/users');
 
     expect(await screen.findByRole('header', { name: 'Olá, Condômino' })).toBeOnTheScreen();
     expect(screen.queryByRole('header', { name: 'Usuários' })).toBeNull();
@@ -207,11 +223,7 @@ describe('sessão e navegação por perfil', () => {
     await login(sampleVisitante);
     await screen.findByRole('header', { name: 'Olá, Visitante' });
 
-    for (const [button, title] of [
-      ['Minhas autorizações', 'Minhas autorizações'],
-      ['Meu histórico', 'Meu histórico'],
-      ['Abrir catraca', 'Abrir catraca'],
-    ]) {
+    for (const [button, title] of [['Meu histórico', 'Meu histórico']]) {
       await fireEvent.press(screen.getByRole('button', { name: button }));
       expect(await screen.findByRole('header', { name: title })).toBeOnTheScreen();
       expect(screen.getByText('Em breve')).toBeOnTheScreen();
@@ -220,18 +232,188 @@ describe('sessão e navegação por perfil', () => {
     }
   });
 
+  const authorizationsDirectory = () =>
+    new FakeAuthorizationDirectory({
+      users: new FakeUserDirectory(),
+      locations: new FakeLocationDirectory(),
+    });
+
+  it('o início conta as ativas, e "Minhas autorizações" abre as da pessoa', async () => {
+    server.use(...authorizationsHandlers(authorizationsDirectory(), sampleVisitante));
+    await renderApp();
+    await login(sampleVisitante);
+
+    await fireEvent.press(
+      await screen.findByRole('button', { name: 'Minhas autorizações, 2 ativas' }),
+    );
+
+    expect(await screen.findByRole('header', { name: 'Minhas autorizações' })).toBeOnTheScreen();
+    expect(await screen.findByRole('button', { name: 'Ver anteriores (3)' })).toBeOnTheScreen();
+    expect(screen).toHavePathname('/me/authorizations');
+
+    await fireEvent.press(screen.getByRole('button', { name: 'Voltar' }));
+    expect(await screen.findByRole('header', { name: 'Olá, Visitante' })).toBeOnTheScreen();
+  });
+
+  const readQr = async () => {
+    await renderApp();
+    await login(sampleVisitante);
+    await fireEvent.press(await screen.findByRole('button', { name: 'Abrir catraca' }));
+    await screen.findByRole('header', { name: leitor });
+    await fireEvent(await screen.findByTestId('camera'), 'barcodeScanned', { data: QR });
+  };
+
+  it('"Abrir catraca" abre o leitor, e um QR válido vai até o resultado', async () => {
+    let received: unknown;
+    server.use(
+      http.post(`${API_URL}/access/qr/validate`, async ({ request }) => {
+        received = await request.json();
+        return HttpResponse.json(sampleAccessGranted);
+      }),
+    );
+    await renderApp();
+    await login(sampleVisitante);
+
+    await fireEvent.press(await screen.findByRole('button', { name: 'Abrir catraca' }));
+    expect(await screen.findByRole('header', { name: leitor })).toBeOnTheScreen();
+    expect(screen).toHavePathname('/access/scanner');
+
+    await fireEvent(await screen.findByTestId('camera'), 'barcodeScanned', { data: QR });
+
+    expect(await screen.findByRole('alert')).toHaveTextContent(/Acesso autorizado/);
+    expect(received).toEqual({
+      payload: QR,
+      latitude: -23.30512,
+      longitude: -45.96551,
+      precisaoMetros: 12.5,
+    });
+  });
+
+  it('"Concluir" volta ao início, sem passar pela câmera', async () => {
+    server.use(
+      http.post(`${API_URL}/access/qr/validate`, () => HttpResponse.json(sampleAccessGranted)),
+    );
+    await readQr();
+
+    await fireEvent.press(await screen.findByRole('button', { name: 'Concluir' }));
+
+    expect(await screen.findByRole('header', { name: 'Olá, Visitante' })).toBeOnTheScreen();
+    expect(screen).toHavePathname('/');
+  });
+
+  it('"Ler outro QR Code" volta ao leitor, e ele lê de novo', async () => {
+    let validations = 0;
+    server.use(
+      http.post(`${API_URL}/access/qr/validate`, () => {
+        validations += 1;
+        return denied('CREDENCIAL_REUTILIZADA');
+      }),
+    );
+    await readQr();
+
+    await fireEvent.press(await screen.findByRole('button', { name: 'Ler outro QR Code' }));
+
+    expect(await screen.findByRole('header', { name: leitor })).toBeOnTheScreen();
+    await fireEvent(await screen.findByTestId('camera'), 'barcodeScanned', { data: QR });
+    await screen.findByRole('alert');
+    expect(validations).toBe(2);
+  });
+
+  it('"Ver minhas autorizações" abre a lista, e voltar leva ao início', async () => {
+    server.use(http.post(`${API_URL}/access/qr/validate`, () => denied('USOS_ESGOTADOS')));
+    await readQr();
+
+    await fireEvent.press(await screen.findByRole('button', { name: 'Ver minhas autorizações' }));
+
+    expect(await screen.findByRole('header', { name: 'Minhas autorizações' })).toBeOnTheScreen();
+    await fireEvent.press(screen.getByRole('button', { name: 'Voltar' }));
+    expect(await screen.findByRole('header', { name: 'Olá, Visitante' })).toBeOnTheScreen();
+  });
+
+  it('com a sessão expirada na validação, cai no login', async () => {
+    server.use(
+      http.post(`${API_URL}/access/qr/validate`, () =>
+        HttpResponse.json(
+          { error: { code: 'UNAUTHORIZED', message: 'Token ausente, inválido ou expirado' } },
+          { status: 401 },
+        ),
+      ),
+    );
+    await readQr();
+
+    expect(await screen.findByRole('button', { name: 'Entrar' })).toBeOnTheScreen();
+    expect(screen).toHavePathname('/login');
+  });
+
+  it('um link para a validação sem um QR do sistema cai no leitor', async () => {
+    await renderApp();
+    await login(sampleVisitante);
+
+    await act(async () => router.push('/access/validate?payload=qualquer-coisa'));
+
+    expect(await screen.findByRole('header', { name: leitor })).toBeOnTheScreen();
+  });
+
+  it('"Voltar" fecha o leitor e retorna ao início', async () => {
+    await renderApp();
+    await login(sampleVisitante);
+    await fireEvent.press(await screen.findByRole('button', { name: 'Abrir catraca' }));
+    await screen.findByRole('header', { name: leitor });
+
+    await fireEvent.press(screen.getByRole('button', { name: 'Voltar' }));
+
+    expect(await screen.findByRole('header', { name: 'Olá, Visitante' })).toBeOnTheScreen();
+  });
+
+  it('"Abrir catraca" nas autorizações abre o leitor', async () => {
+    await renderApp();
+    await login(sampleVisitante);
+    await fireEvent.press(await screen.findByRole('button', { name: 'Minhas autorizações' }));
+    await screen.findByRole('header', { name: 'Minhas autorizações' });
+
+    await fireEvent.press(await screen.findByRole('button', { name: 'Abrir catraca' }));
+
+    expect(await screen.findByRole('header', { name: leitor })).toBeOnTheScreen();
+  });
+
+  it('sair e entrar com outra conta não mostra as autorizações da anterior', async () => {
+    const directory = authorizationsDirectory();
+    server.use(
+      http.get(`${API_URL}/me/authorizations`, ({ request }) => {
+        const owner =
+          request.headers.get('authorization') === 'Bearer token-VISITANTE'
+            ? sampleVisitante
+            : sampleCondomino;
+        return HttpResponse.json(directory.listMine(owner.id, { page: 1, pageSize: 100 }));
+      }),
+    );
+    await renderApp();
+    await login(sampleVisitante);
+    await screen.findByRole('button', { name: 'Minhas autorizações, 2 ativas' });
+
+    await fireEvent.press(screen.getByRole('button', { name: 'Sair' }));
+    await pressLast('Sair');
+    await loginScreen();
+    await login(sampleCondomino);
+    await screen.findByRole('header', { name: 'Olá, Condômino' });
+
+    await fireEvent.press(await screen.findByRole('button', { name: 'Minhas autorizações' }));
+
+    expect(await screen.findByText('Você ainda não tem autorizações.')).toBeOnTheScreen();
+  });
+
   it('os blocos do administrador abrem as áreas "Em breve"', async () => {
     await renderApp();
     await login(sampleAdmin);
     await screen.findByRole('header', { name: 'Administração' });
 
-    await fireEvent.press(screen.getByRole('button', { name: /^Usuários,/ }));
-    expect(await screen.findByRole('header', { name: 'Usuários' })).toBeOnTheScreen();
-    expect(screen.getByText('Esta tela chega na etapa F05 do app.')).toBeOnTheScreen();
+    await fireEvent.press(screen.getByRole('button', { name: /^Tags NFC,/ }));
+    expect(await screen.findByRole('header', { name: 'Tags NFC' })).toBeOnTheScreen();
+    expect(screen.getByText('Esta tela chega na etapa F13 do app.')).toBeOnTheScreen();
 
     await fireEvent.press(screen.getByRole('button', { name: 'Voltar' }));
     await fireEvent.press(await screen.findByRole('button', { name: 'Abrir catraca' }));
-    expect(await screen.findByText('Esta tela chega na etapa F10 do app.')).toBeOnTheScreen();
+    expect(await screen.findByRole('header', { name: leitor })).toBeOnTheScreen();
   });
 
   it('endereço de área que não existe volta ao início', async () => {
@@ -240,5 +422,286 @@ describe('sessão e navegação por perfil', () => {
     await renderApp('/em-breve/qualquer-coisa');
 
     expect(await screen.findByRole('header', { name: 'Olá, Condômino' })).toBeOnTheScreen();
+  });
+});
+
+describe('administração de usuários (F05)', () => {
+  beforeEach(async () => {
+    await SecureStore.deleteItemAsync(TOKEN_KEY);
+    useSessionStore.setState({ token: null, usuario: null, expired: false });
+    server.use(...usersHandlers(new FakeUserDirectory(), sampleAdmin.id));
+  });
+
+  const openUsers = async () => {
+    await renderApp();
+    await login(sampleAdmin);
+    await fireEvent.press(await screen.findByRole('button', { name: /^Usuários,/ }));
+    expect(await screen.findByRole('header', { name: 'Usuários' })).toBeOnTheScreen();
+  };
+
+  // The row of a user: its accessible name starts with the name and a comma.
+  const rowName = (nome: string) => new RegExp(`^${nome.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')},`);
+  const row = (nome: string) => screen.findByRole('button', { name: rowName(nome) });
+
+  it('o bloco "Usuários" abre a lista com os ativos, e o voltar retorna ao início', async () => {
+    await openUsers();
+
+    expect(await row('Administrador (dev)')).toBeOnTheScreen();
+    expect(screen.queryByRole('button', { name: /^Eduarda Martins,/ })).toBeNull();
+
+    await fireEvent.press(screen.getByRole('button', { name: 'Voltar' }));
+    expect(await screen.findByRole('header', { name: 'Administração' })).toBeOnTheScreen();
+  });
+
+  it('cria um usuário: o e-mail repetido aparece no campo e, corrigido, ele entra na lista', async () => {
+    await openUsers();
+    await fireEvent.press(screen.getByRole('button', { name: 'Novo usuário' }));
+    expect(await screen.findByRole('header', { name: 'Novo usuário' })).toBeOnTheScreen();
+
+    await fireEvent.changeText(screen.getByLabelText('Nome completo'), 'Aaron Teste');
+    await fireEvent.changeText(screen.getByLabelText('E-mail'), 'condomino@dev.local');
+    await fireEvent.press(screen.getByRole('radio', { name: 'Visitante' }));
+    await fireEvent.changeText(screen.getByLabelText('Senha'), 'Senha-Valida-123');
+    await fireEvent.changeText(screen.getByLabelText('Confirmar senha'), 'Senha-Valida-123');
+    await fireEvent.press(screen.getByRole('button', { name: 'Salvar' }));
+    expect(await screen.findByText('Este e-mail já está cadastrado.')).toBeOnTheScreen();
+
+    await fireEvent.changeText(screen.getByLabelText('E-mail'), 'aaron@email.com');
+    await fireEvent.press(screen.getByRole('button', { name: 'Salvar' }));
+
+    expect(await screen.findByRole('header', { name: 'Usuários' })).toBeOnTheScreen();
+    expect(await row('Aaron Teste')).toBeOnTheScreen();
+    expect(screen.getByText('Usuário cadastrado.')).toBeOnTheScreen();
+  });
+
+  it('desativar a si mesmo mostra a mensagem amigável e não sai da tela', async () => {
+    await openUsers();
+    await fireEvent.press(await row('Administrador (dev)'));
+
+    await fireEvent.press(await screen.findByRole('switch', { name: 'Usuário ativo' }));
+    await fireEvent.press(screen.getByRole('button', { name: 'Salvar' }));
+
+    expect(await screen.findByText('Você não pode desativar a si mesmo.')).toBeOnTheScreen();
+    expect(screen.getByRole('header', { name: 'Editar usuário' })).toBeOnTheScreen();
+  });
+
+  it('desativa outra pessoa: ela sai da lista e volta com "Mostrar usuários inativos"', async () => {
+    await openUsers();
+    await fireEvent.press(await row('Condômino (dev)'));
+    await fireEvent.press(await screen.findByRole('switch', { name: 'Usuário ativo' }));
+    await fireEvent.press(screen.getByRole('button', { name: 'Salvar' }));
+
+    expect(await screen.findByText('Alterações salvas.')).toBeOnTheScreen();
+    await screen.findByRole('header', { name: 'Usuários' });
+    // The list refetches in the background: the old page shows for a moment.
+    await waitFor(() =>
+      expect(screen.queryByRole('button', { name: rowName('Condômino (dev)') })).toBeNull(),
+    );
+
+    await fireEvent.press(screen.getByRole('switch', { name: 'Mostrar usuários inativos' }));
+    expect(
+      await screen.findByRole('button', {
+        name: 'Condômino (dev), condomino@dev.local, Condômino, Inativo',
+      }),
+    ).toBeOnTheScreen();
+  });
+
+  it('"Cancelar" com alterações pergunta, e "Descartar" volta para a lista', async () => {
+    await openUsers();
+    await fireEvent.press(screen.getByRole('button', { name: 'Novo usuário' }));
+    await fireEvent.changeText(await screen.findByLabelText('Nome completo'), 'Alguém');
+
+    await fireEvent.press(screen.getByRole('button', { name: 'Cancelar' }));
+    await pressLast('Descartar');
+
+    expect(await screen.findByRole('header', { name: 'Usuários' })).toBeOnTheScreen();
+    expect(router.canGoBack()).toBe(true);
+  });
+});
+
+describe('locais e terminais (F06)', () => {
+  beforeEach(async () => {
+    await SecureStore.deleteItemAsync(TOKEN_KEY);
+    useSessionStore.setState({ token: null, usuario: null, expired: false });
+    server.use(...locationsHandlers(new FakeLocationDirectory()));
+  });
+
+  const openLocations = async () => {
+    await renderApp();
+    await login(sampleAdmin);
+    await fireEvent.press(await screen.findByRole('button', { name: /^Locais e terminais,/ }));
+    expect(await screen.findByRole('header', { name: 'Locais e terminais' })).toBeOnTheScreen();
+  };
+
+  const type = async (values: Record<string, string>) => {
+    for (const [label, value] of Object.entries(values)) {
+      await fireEvent.changeText(await screen.findByLabelText(label), value);
+    }
+  };
+
+  it('cria edifício, ponto de acesso e terminal em sequência, e a chave aparece uma vez', async () => {
+    await openLocations();
+
+    // Edifício
+    await fireEvent.press(await screen.findByRole('button', { name: 'Novo edifício' }));
+    await type({
+      Nome: 'Bloco B',
+      Endereço: 'Rua das Acácias, 200',
+      Latitude: '-23,3',
+      Longitude: '-45,9',
+    });
+    await fireEvent.press(screen.getByRole('button', { name: 'Salvar' }));
+
+    // Ponto de acesso, a partir do cartão do edifício novo
+    await fireEvent.press(
+      await screen.findByRole('button', { name: 'Adicionar local ao Bloco B' }),
+    );
+    await fireEvent.press(await screen.findByRole('radio', { name: 'Catraca' }));
+    await type({
+      Nome: 'Catraca do Bloco B',
+      Identificação: 'CAT-B1',
+      Latitude: '-23,3',
+      Longitude: '-45,9',
+    });
+    await fireEvent.press(screen.getByRole('button', { name: 'Salvar' }));
+    expect(
+      await screen.findByRole('button', { name: 'Catraca do Bloco B, Catraca, CAT-B1, Ativo' }),
+    ).toBeOnTheScreen();
+
+    // Terminal
+    await fireEvent.press(screen.getByRole('button', { name: /^Terminais,/ }));
+    await fireEvent.press(await screen.findByRole('button', { name: 'Novo terminal' }));
+    await type({ Nome: 'Terminal do Bloco B' });
+    await fireEvent.press(screen.getByRole('button', { name: 'Ponto de acesso' }));
+    await fireEvent.press(
+      await screen.findByRole('radio', { name: 'Catraca do Bloco B, Bloco B' }),
+    );
+    await fireEvent.press(screen.getByRole('button', { name: 'Salvar' }));
+
+    expect(await screen.findByRole('header', { name: 'Chave do terminal' })).toBeOnTheScreen();
+    expect(screen.getByLabelText('Chave do Terminal do Bloco B').props.value).toMatch(
+      /^[A-Za-z0-9_-]{43}$/,
+    );
+
+    await fireEvent.press(screen.getByRole('button', { name: 'Concluir' }));
+    expect(await screen.findByRole('header', { name: 'Terminais' })).toBeOnTheScreen();
+    expect(
+      await screen.findByRole('button', {
+        name: /^Terminal do Bloco B, Catraca do Bloco B, Bloco B, Nunca conectado, Offline$/,
+      }),
+    ).toBeOnTheScreen();
+    expect(screen.queryByLabelText('Chave do Terminal do Bloco B')).toBeNull();
+  });
+
+  it('desativar um local com autorização ativa mostra a mensagem do card', async () => {
+    await openLocations();
+
+    await fireEvent.press(
+      await screen.findByRole('button', { name: 'Catraca Social, Catraca, CAT-01, Ativo' }),
+    );
+    await fireEvent.press(await screen.findByRole('switch', { name: 'Ativo' }));
+    await fireEvent.press(screen.getByRole('button', { name: 'Salvar' }));
+
+    expect(
+      await screen.findByText('Este local ainda tem autorizações ativas. Cancele-as antes.'),
+    ).toBeOnTheScreen();
+    expect(screen.getByRole('header', { name: 'Editar local' })).toBeOnTheScreen();
+  });
+
+  it('o detalhe do terminal gera uma chave nova só depois de confirmar', async () => {
+    await openLocations();
+    await fireEvent.press(screen.getByRole('button', { name: /^Terminais,/ }));
+    await fireEvent.press(await screen.findByRole('button', { name: /^Terminal Social,/ }));
+
+    await fireEvent.press(await screen.findByRole('button', { name: 'Gerar nova chave' }));
+    await pressLast('Gerar nova chave');
+
+    expect(await screen.findByRole('header', { name: 'Chave do terminal' })).toBeOnTheScreen();
+    await fireEvent.press(screen.getByRole('button', { name: 'Concluir' }));
+    expect(await screen.findByRole('header', { name: 'Terminal Social' })).toBeOnTheScreen();
+  });
+});
+
+describe('nova autorização (F07)', () => {
+  let authorizations: FakeAuthorizationDirectory;
+
+  beforeEach(async () => {
+    await SecureStore.deleteItemAsync(TOKEN_KEY);
+    useSessionStore.setState({ token: null, usuario: null, expired: false });
+    const users = new FakeUserDirectory();
+    const locations = new FakeLocationDirectory();
+    authorizations = new FakeAuthorizationDirectory({ users, locations });
+    server.use(
+      ...usersHandlers(users, sampleAdmin.id),
+      ...locationsHandlers(locations),
+      ...authorizationsHandlers(authorizations, sampleAdmin),
+    );
+  });
+
+  const openAuthorizations = async () => {
+    await renderApp();
+    await login(sampleAdmin);
+    await fireEvent.press(await screen.findByRole('button', { name: /^Autorizações,/ }));
+    expect(await screen.findByRole('header', { name: 'Autorizações' })).toBeOnTheScreen();
+  };
+
+  it('cria pela lista: volta para ela com a nova no topo, "Ativa"', async () => {
+    await openAuthorizations();
+    await fireEvent.press(await screen.findByRole('button', { name: 'Nova autorização' }));
+    expect(await screen.findByRole('header', { name: 'Nova autorização' })).toBeOnTheScreen();
+
+    await fireEvent.press(await screen.findByRole('button', { name: 'Pessoa' }));
+    await fireEvent.changeText(await screen.findByLabelText('Buscar'), 'Fábio Nunes');
+    await fireEvent.press(await screen.findByRole('radio', { name: 'Fábio Nunes, Condômino' }));
+    await fireEvent.press(screen.getByRole('button', { name: 'Local de acesso' }));
+    await fireEvent.press(
+      await screen.findByRole('radio', { name: 'Catraca Social, Edifício Central' }),
+    );
+    await fireEvent.press(screen.getByRole('button', { name: 'Criar autorização' }));
+
+    expect(await screen.findByText('Autorização criada.')).toBeOnTheScreen();
+    expect(await screen.findByRole('header', { name: 'Autorizações' })).toBeOnTheScreen();
+    const created = await screen.findByRole('button', { name: /^Fábio Nunes,.*Ativa$/ });
+    const rows = screen.getAllByRole('button', { name: /Entradas: / });
+    expect(rows[0]).toBe(created);
+    expect(authorizations.list({ page: 1, pageSize: 1 }).data[0]).toMatchObject({
+      usuario: { nome: 'Fábio Nunes' },
+      criadoPor: { id: sampleAdmin.id },
+      situacaoEfetiva: 'ATIVA',
+    });
+  });
+
+  it('cancela com confirmação: o selo muda no detalhe e na lista, sem reabrir', async () => {
+    await openAuthorizations();
+
+    await fireEvent.press(await screen.findByRole('button', { name: /^Ana Lima,.*Ativa$/ }));
+    expect(await screen.findByRole('header', { name: 'Autorização' })).toBeOnTheScreen();
+
+    await fireEvent.press(await screen.findByRole('button', { name: 'Cancelar autorização' }));
+    expect(screen.getByRole('header', { name: 'Cancelar esta autorização?' })).toBeOnTheScreen();
+    await fireEvent.changeText(screen.getByLabelText('Motivo (opcional)'), 'Pedido da moradora');
+    await pressLast('Cancelar autorização');
+
+    expect(await screen.findByText('Autorização cancelada.')).toBeOnTheScreen();
+    expect(await screen.findByText('Motivo: Pedido da moradora')).toBeOnTheScreen();
+    expect(screen.getByText('Cancelada')).toBeOnTheScreen();
+
+    await fireEvent.press(screen.getByRole('button', { name: 'Voltar' }));
+
+    expect(await screen.findByRole('button', { name: /^Ana Lima,.*Cancelada$/ })).toBeOnTheScreen();
+  });
+
+  it('com o filtro "Ativas", a cancelada sai da lista ao voltar', async () => {
+    await openAuthorizations();
+    await fireEvent.press(await screen.findByRole('button', { name: 'Ativas' }));
+    await fireEvent.press(await screen.findByRole('button', { name: /^Ana Lima,/ }));
+
+    await fireEvent.press(await screen.findByRole('button', { name: 'Cancelar autorização' }));
+    await pressLast('Cancelar autorização');
+    await screen.findByText('Autorização cancelada.');
+    await fireEvent.press(screen.getByRole('button', { name: 'Voltar' }));
+
+    await screen.findByRole('header', { name: 'Autorizações' });
+    await waitFor(() => expect(screen.queryByRole('button', { name: /^Ana Lima,/ })).toBeNull());
   });
 });

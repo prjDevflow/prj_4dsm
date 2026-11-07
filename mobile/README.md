@@ -45,8 +45,20 @@ O app abre no **login** (T02). Com a API real e o seed do backend, use:
 | Visitante     | `visitante@dev.local` | `Usuario-Dev-2026` | início da pessoa        |
 
 São as senhas públicas do `backend/.env.example`, só para desenvolvimento. A sessão fica guardada: ao
-reabrir o app, a abertura (T01) confere o token com `GET /auth/me` e leva direto ao início. Os blocos do
-administrador e os atalhos da pessoa abrem telas "Em breve" até as etapas seguintes.
+reabrir o app, a abertura (T01) confere o token com `GET /auth/me` e leva direto ao início. Os blocos
+"Usuários" (F05), "Locais e terminais" (F06) e "Autorizações" (F07 e F08) do administrador abrem as
+telas de cadastro e consulta. Na pessoa, "Minhas autorizações" (F09) mostra as autorizações dela, e o
+início conta as ativas. "Abrir catraca" abre o leitor de QR Code (F10). Um QR válido vai para a
+validação (F11), que confere a localização, chama a API e mostra o resultado. Os outros blocos e
+atalhos abrem telas "Em breve" até as etapas seguintes.
+
+Em desenvolvimento, o leitor mostra o campo "Texto do QR Code", para colar um `ACS1:...` sem usar a
+câmera, e "Simular posição": "Na catraca" usa a posição do seed e "A 200 m" ensaia o
+`DISTANTE_DO_TERMINAL`. Longe da catraca, sem simular, a API nega por distância. No Android, o Expo Go guarda por projeto quem negou a câmera: depois de liberar nas
+configurações, ele pergunta de novo ao voltar para o app.
+
+A chave de um terminal novo (ou gerada de novo) aparece uma vez só, na tela "Chave do terminal". Ela não
+fica guardada no app: anote ou use "Copiar chave" antes de tocar em "Concluir".
 
 ## Apontar para a API real ou para o mock
 
@@ -61,7 +73,7 @@ destino é trocar a linha do `.env` e reiniciar o Expo com `npx expo start --cle
 
 O mock (`npm run mock`) é o Prism lendo o `../backend/openapi.yaml` e devolvendo os exemplos do
 contrato, no mesmo prefixo `/api/v1` da API real. Ele só conhece as rotas que já estão no
-`openapi.yaml` (hoje: health, auth e users).
+`openapi.yaml` (hoje: health, auth, users, locais, terminais e autorizações).
 
 Sem a variável, o app para com a mensagem "EXPO_PUBLIC_API_URL não definida". Variáveis `EXPO_PUBLIC_*`
 vão dentro do app: nunca coloque segredos nelas.
@@ -77,8 +89,23 @@ EXPO_PUBLIC_FAKE_SERVICES=getHealth,loginUser
 ```
 
 Os nomes aceitos são as chaves de `createServices` em [src/service/container.ts](src/service/container.ts).
-Hoje: `getHealth`, `loginUser` e `getMe`. O login falso aceita os mesmos três usuários e senhas do seed, e
-o `getMe` falso reconhece o token que ele devolve.
+Hoje: `getHealth`, `loginUser`, `getMe` e `users`. O login falso aceita os mesmos três usuários e senhas do
+seed, e o `getMe` falso reconhece o token que ele devolve. `users` troca juntos os quatro serviços de
+`/users` (listar, obter, cadastrar e alterar): eles dividem uma lista em memória com os usuários do seed e
+mais 22 pessoas (para a rolagem infinita aparecer) e seguem as regras da API, como e-mail único e "o
+administrador não desativa a si mesmo".
+
+`locations` faz o mesmo com edifícios, pontos de acesso e terminais: começa com os locais do Figma, e a
+"Catraca Social" tem autorização ativa (para ver a recusa ao desativá-la). `currentPosition` (localização
+do aparelho) e `clipboard` (área de transferência) também têm falsos, usados nos testes.
+
+`authorizations` troca juntos os serviços de autorizações (criar, listar, minhas, obter e cancelar).
+Eles guardam tudo em memória com as regras da API (pessoa e local ativos, datas, horários, de 1 a 1000
+usos e cancelamento idempotente), usando as mesmas pessoas e locais dos falsos `users` e `locations`, e
+já vêm com exemplos das quatro situações, inclusive para `visitante@dev.local`.
+
+`camera` troca o que o leitor pede ao aparelho: a permissão da câmera, as vibrações e as configurações.
+`position` troca a localização da validação, e `validateQr`, a própria validação.
 
 ## Tema e componentes
 

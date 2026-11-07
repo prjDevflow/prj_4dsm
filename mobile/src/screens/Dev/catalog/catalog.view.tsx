@@ -21,6 +21,8 @@ import {
   PasswordField,
   ProgressBar,
   ScreenContainer,
+  RadioGroup,
+  SearchField,
   SelectField,
   StatusBadge,
   SwitchField,
@@ -76,6 +78,7 @@ export const CatalogView = ({
   onToggleAdmin,
   nome,
   email,
+  busca,
   senha,
   perfil,
   local,
@@ -171,6 +174,7 @@ export const CatalogView = ({
       </Section>
 
       <Section title="Campos">
+        <SearchField label="Buscar por nome ou e-mail" {...busca} />
         <TextField
           label="Nome completo"
           value={nome.value}
@@ -194,6 +198,7 @@ export const CatalogView = ({
           onChangeText={senha.onChangeText}
         />
         <SelectField label="Perfil" {...perfil} />
+        <RadioGroup label="Perfil (opções à vista)" {...perfil} />
         <SelectField
           label="Local de acesso"
           searchable
