@@ -4,7 +4,7 @@ import { ComingSoonView } from './comingSoon.view';
 
 describe('Em breve', () => {
   it.each([
-    ['catraca', 'Abrir catraca', 'F10'],
+    ['validacao', 'Validando acesso', 'F11'],
     ['meu-historico', 'Meu histórico', 'F12'],
     ['tags', 'Tags NFC', 'F13'],
     ['historico', 'Histórico', 'F12'],

@@ -79,6 +79,8 @@ const pressLast = async (name: string) => {
 
 const loginScreen = () => screen.findByRole('header', { name: 'Entre com sua conta' });
 
+const leitor = 'Aponte a câmera para o QR Code da catraca.';
+
 describe('sessão e navegação por perfil', () => {
   beforeEach(async () => {
     await SecureStore.deleteItemAsync(TOKEN_KEY);
@@ -216,10 +218,7 @@ describe('sessão e navegação por perfil', () => {
     await login(sampleVisitante);
     await screen.findByRole('header', { name: 'Olá, Visitante' });
 
-    for (const [button, title] of [
-      ['Meu histórico', 'Meu histórico'],
-      ['Abrir catraca', 'Abrir catraca'],
-    ]) {
+    for (const [button, title] of [['Meu histórico', 'Meu histórico']]) {
       await fireEvent.press(screen.getByRole('button', { name: button }));
       expect(await screen.findByRole('header', { name: title })).toBeOnTheScreen();
       expect(screen.getByText('Em breve')).toBeOnTheScreen();
@@ -251,7 +250,35 @@ describe('sessão e navegação por perfil', () => {
     expect(await screen.findByRole('header', { name: 'Olá, Visitante' })).toBeOnTheScreen();
   });
 
-  it('"Abrir catraca" nas autorizações leva ao lugar do leitor', async () => {
+  it('"Abrir catraca" abre o leitor, e um QR válido segue adiante sem voltar para a câmera', async () => {
+    await renderApp();
+    await login(sampleVisitante);
+
+    await fireEvent.press(await screen.findByRole('button', { name: 'Abrir catraca' }));
+    expect(await screen.findByRole('header', { name: leitor })).toBeOnTheScreen();
+    expect(screen).toHavePathname('/access/scanner');
+
+    await fireEvent(await screen.findByTestId('camera'), 'barcodeScanned', {
+      data: 'ACS1:q3F8k2Zr1pLw9XbTn0YhVA',
+    });
+
+    expect(await screen.findByRole('header', { name: 'Validando acesso' })).toBeOnTheScreen();
+    await fireEvent.press(screen.getByRole('button', { name: 'Voltar' }));
+    expect(await screen.findByRole('header', { name: 'Olá, Visitante' })).toBeOnTheScreen();
+  });
+
+  it('"Voltar" fecha o leitor e retorna ao início', async () => {
+    await renderApp();
+    await login(sampleVisitante);
+    await fireEvent.press(await screen.findByRole('button', { name: 'Abrir catraca' }));
+    await screen.findByRole('header', { name: leitor });
+
+    await fireEvent.press(screen.getByRole('button', { name: 'Voltar' }));
+
+    expect(await screen.findByRole('header', { name: 'Olá, Visitante' })).toBeOnTheScreen();
+  });
+
+  it('"Abrir catraca" nas autorizações abre o leitor', async () => {
     await renderApp();
     await login(sampleVisitante);
     await fireEvent.press(await screen.findByRole('button', { name: 'Minhas autorizações' }));
@@ -259,7 +286,7 @@ describe('sessão e navegação por perfil', () => {
 
     await fireEvent.press(await screen.findByRole('button', { name: 'Abrir catraca' }));
 
-    expect(await screen.findByRole('header', { name: 'Abrir catraca' })).toBeOnTheScreen();
+    expect(await screen.findByRole('header', { name: leitor })).toBeOnTheScreen();
   });
 
   it('sair e entrar com outra conta não mostra as autorizações da anterior', async () => {
