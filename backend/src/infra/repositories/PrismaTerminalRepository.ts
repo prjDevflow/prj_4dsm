@@ -95,6 +95,10 @@ export class PrismaTerminalRepository implements ITerminalRepository {
     return count > 0;
   }
 
+  async updateEnrollMode(_id: string, _usuarioId: string, _ate: Date): Promise<boolean> {
+    throw new Error('updateEnrollMode ainda não implementado');
+  }
+
   async list(filter: TerminalListFilter): Promise<TerminalListResult> {
     const [rows, total] = await this.prisma.$transaction([
       this.prisma.terminal.findMany({
