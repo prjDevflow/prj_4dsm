@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it } from 'vitest';
 import { PrismaTerminalRepository } from '../../src/infra/repositories/PrismaTerminalRepository';
-import { insertTerminal, prisma, resetDatabase, sha256Hex } from './helpers';
+import { insertTerminal, insertUser, prisma, resetDatabase, sha256Hex } from './helpers';
 
 const terminals = new PrismaTerminalRepository(prisma);
 
@@ -127,6 +127,55 @@ describe('PrismaTerminalRepository.updateHeartbeat', () => {
   it('devolve false para terminal inexistente', async () => {
     expect(
       await terminals.updateHeartbeat('5eed0000-0000-4000-8000-0000000000ff', heartbeat, contact),
+    ).toBe(false);
+  });
+});
+
+describe('PrismaTerminalRepository.updateEnrollMode', () => {
+  beforeEach(resetDatabase);
+
+  const until = new Date('2026-10-20T14:01:00.000Z');
+
+  it('grava só o usuário e o prazo: não desfaz o que outra requisição gravou depois da leitura', async () => {
+    const user = await insertUser();
+    const terminal = await insertTerminal({ apiKeyHash: sha256Hex('a') });
+    // Another request (a key rotation, the heartbeat of B11) writes after this one has read.
+    await prisma.terminal.update({
+      where: { id: terminal.id },
+      data: { apiKeyHash: sha256Hex('b'), nome: 'Renomeado', ativo: false, rssi: -61 },
+    });
+
+    expect(await terminals.updateEnrollMode(terminal.id, user.id, until)).toBe(true);
+
+    const row = await prisma.terminal.findUniqueOrThrow({ where: { id: terminal.id } });
+    expect(row).toMatchObject({
+      modoCadastroUsuarioId: user.id,
+      modoCadastroAte: until,
+      apiKeyHash: sha256Hex('b'),
+      nome: 'Renomeado',
+      ativo: false,
+      rssi: -61,
+    });
+  });
+
+  it('substitui o modo anterior', async () => {
+    const ana = await insertUser();
+    const bruno = await insertUser();
+    const terminal = await insertTerminal();
+    await terminals.updateEnrollMode(terminal.id, ana.id, until);
+
+    const later = new Date(until.getTime() + 30_000);
+    expect(await terminals.updateEnrollMode(terminal.id, bruno.id, later)).toBe(true);
+
+    const row = await prisma.terminal.findUniqueOrThrow({ where: { id: terminal.id } });
+    expect(row).toMatchObject({ modoCadastroUsuarioId: bruno.id, modoCadastroAte: later });
+  });
+
+  it('devolve false para terminal inexistente', async () => {
+    const user = await insertUser();
+
+    expect(
+      await terminals.updateEnrollMode('5eed0000-0000-4000-8000-0000000000ff', user.id, until),
     ).toBe(false);
   });
 });
