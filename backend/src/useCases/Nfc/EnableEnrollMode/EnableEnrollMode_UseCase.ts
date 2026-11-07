@@ -23,11 +23,10 @@ export class EnableEnrollModeUseCase {
     private config: EnrollModeConfig,
   ) {}
 
-  async execute(_terminalId: string, _input: IEnableEnrollModeDTO): Promise<EnrollModeResult> {
-    void this.terminals;
+  async execute(terminalId: string, input: IEnableEnrollModeDTO): Promise<EnrollModeResult> {
     void this.users;
-    void this.clock;
-    void this.config;
-    throw new Error('EnableEnrollMode ainda não implementado');
+    const expiraEm = new Date(this.clock.now().getTime() + this.config.enrollModeSeconds * 1000);
+    await this.terminals.updateEnrollMode(terminalId, input.usuarioId, expiraEm);
+    return { terminalId, usuarioId: input.usuarioId, expiraEm };
   }
 }
