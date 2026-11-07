@@ -1,11 +1,14 @@
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import { fireEvent, render, screen, waitFor, within } from '@testing-library/react-native';
+import { StatusBar } from 'expo-status-bar';
 import { AccessibilityInfo, Animated } from 'react-native';
 import { toMaterialIconName, type IconName } from '@/components/Icon';
 import { denialReasons, type DenialReason } from '@/lib/denialReasons';
 import { colors } from '@/theme';
 import type { AccessResult, ValidateStage } from './validateAccess.model';
 import { ValidateAccessView } from './validateAccess.view';
+
+jest.mock('expo-status-bar', () => ({ StatusBar: jest.fn(() => null) }));
 
 const granted: AccessResult = {
   tipo: 'AUTORIZADO',
@@ -245,6 +248,20 @@ describe('Erros que não são negação', () => {
     expect(screen.queryByText('Acesso negado')).toBeNull();
     expect(screen.getByRole('button', { name: 'Ler outro QR Code' })).toBeOnTheScreen();
     expect(screen.getByRole('button', { name: 'Voltar ao início' })).toBeOnTheScreen();
+  });
+});
+
+describe('Barra de status', () => {
+  beforeEach(() => jest.mocked(StatusBar).mockClear());
+
+  it.each([
+    ['âmbar', { tipo: 'NEGADO', motivo: 'CREDENCIAL_EXPIRADA' } as AccessResult, 'dark'],
+    ['vermelho', { tipo: 'NEGADO', motivo: 'USOS_ESGOTADOS' } as AccessResult, 'light'],
+    ['verde', granted, 'light'],
+  ])('no fundo %s, os ícones do sistema continuam legíveis', async (_, result, style) => {
+    await renderScreen({ result });
+
+    expect(jest.mocked(StatusBar).mock.calls.at(-1)?.[0]).toEqual({ style });
   });
 });
 
