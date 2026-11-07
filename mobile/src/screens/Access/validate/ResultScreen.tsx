@@ -1,3 +1,4 @@
+import { StatusBar, type StatusBarStyle } from 'expo-status-bar';
 import { useEffect, useMemo, useState } from 'react';
 import { Animated, Easing, ScrollView, StyleSheet, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -14,6 +15,7 @@ import type { AccessResult } from './validateAccess.model';
 
 type TonePalette = {
   background: ColorName;
+  statusBar: StatusBarStyle;
   text: ColorName;
   line: ColorName;
   seal: ColorName;
@@ -27,6 +29,7 @@ type TonePalette = {
 const palettes: Record<ResultTone, TonePalette> = {
   autorizado: {
     background: 'resultadoAutorizado',
+    statusBar: 'light',
     text: 'branco',
     line: 'linhaAutorizado',
     seal: 'branco',
@@ -35,6 +38,7 @@ const palettes: Record<ResultTone, TonePalette> = {
   },
   tente: {
     background: 'resultadoTente',
+    statusBar: 'dark',
     text: 'acaoSobre',
     line: 'linhaTente',
     seal: 'acaoSobre',
@@ -44,6 +48,7 @@ const palettes: Record<ResultTone, TonePalette> = {
   },
   negado: {
     background: 'resultadoNegado',
+    statusBar: 'light',
     text: 'branco',
     line: 'linhaNegado',
     seal: 'branco',
@@ -140,6 +145,7 @@ export const ResultScreen = ({
       testID="result-screen"
       style={[styles.screen, { backgroundColor: colors[palette.background] }]}
     >
+      <StatusBar style={palette.statusBar} />
       <ScrollView style={styles.fill} contentContainerStyle={styles.content}>
         <View
           accessible
