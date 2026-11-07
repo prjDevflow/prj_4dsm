@@ -1,4 +1,5 @@
 import { env } from '@/lib/env';
+import { FakeValidateQrService } from './fakes/FakeAccessServices';
 import { FakeGetHealthService } from './fakes/FakeGetHealthService';
 import { FakeGetMeService } from './fakes/FakeGetMeService';
 import {
@@ -31,11 +32,20 @@ import {
 } from './fakes/FakeLocationServices';
 import { FakeLoginUserService } from './fakes/FakeLoginUserService';
 import {
+  FakeGetLocationAccessService,
+  FakeGetPositionService,
+  FakePreparePositionService,
+  FakeRequestLocationAccessService,
+  FakeResultFeedbackService,
+  FakeSimulatePositionService,
+} from './fakes/FakePositionServices';
+import {
   FakeCreateUserService,
   FakeGetUserService,
   FakeListUsersService,
   FakeUpdateUserService,
 } from './fakes/FakeUserServices';
+import { ValidateQrService } from './implementations/AccessServices';
 import {
   CancelAuthorizationService,
   CreateAuthorizationService,
@@ -66,6 +76,15 @@ import {
 } from './implementations/LocationServices';
 import { LoginUserService } from './implementations/LoginUserService';
 import {
+  GetLocationAccessService,
+  GetPositionService,
+  PositionReader,
+  PreparePositionService,
+  RequestLocationAccessService,
+  ResultFeedbackService,
+  SimulatePositionService,
+} from './implementations/PositionServices';
+import {
   CreateTerminalService,
   GetTerminalService,
   ListTerminalsService,
@@ -78,13 +97,16 @@ import { UpdateUserService } from './implementations/UpdateUserService';
 // "users" switches the four /users services together, since the fakes share one directory;
 // "locations" does the same for buildings, access points and terminals, and "authorizations" for
 // the services of /authorizations and /me/authorizations. "camera" switches what the QR reader
-// asks of the phone: the permission, the vibration and the settings.
+// asks of the phone: the permission, the vibrations and the settings. "position" switches the
+// location of a validation, and "validateQr" the validation itself.
 export const createServices = (fakeServices: string[]) => {
   const isFake = (name: string) => fakeServices.includes(name);
   const fakeUsers = isFake('users');
   const fakeLocations = isFake('locations');
   const fakeAuthorizations = isFake('authorizations');
   const fakeCamera = isFake('camera');
+  const fakePosition = isFake('position');
+  const positionReader = new PositionReader();
 
   return {
     getHealth: isFake('getHealth') ? new FakeGetHealthService() : new GetHealthService(),
@@ -137,7 +159,24 @@ export const createServices = (fakeServices: string[]) => {
       ? new FakeRequestCameraAccessService()
       : new RequestCameraAccessService(),
     vibrate: fakeCamera ? new FakeVibrateService() : new VibrateService(),
+    resultFeedback: fakeCamera ? new FakeResultFeedbackService() : new ResultFeedbackService(),
     openSettings: fakeCamera ? new FakeOpenSettingsService() : new OpenSettingsService(),
+    getLocationAccess: fakePosition
+      ? new FakeGetLocationAccessService()
+      : new GetLocationAccessService(),
+    requestLocationAccess: fakePosition
+      ? new FakeRequestLocationAccessService()
+      : new RequestLocationAccessService(),
+    preparePosition: fakePosition
+      ? new FakePreparePositionService()
+      : new PreparePositionService(positionReader),
+    getPosition: fakePosition
+      ? new FakeGetPositionService()
+      : new GetPositionService(positionReader),
+    simulatePosition: fakePosition
+      ? new FakeSimulatePositionService()
+      : new SimulatePositionService(positionReader),
+    validateQr: isFake('validateQr') ? new FakeValidateQrService() : new ValidateQrService(),
   };
 };
 
