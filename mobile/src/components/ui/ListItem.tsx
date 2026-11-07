@@ -8,7 +8,12 @@ import { Text } from './Text';
 type ListItemProps = {
   title: string;
   subtitle?: string;
-  badge?: StatusBadgeProps;
+  /** More lines in the style of the subtitle (period, entries...). */
+  details?: string[];
+  /** Third line, in bold support text ("Visto há 12 min"). */
+  meta?: string;
+  /** One badge, or several side by side (profile and "Inativo", for example). */
+  badge?: StatusBadgeProps | StatusBadgeProps[];
   /** Left side: initials in a circle, an icon in a shape... */
   leading?: ReactNode;
   /** Shows the chevron and makes the row a button. */
@@ -22,6 +27,8 @@ const STACK_FONT_SCALE = 1.3;
 export const ListItem = ({
   title,
   subtitle,
+  details = [],
+  meta,
   badge,
   leading,
   onPress,
@@ -30,7 +37,10 @@ export const ListItem = ({
   const theme = useTheme();
   // With a large system font the badge goes below the texts instead of squeezing them.
   const stacked = useWindowDimensions().fontScale >= STACK_FONT_SCALE;
-  const label = [title, subtitle, badge && badgeLabel(badge)].filter(Boolean).join(', ');
+  const badges = badge === undefined ? [] : Array.isArray(badge) ? badge : [badge];
+  const label = [title, subtitle, ...details, meta, ...badges.map(badgeLabel)]
+    .filter(Boolean)
+    .join(', ');
 
   const content = (
     <>
@@ -54,8 +64,32 @@ export const ListItem = ({
                 {subtitle}
               </Text>
             ) : null}
+            {details.map((line) => (
+              <Text
+                key={line}
+                variant={theme.scale === 'admin' ? 'adminApoio' : 'pessoaApoio'}
+                color="textoApoio"
+              >
+                {line}
+              </Text>
+            ))}
+            {meta ? (
+              <Text
+                variant={theme.scale === 'admin' ? 'adminApoio' : 'pessoaApoio'}
+                color="textoApoio"
+                style={{ fontFamily: theme.fontFamily.bold }}
+              >
+                {meta}
+              </Text>
+            ) : null}
           </View>
-          {badge ? <StatusBadge {...badge} /> : null}
+          {badges.length > 0 ? (
+            <View style={stacked ? styles.badgesRow : styles.badgesColumn}>
+              {badges.map((item) => (
+                <StatusBadge key={badgeLabel(item)} {...item} />
+              ))}
+            </View>
+          ) : null}
         </View>
         {onPress ? <Icon name="chevron_right" color={theme.colors.textoApoio} /> : null}
       </View>
@@ -95,6 +129,9 @@ const styles = StyleSheet.create({
   main: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: 12 },
   mainStacked: { flex: 1, alignItems: 'flex-start', gap: 6 },
   texts: { gap: 2 },
+  // Beside the texts the badges pile up, leaving the width to the e-mail; below them, side by side.
+  badgesColumn: { alignItems: 'flex-end', gap: 6 },
+  badgesRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 6 },
   fill: { flex: 1 },
   pressed: { opacity: 0.7 },
 });

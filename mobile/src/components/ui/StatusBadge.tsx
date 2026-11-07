@@ -38,6 +38,14 @@ const pills: Record<Exclude<BadgeStatus, ResultStatus>, { label: string; tone: B
   INATIVO: { label: 'Inativo', tone: 'neutro' },
 };
 
+// T04: the person reads the state by the icon too, not only by the text and the color.
+const authorizationIcons: Partial<Record<BadgeStatus, IconName>> = {
+  ATIVA: 'check_circle',
+  CANCELADA: 'cancel',
+  EXPIRADA: 'hourglass_disabled',
+  ESGOTADA: 'remove_circle',
+};
+
 // T31: the access result is a cookie with check or X next to the text.
 const results: Record<
   ResultStatus,
@@ -47,7 +55,8 @@ const results: Record<
   NEGADO: { label: 'Negado', cookie: 'erro', icon: 'close', iconColor: 'erroSobre' },
 };
 
-export type StatusBadgeProps = { status: BadgeStatus } | { tone: BadgeTone; label: string };
+export type StatusBadgeProps =
+  { status: BadgeStatus; withIcon?: boolean } | { tone: BadgeTone; label: string };
 
 const isResult = (status: BadgeStatus): status is ResultStatus => status in results;
 
@@ -86,6 +95,7 @@ export const StatusBadge = (props: StatusBadgeProps) => {
 
   const { label, tone } = status ? pills[status] : (props as { tone: BadgeTone; label: string });
   const colors = tones[tone];
+  const icon = status && 'withIcon' in props && props.withIcon && authorizationIcons[status];
 
   return (
     <View
@@ -99,6 +109,9 @@ export const StatusBadge = (props: StatusBadgeProps) => {
         },
       ]}
     >
+      {icon ? (
+        <Icon testID="status-pill-icon" name={icon} size={16} color={theme.colors[colors.text]} />
+      ) : null}
       <Text variant="adminSelo" color={colors.text}>
         {label}
       </Text>
@@ -109,7 +122,9 @@ export const StatusBadge = (props: StatusBadgeProps) => {
 const styles = StyleSheet.create({
   pill: {
     alignSelf: 'flex-start',
-    justifyContent: 'center',
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
     paddingHorizontal: 8,
     paddingVertical: 2,
   },
