@@ -28,7 +28,7 @@ const fieldsOf = (res: request.Response) =>
 describe('POST /api/v1/terminals/:id/enroll-mode', () => {
   beforeEach(resetDatabase);
 
-  it('200 com terminalId, usuarioId e expiraEm, e grava o usuário e o prazo de agora mais 60 s', async () => {
+  it('200 com terminalId, usuarioId e expiraEm, e grava o usuário e o prazo de agora mais ENROLL_MODE_SECONDS (45 s nos testes, para provar a fiação)', async () => {
     const admin = await asAdmin();
     const user = await insertUser();
     const terminal = await insertTerminal();
@@ -42,8 +42,8 @@ describe('POST /api/v1/terminals/:id/enroll-mode', () => {
     expect(res.body).toMatchObject({ terminalId: terminal.id, usuarioId: user.id });
     const expiraEm = new Date(res.body.expiraEm).getTime();
     expect(res.body.expiraEm).toBe(new Date(expiraEm).toISOString());
-    expect(expiraEm).toBeGreaterThanOrEqual(before + 60_000);
-    expect(expiraEm).toBeLessThanOrEqual(after + 60_000);
+    expect(expiraEm).toBeGreaterThanOrEqual(before + 45_000);
+    expect(expiraEm).toBeLessThanOrEqual(after + 45_000);
     const row = await prisma.terminal.findUniqueOrThrow({ where: { id: terminal.id } });
     expect(row.modoCadastroUsuarioId).toBe(user.id);
     expect(row.modoCadastroAte?.toISOString()).toBe(res.body.expiraEm);
