@@ -48,7 +48,13 @@ São as senhas públicas do `backend/.env.example`, só para desenvolvimento. A 
 reabrir o app, a abertura (T01) confere o token com `GET /auth/me` e leva direto ao início. Os blocos
 "Usuários" (F05), "Locais e terminais" (F06) e "Autorizações" (F07 e F08) do administrador abrem as
 telas de cadastro e consulta. Na pessoa, "Minhas autorizações" (F09) mostra as autorizações dela, e o
-início conta as ativas. Os outros blocos e atalhos abrem telas "Em breve" até as etapas seguintes.
+início conta as ativas. "Abrir catraca" abre o leitor de QR Code (F10), e um QR válido segue para a
+tela "Em breve" da validação até a F11. Os outros blocos e atalhos abrem telas "Em breve" até as
+etapas seguintes.
+
+Em desenvolvimento, o leitor mostra o campo "Texto do QR Code", para colar um `ACS1:...` sem usar a
+câmera. No Android, o Expo Go guarda por projeto quem negou a câmera: depois de liberar nas
+configurações, ele pergunta de novo ao voltar para o app.
 
 A chave de um terminal novo (ou gerada de novo) aparece uma vez só, na tela "Chave do terminal". Ela não
 fica guardada no app: anote ou use "Copiar chave" antes de tocar em "Concluir".
@@ -96,6 +102,8 @@ do aparelho) e `clipboard` (área de transferência) também têm falsos, usados
 Eles guardam tudo em memória com as regras da API (pessoa e local ativos, datas, horários, de 1 a 1000
 usos e cancelamento idempotente), usando as mesmas pessoas e locais dos falsos `users` e `locations`, e
 já vêm com exemplos das quatro situações, inclusive para `visitante@dev.local`.
+
+`camera` troca o que o leitor pede ao aparelho: a permissão da câmera, a vibração e as configurações.
 
 ## Tema e componentes
 

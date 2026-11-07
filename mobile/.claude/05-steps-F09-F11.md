@@ -24,18 +24,18 @@ Legenda: 📄 exigência do documento oficial do desafio · 💡 decisão ou sug
 
 **Lista de testes**
 
-- [ ] U `isSystemQr`: aceita o exemplo do contrato; recusa link, texto vazio, `ACS2:`, 21 e 23 caracteres, caractere fora do base64url.
-- [ ] U model do leitor: QR de outro tipo mostra o aviso e não navega.
-- [ ] U model do leitor: QR válido navega uma vez só, mesmo com três leituras seguidas da mesma imagem.
-- [ ] U permissão: negada mostra o texto e o botão "Abrir configurações"; concedida mostra a câmera.
+- [x] U `isSystemQr`: aceita o exemplo do contrato; recusa link, texto vazio, `ACS2:`, 21 e 23 caracteres, caractere fora do base64url.
+- [x] U model do leitor: QR de outro tipo mostra o aviso e não navega.
+- [x] U model do leitor: QR válido navega uma vez só, mesmo com três leituras seguidas da mesma imagem.
+- [x] U permissão: negada mostra o texto e o botão "Abrir configurações"; concedida mostra a câmera.
 
 **Critérios de aceitação**
 
-- [ ] Com permissão, a câmera abre em até 2 s e lê o QR mostrado na tela do computador (e, depois, no terminal).
-- [ ] QR de outro tipo não abre a validação; mostra o aviso e continua lendo.
-- [ ] Negar a permissão mostra a explicação e o caminho para as configurações, sem travar o app.
-- [ ] O mesmo QR não dispara duas validações.
-- [ ] Leitura a 20–40 cm de uma tela pequena (o OLED do terminal), com luz normal.
+- [ ] Com permissão, a câmera abre em até 2 s e lê o QR mostrado na tela do computador (e, depois, no terminal). (no emulador, com um QR como imagem da câmera, abriu e leu em menos de 2 s; falta medir em celular real)
+- [x] QR de outro tipo não abre a validação; mostra o aviso e continua lendo. (leitura real no emulador, com um QR de link)
+- [x] Negar a permissão mostra a explicação e o caminho para as configurações, sem travar o app. (emulador; no Expo Go, a volta das configurações pergunta de novo)
+- [x] O mesmo QR não dispara duas validações.
+- [ ] Leitura a 20–40 cm de uma tela pequena (o OLED do terminal), com luz normal. (depende de celular real)
 
 **Definição de pronto**
 
