@@ -31,6 +31,8 @@ export class EnableEnrollModeUseCase {
     const terminal = await this.terminals.findById(terminalId);
     if (!terminal) throw new NotFoundError('Terminal não encontrado');
 
+    // No lock on the user (see CreateNfcTag): the tag read in this mode is linked only after the NFC validation
+    // (B17) checks the user again.
     const user = await requireActiveUser(this.users, input.usuarioId);
 
     const expiraEm = new Date(this.clock.now().getTime() + this.config.enrollModeSeconds * 1000);

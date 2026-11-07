@@ -23,6 +23,8 @@ export class CreateNfcTagUseCase {
     if (!uid)
       throw new ValidationError('Dados inválidos', [{ field: 'uid', message: UID_MESSAGE }]);
 
+    // No lock on the user, unlike CreateAuthorization: a deactivation committed right after this read leaves a
+    // tag of an inactive user, which is harmless because the NFC validation (B17) checks `ativo` on every read.
     const user = await requireActiveUser(this.users, input.usuarioId);
 
     const tag: NfcTag = {
