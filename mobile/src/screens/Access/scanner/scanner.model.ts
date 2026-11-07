@@ -3,8 +3,11 @@ import { isSystemQr } from '@/lib/qr';
 import type {
   IGetCameraAccessService,
   IOpenSettingsService,
+  IPreparePositionService,
   IRequestCameraAccessService,
+  ISimulatePositionService,
   IVibrateService,
+  SimulatedPosition,
 } from '@/service/IDeviceService';
 import { usePermission, type PermissionStatus } from '../usePermission';
 
@@ -25,6 +28,8 @@ type ScannerModelProps = {
   requestCameraAccessService: IRequestCameraAccessService;
   vibrateService: IVibrateService;
   openSettingsService: IOpenSettingsService;
+  preparePositionService: IPreparePositionService;
+  simulatePositionService: ISimulatePositionService;
   /** Called once, with the text of the first QR of the system. */
   onValidQr: (payload: string) => void;
 };
@@ -35,6 +40,8 @@ export const useScannerModel = ({
   requestCameraAccessService,
   vibrateService,
   openSettingsService,
+  preparePositionService,
+  simulatePositionService,
   onValidQr,
 }: ScannerModelProps) => {
   const permission = usePermission({
@@ -44,10 +51,28 @@ export const useScannerModel = ({
   });
   const [noticeVisible, setNoticeVisible] = useState(false);
   const [torchOn, setTorchOn] = useState(false);
+  const [positionReady, setPositionReady] = useState(false);
+  const [simulatedPosition, setSimulatedPosition] = useState(() =>
+    simulatePositionService.current(),
+  );
   const alreadyRead = useRef(false);
   const noticeTimer = useRef<ReturnType<typeof setTimeout>>(undefined);
 
   useEffect(() => () => clearTimeout(noticeTimer.current), []);
+
+  const cameraOpen = permission.status === 'granted';
+
+  // The QR lasts 15 s and the GPS can take 8 s, so the position starts before there is a QR.
+  useEffect(() => {
+    if (!cameraOpen) return;
+    let active = true;
+    void preparePositionService.exec().then((ready) => {
+      if (active) setPositionReady(ready);
+    });
+    return () => {
+      active = false;
+    };
+  }, [cameraOpen, simulatedPosition, preparePositionService]);
 
   const onRead = (text: string) => {
     if (alreadyRead.current) return;
@@ -70,10 +95,16 @@ export const useScannerModel = ({
     status: scannerStatus[permission.status],
     noticeVisible,
     torchOn,
+    positionReady,
+    simulatedPosition,
     onAllow: permission.ask,
     onOpenSettings: permission.openSettings,
     onCameraError: permission.markFailed,
     onToggleTorch: () => setTorchOn((on) => !on),
+    onSimulatePosition: (position: SimulatedPosition) => {
+      simulatePositionService.exec(position);
+      setSimulatedPosition(position);
+    },
     onRead,
   };
 };
