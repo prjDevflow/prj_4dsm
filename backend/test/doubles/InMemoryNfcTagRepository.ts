@@ -1,5 +1,5 @@
 import type { NfcTag } from '../../src/entities/NfcTag';
-import type { INfcTagRepository } from '../../src/repositories/INfcTagRepository';
+import type { INfcTagRepository, NfcTagListFilter } from '../../src/repositories/INfcTagRepository';
 import { ConflictError } from '../../src/shared/errors/AppError';
 
 export class InMemoryNfcTagRepository implements INfcTagRepository {
@@ -19,6 +19,18 @@ export class InMemoryNfcTagRepository implements INfcTagRepository {
     const updated = { ...tag, ativa };
     this.items.set(id, updated);
     return { ...updated };
+  }
+
+  async list(filter: NfcTagListFilter) {
+    const matches = [...this.items.values()]
+      .filter((tag) => filter.usuarioId === undefined || tag.usuarioId === filter.usuarioId)
+      .filter((tag) => filter.ativa === undefined || tag.ativa === filter.ativa)
+      .sort((a, b) => b.criadaEm.getTime() - a.criadaEm.getTime() || b.id.localeCompare(a.id));
+    const start = (filter.page - 1) * filter.pageSize;
+    return {
+      items: matches.slice(start, start + filter.pageSize).map((tag) => ({ ...tag })),
+      total: matches.length,
+    };
   }
 
   /** Everything stored, in insertion order (for assertions). */
