@@ -1,22 +1,23 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
-import { AppState } from 'react-native';
+import { useEffect, useRef, useState } from 'react';
 import { isSystemQr } from '@/lib/qr';
 import type {
-  CameraAccess,
   IGetCameraAccessService,
   IOpenSettingsService,
   IRequestCameraAccessService,
   IVibrateService,
 } from '@/service/IDeviceService';
+import { usePermission, type PermissionStatus } from '../usePermission';
 
 export type ScannerStatus = 'checking' | 'ask' | 'denied' | 'ready' | 'unavailable';
 
 const NOTICE_MS = 3_000;
 
-const accessStatus: Record<CameraAccess, ScannerStatus> = {
+const scannerStatus: Record<PermissionStatus, ScannerStatus> = {
+  checking: 'checking',
   granted: 'ready',
   undetermined: 'ask',
   denied: 'denied',
+  failed: 'unavailable',
 };
 
 type ScannerModelProps = {
@@ -36,48 +37,17 @@ export const useScannerModel = ({
   openSettingsService,
   onValidQr,
 }: ScannerModelProps) => {
-  const [status, setStatus] = useState<ScannerStatus>('checking');
+  const permission = usePermission({
+    getAccessService: getCameraAccessService,
+    requestAccessService: requestCameraAccessService,
+    openSettingsService,
+  });
   const [noticeVisible, setNoticeVisible] = useState(false);
   const [torchOn, setTorchOn] = useState(false);
   const alreadyRead = useRef(false);
-  const wentToSettings = useRef(false);
   const noticeTimer = useRef<ReturnType<typeof setTimeout>>(undefined);
 
-  const askAccess = useCallback(async () => {
-    try {
-      setStatus(accessStatus[await requestCameraAccessService.exec()]);
-    } catch {
-      setStatus('unavailable');
-    }
-  }, [requestCameraAccessService]);
-
-  useEffect(() => {
-    const loadAccess = async () => {
-      try {
-        setStatus(accessStatus[await getCameraAccessService.exec()]);
-      } catch {
-        setStatus('unavailable');
-      }
-    };
-
-    void loadAccess();
-    // Expo Go keeps a "no" per project and ignores the settings until the app asks again, so the
-    // way back from the settings asks. Only that way: closing the system's question also fires this.
-    const subscription = AppState.addEventListener('change', (state) => {
-      if (state !== 'active') return;
-      if (wentToSettings.current) {
-        wentToSettings.current = false;
-        void askAccess();
-      } else {
-        void loadAccess();
-      }
-    });
-
-    return () => {
-      subscription.remove();
-      clearTimeout(noticeTimer.current);
-    };
-  }, [getCameraAccessService, askAccess]);
+  useEffect(() => () => clearTimeout(noticeTimer.current), []);
 
   const onRead = (text: string) => {
     if (alreadyRead.current) return;
@@ -97,15 +67,12 @@ export const useScannerModel = ({
   };
 
   return {
-    status,
+    status: scannerStatus[permission.status],
     noticeVisible,
     torchOn,
-    onAllow: askAccess,
-    onOpenSettings: async () => {
-      wentToSettings.current = true;
-      await openSettingsService.exec();
-    },
-    onCameraError: () => setStatus('unavailable'),
+    onAllow: permission.ask,
+    onOpenSettings: permission.openSettings,
+    onCameraError: permission.markFailed,
     onToggleTorch: () => setTorchOn((on) => !on),
     onRead,
   };

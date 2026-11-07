@@ -1,11 +1,11 @@
 import { CameraView } from 'expo-camera';
-import { useState, type ReactNode } from 'react';
+import { useState } from 'react';
 import { Pressable, StyleSheet, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { Icon, type IconName } from '@/components/Icon';
-import { Cookie12 } from '@/components/shapes';
-import { Alert, Button, ScreenContainer, Text, TextField } from '@/components/ui';
+import { Icon } from '@/components/Icon';
+import { Alert, Button, Text, TextField } from '@/components/ui';
 import { colors, radius, sizes } from '@/theme';
+import { MessageScreen } from '../MessageScreen';
 import type { useScannerModel } from './scanner.model';
 
 type ScannerViewProps = ReturnType<typeof useScannerModel> & {
@@ -15,26 +15,6 @@ type ScannerViewProps = ReturnType<typeof useScannerModel> & {
 };
 
 const WRONG_QR = 'Este não é o QR Code da catraca.';
-
-type MessageScreenProps = {
-  icon: IconName;
-  title: string;
-  footer: ReactNode;
-  children?: ReactNode;
-};
-
-// T06: the same layout explains the question, the refusal and a phone without a camera.
-const MessageScreen = ({ icon, title, footer, children }: MessageScreenProps) => (
-  <ScreenContainer footer={footer} contentStyle={styles.message}>
-    <Cookie12 color={colors.primariaContainer} size={120}>
-      <Icon name={icon} size={56} color={colors.primariaContainerSobre} />
-    </Cookie12>
-    <Text variant="pessoaTitulo" accessibilityRole="header">
-      {title}
-    </Text>
-    {children}
-  </ScreenContainer>
-);
 
 const DevPasteField = ({ onRead }: { onRead: (text: string) => void }) => {
   const [text, setText] = useState('');
@@ -222,7 +202,6 @@ const CORNER_SIZE = 56;
 
 const styles = StyleSheet.create({
   fill: { flex: 1 },
-  message: { gap: 24, paddingTop: 48 },
   reader: { flex: 1, backgroundColor: colors.fundoLeitor },
   overlay: { flex: 1, gap: 16, paddingHorizontal: 16, paddingVertical: 8 },
   instruction: {

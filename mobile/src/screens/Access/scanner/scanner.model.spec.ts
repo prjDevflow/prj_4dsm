@@ -1,6 +1,6 @@
 import { act, renderHook, waitFor } from '@testing-library/react-native';
 import { AppState, type AppStateStatus } from 'react-native';
-import type { CameraAccess } from '@/service/IDeviceService';
+import type { PermissionAccess } from '@/service/IDeviceService';
 import {
   FakeGetCameraAccessService,
   FakeOpenSettingsService,
@@ -12,7 +12,7 @@ import { useScannerModel } from './scanner.model';
 const VALID_QR = 'ACS1:q3F8k2Zr1pLw9XbTn0YhVA';
 const OTHER_QR = 'https://exemplo.com.br';
 
-const setup = async (access: CameraAccess = 'granted', answer: CameraAccess = 'granted') => {
+const setup = async (access: PermissionAccess = 'granted', answer: PermissionAccess = 'granted') => {
   const services = {
     getCameraAccessService: new FakeGetCameraAccessService(access),
     requestCameraAccessService: new FakeRequestCameraAccessService(answer),

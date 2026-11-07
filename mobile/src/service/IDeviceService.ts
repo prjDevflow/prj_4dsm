@@ -10,16 +10,16 @@ export interface IClipboardService {
 }
 
 /** The permission as the system sees it; "undetermined" means nobody asked yet. */
-export type CameraAccess = 'granted' | 'undetermined' | 'denied';
+export type PermissionAccess = 'granted' | 'undetermined' | 'denied';
 
 /** Reads the permission, without showing the system's question. */
 export interface IGetCameraAccessService {
-  exec: () => Promise<CameraAccess>;
+  exec: () => Promise<PermissionAccess>;
 }
 
 /** Shows the system's question and answers what the person chose. */
 export interface IRequestCameraAccessService {
-  exec: () => Promise<CameraAccess>;
+  exec: () => Promise<PermissionAccess>;
 }
 
 /** A short vibration; a phone that cannot vibrate just stays still. */

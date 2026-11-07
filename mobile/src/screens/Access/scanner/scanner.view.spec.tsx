@@ -1,5 +1,5 @@
 import { fireEvent, render, screen } from '@testing-library/react-native';
-import type { CameraAccess } from '@/service/IDeviceService';
+import type { PermissionAccess } from '@/service/IDeviceService';
 import {
   FakeGetCameraAccessService,
   FakeOpenSettingsService,
@@ -13,8 +13,8 @@ const VALID_QR = 'ACS1:q3F8k2Zr1pLw9XbTn0YhVA';
 
 // The view with its real model and fake services: what the page renders, without the router.
 const renderScreen = async ({
-  access = 'granted' as CameraAccess,
-  answer = 'granted' as CameraAccess,
+  access = 'granted' as PermissionAccess,
+  answer = 'granted' as PermissionAccess,
   devPaste = false,
 } = {}) => {
   const services = {
