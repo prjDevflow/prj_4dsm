@@ -157,6 +157,15 @@ describe('EnableEnrollMode', () => {
     });
   });
 
+  it('deve responder 404 se o terminal some entre a leitura e a gravação', async () => {
+    const { sut, terminals, terminal, user } = await makeSut();
+    terminals.updateEnrollMode = async () => false;
+
+    const error = await sut.execute(terminal.id, { usuarioId: user.id }).catch((e) => e);
+
+    expect(error).toMatchObject({ code: 'NOT_FOUND', status: 404 });
+  });
+
   it('deve aceitar terminal inativo, que nem consegue ler tag', async () => {
     const { sut, terminals, users } = await makeSut();
     const off = makeTerminal({
