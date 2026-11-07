@@ -39,8 +39,7 @@ void printMenu() {
   Serial.println(" 5  RC522: versao do chip e leitura de tags (10 s)");
   Serial.println(" 6  GPS: sentencas NMEA por 15 s");
   Serial.println(" 7  Servo: 0, 90 e 0 graus");
-  Serial.println(" 8  LEDs: verde e vermelho");
-  Serial.println(" 9  Buzzer: ativo ou passivo?");
+  Serial.println(" 8  Buzzer: ativo ou passivo?");
   Serial.print("Opcao: ");
 }
 
@@ -163,7 +162,7 @@ void testGps() {
   Serial2.end();
   Serial.printf("\n  %lu sentencas recebidas.\n", sentences);
   if (sentences == 0) {
-    Serial.println("  Nada: confira GPS TX no GPIO 16 e a alimentacao (sem resposta no 3V3, teste no +5V).");
+    Serial.println("  Nada: confira GPS TX no GPIO 16, GPS RX no GPIO 17 e a alimentacao no trilho +3V3.");
   }
   Serial.println("  Sem fix em ambiente fechado e normal (campos vazios); a partida a frio pode levar minutos.");
 }
@@ -182,18 +181,7 @@ void testServo() {
   delay(1000);
   servo.detach();
   Serial.println("  Se a placa reiniciou no meio, o topo mostra \"queda de tensao (brownout)\":");
-  Serial.println("  confira o capacitor de 470 uF ou use fonte de 5 V externa com GND comum (guia, pergunta 9).");
-}
-
-void testLeds() {
-  Serial.println("  verde por 1 s");
-  digitalWrite(PIN_LED_GREEN, HIGH);
-  delay(1000);
-  digitalWrite(PIN_LED_GREEN, LOW);
-  Serial.println("  vermelho por 1 s");
-  digitalWrite(PIN_LED_RED, HIGH);
-  delay(1000);
-  digitalWrite(PIN_LED_RED, LOW);
+  Serial.println("  confira o capacitor de 470 uF no trilho +5V (faixa no GND); tente outra porta USB ou um power bank.");
 }
 
 void testBuzzer() {
@@ -218,11 +206,8 @@ void testBuzzer() {
 }  // namespace
 
 void setup() {
-  const uint8_t outputs[] = {PIN_LED_GREEN, PIN_LED_RED, PIN_BUZZER};
-  for (uint8_t pin : outputs) {
-    pinMode(pin, OUTPUT);
-    digitalWrite(pin, LOW);
-  }
+  pinMode(PIN_BUZZER, OUTPUT);
+  digitalWrite(PIN_BUZZER, LOW);
   Serial.begin(115200);
   Serial.setTimeout(2000);
   delay(300);
@@ -264,9 +249,6 @@ void loop() {
       testServo();
       break;
     case 8:
-      testLeds();
-      break;
-    case 9:
       testBuzzer();
       break;
     default:

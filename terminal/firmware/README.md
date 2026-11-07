@@ -1,8 +1,8 @@
 # Firmware do terminal de acesso
 
 Firmware do ESP32 DevKit V1 da catraca: mostra o QR Code gerado pelo backend, lê tags NFC, sinaliza
-com LEDs e buzzer e move o servo que representa a catraca. Projeto PlatformIO com o core Arduino 2.0.17
-(`platformio/espressif32@7.1.3`).
+com o buzzer e o display e move o servo que representa a catraca. Projeto PlatformIO com o core Arduino
+2.0.17 (`platformio/espressif32@7.1.3`). As ligações de cada peça estão em [../docs/pinagem.md](../docs/pinagem.md).
 
 Estado: **I03** (esqueleto do projeto, log com níveis e Wi-Fi que reconecta sozinho).
 
@@ -50,14 +50,13 @@ Menu na serial para testar cada peça sozinha, com os pinos do `include/pins.h`.
 | 5 | RC522 | o `VersionReg` e o UID da tag, em hexadecimal maiúsculo |
 | 6 | GPS | sentenças `$GP...` a 9600 bps (sem fix em ambiente fechado é normal) |
 | 7 | Servo em 0°, 90° e 0° | a placa não reinicia; se reiniciar, o motivo aparece no topo |
-| 8 | LEDs | verde e vermelho |
-| 9 | Buzzer | se é ativo (apita com nível alto) ou passivo (só com tom) |
+| 8 | Buzzer | se é ativo (apita com nível alto) ou passivo (só com tom) |
 
 ## Estrutura
 
 ```text
 platformio.ini             ambientes esp32dev, bancada, native e native_win
-include/pins.h             única fonte dos números de pino (tabela 2.1 do guia)
+include/pins.h             única fonte dos números de pino (mapa em ../docs/pinagem.md)
 include/secrets.example.h  modelo do secrets.h, que não é versionado
 lib/core/                  lógica pura em C++11, sem Arduino.h, testada no PC
 src/                       firmware: main, log e Wi-Fi

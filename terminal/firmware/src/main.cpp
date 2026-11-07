@@ -21,7 +21,7 @@ bool builtinLedOn = false;
 
 // Safe state at power-up (guide, section 4): every signal off. The servo joins in the I07.
 void setOutputsOff() {
-  const uint8_t outputs[] = {PIN_LED_GREEN, PIN_LED_RED, PIN_BUZZER, PIN_LED_BUILTIN};
+  const uint8_t outputs[] = {PIN_BUZZER, PIN_LED_BUILTIN};
   for (uint8_t pin : outputs) {
     pinMode(pin, OUTPUT);
     digitalWrite(pin, LOW);
