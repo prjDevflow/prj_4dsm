@@ -4,7 +4,7 @@ import * as Haptics from 'expo-haptics';
 import * as Location from 'expo-location';
 import { Linking } from 'react-native';
 import type {
-  CameraAccess,
+  PermissionAccess,
   Coordinates,
   IClipboardService,
   ICurrentPositionService,
@@ -38,14 +38,14 @@ export class ClipboardService implements IClipboardService {
 }
 
 export class GetCameraAccessService implements IGetCameraAccessService {
-  async exec(): Promise<CameraAccess> {
+  async exec(): Promise<PermissionAccess> {
     const { status } = await Camera.getCameraPermissionsAsync();
     return status;
   }
 }
 
 export class RequestCameraAccessService implements IRequestCameraAccessService {
-  async exec(): Promise<CameraAccess> {
+  async exec(): Promise<PermissionAccess> {
     const { status } = await Camera.requestCameraPermissionsAsync();
     return status;
   }

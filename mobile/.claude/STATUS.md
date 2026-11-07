@@ -2,9 +2,9 @@
 
 Atualize este arquivo no fim de cada sessão de trabalho e ao abrir ou integrar um PR. A IA lê aqui qual é a etapa atual antes de começar.
 
-**Etapa atual:** F10 (PR #41 aberto, falta o segundo celular real) → próxima: F11, para a Review 2 de 11/11
-**Branch:** `feature/F10-qr-reader` (criada da `feature/F09-my-authorizations`; PR #41 sobre `develop`)
-**Último teste vermelho/verde:** voltar das configurações pede a câmera de novo (green), 704 testes passando
+**Etapa atual:** F11 (PR #42 aberto, falta o ensaio com o terminal) → próximo: ensaio para a Review 2 de 11/11; depois, F13 e F12
+**Branch:** `feature/F11-access-validation` (criada da `feature/F10-qr-reader`; PR #42 sobre `develop`, depois dos #40 e #41)
+**Último teste vermelho/verde:** `SpinningCookie` gira em torno do próprio centro (green), 888 testes passando
 
 **Atenção (07/11):** os PRs #28, #29, #30, #31 e #38 foram integrados nas branches de base, não em `develop`. O `develop` só tem a F04 da pilha; F05 a F09 estão juntas em `feature/F08-authorizations-list`. O merge simulado com `develop` não tem conflito. O PR #40 leva tudo para `develop`, por merge commit, e a F10 entra depois dele.
 
@@ -23,7 +23,7 @@ Hoje é 28/10 e o app começa do zero. 💡 Por isso a ordem muda em relação a
 | F03 | Login | T02 | F02 | B05 ✅ | 03/11 | 🔴 | 🟨 | [#19](https://github.com/prjDevflow/prj_4dsm/pull/19) |
 | F04 | Abertura, navegação por perfil, início e sessão | T01, T03, T13, T14 | F03 | B05 ✅ | 04/11 | 🔴 | 🟨 | PR #25 |
 | F10 | Leitor de QR Code | T06, T07 | F04 | (B12 para QR real) | 05/11 | 🔴 | 🟨 | PR #41 |
-| F11 | Validação do acesso e resultado | T08, T09, T10, T11 | F10 | B15 (falso até sair) | 07/11 | 🔴 | ⬜ | |
+| F11 | Validação do acesso e resultado | T08, T09, T10, T11 | F10 | B15 ✅ | 07/11 | 🔴 | 🟨 | PR #42 |
 | F09 | Minhas autorizações | T04, T05 | F04 | B09 ✅ | 08/11 | 🔴 | 🟨 | PR #38 |
 | — | Integração com backend e terminal, ensaio | — | F11, F09 | B15 | 09–10/11 | 🔴 | | |
 | — | **Review 2 (M4: QR ponta a ponta)** | | | | **11/11 19h30** | | | |
@@ -110,6 +110,13 @@ Formato: data · decisão · motivo.
 - 2026-11-03 · Na F07, depois de criar, o app volta para a tela de onde veio (hoje, "Autorizações" com "Em breve") em vez da lista · a lista é a F08; a criação já invalida `['authorizations']`, então a F08 mostra a nova no topo quando chegar.
 - 2026-11-03 · Na F07, o resumo diz "poderá entrar em Catraca Social (Edifício Central)" em vez de "na Catraca Social do Edifício Central" · o app não sabe se o nome do local pede "na" ou "no"; o texto do card fica igual em todo o resto.
 - 2026-11-03 · Na F07, o resumo só aparece quando o formulário passaria na validação, e é montado do mesmo objeto enviado à API · assim ele nunca mostra algo que o servidor recusaria.
+- 2026-11-07 · O leitor já começa a pegar a posição e a validação usa a pronta, uma vez só · o QR vale 15 s e o GPS pode levar 8 s; a posição preparada vale 30 s, e "Tentar de novo" lê outra vez, para ver onde a pessoa está agora.
+- 2026-11-07 · A pergunta da localização (T08) fica na validação, como no card, e o leitor só prepara a posição se a permissão já existe · na primeira vez, o QR pode expirar durante a pergunta, e o "Ler outro QR Code" resolve.
+- 2026-11-07 · Sem conexão e erro do servidor usam o título "Acesso não validado", em âmbar · ninguém negou nada, e o card e o `tokens.md` não definem esse título. 429 e 422 inesperado caem no "Não foi possível validar agora".
+- 2026-11-07 · A T11 não mostra local nem hora, que o Figma desenha · o 403 da API traz só `code` e `message`, e o card não pede.
+- 2026-11-07 · A T09 mostra "Localização confirmada" só quando há uma posição · sem GPS, a frase seria falsa.
+- 2026-11-07 · Código desconhecido num 403 vira erro do servidor, sem registro · o app não tem logger, e `no-console` é erro no lint.
+- 2026-11-07 · "Simular posição" em `__DEV__` · a catraca do seed fica longe de quem testa em casa.
 - 2026-11-07 · Na volta das configurações, o leitor pede a câmera de novo em vez de só consultar · no Android, o Expo Go guarda por projeto quem negou e ignora o sistema até o app perguntar; quem negava ficava preso, mesmo reiniciando. Só pergunta se a pessoa saiu pelo botão "Abrir configurações", porque fechar a pergunta do sistema também devolve o app à frente e isso viraria um laço.
 - 2026-11-07 · O selo "Localização pronta" da T07 e o pedido antecipado de localização ficam para a F11 · dependem da T08; no card são só uma sugestão para ganhar tempo.
 - 2026-11-07 · Até a F11 existir, um QR válido vai para a tela "Em breve" da validação, com `replace` · o "voltar" não pode retornar a uma câmera que já parou de ler.
@@ -151,6 +158,7 @@ Formato: data · decisão · motivo.
 | 2026-10-28 | F02 | Tema do `tokens.md` (cores conferidas pelo teste contra o próprio `tokens.md`, contraste WCAG), fonte Atkinson com a splash, formas, `Icon` e 25 componentes em `components/ui`; catálogo em `/catalog` só em `__DEV__`; teste que percorre o catálogo e exige papel e rótulo em todo elemento interativo. Conferido no emulador a 100% e a 200% (161 testes) | Testar o catálogo no celular; revisão do Rafael e do Eduardo; F03 |
 | 2026-10-28 | F01, F02 | Revisão: no celular do Pedro (Expo Go), "API: ok" com o mock e "API: fora do ar" sem ele, sem fechar o app. Corrigidos na F02: anúncio do erro de campo, dos avisos e dos estados no iOS (`useAnnounce`), aviso curto lido uma vez, rodapé em linha com fragmento, "Voltar" do catálogo aberto por link; o teste de contraste cobre as partes que não são texto (175 testes) | F01: celular com o Docker e revisor no #14; F02: catálogo no celular e revisão do Eduardo |
 | 2026-10-29 | F03 | Login (T02): schema, mensagens, `LoginUserService` e falso com os usuários do seed, model com toque duplo, senha limpa e foco, faixa que some ao digitar e aviso de sessão expirada; guards por sessão (`Stack.Protected` com `redirectTo`) e inícios provisórios; `/health` vira ferramenta de desenvolvimento. Emulador contra a API real no Docker: os três perfis, senha errada, sem internet, voltar do Android, fonte em 200% com teclado. Corrigido no aparelho: o foco não ia para a senha depois do erro | Abrir o PR (base #16); GIF; ouvir com TalkBack/VoiceOver; Eduardo confirmar o contrato; teste com uma pessoa; F04 |
+| 2026-11-07 | F11 | Validação e resultado: permissão de localização (T08), progresso (T09), autorizado (T10), negado âmbar e vermelho (T11), selo "Localização pronta" no leitor, posição preparada, "Simular posição". Emulador contra a API real da `develop`: os 10 motivos, cenários 1 a 7 do M4, sinal `ABRIR`/`NEGAR` igual ao resultado, 1 evento por tentativa, 1,1 a 1,4 s do toque ao resultado, 100% e 200%. No iPhone do Pedro, com um terminal virtual no computador e a câmera lendo o QR que muda: negação por distância e autorização, com "Catraca aberta" no terminal. 888 testes, 96,8% de linhas | Aceitar #40, #41 e #42; ensaio com o Eduardo e o Matheus; medir os 3 s em celular real; F13 e F12 |
 | 2026-11-07 | F10 | Leitor de QR Code: permissão da câmera (T06) com pedido, recusa e configurações, leitor (T07) com moldura, lanterna, dica e aviso de QR de outro tipo, leitura congelada e vibração. Conferido no emulador com leitura real pela câmera (`-camera-back imagefile:`), em 100% e 200%, e no iPhone do Pedro, que leu um QR fixo e abriu a validação. 704 testes, 96,5% de linhas. PRs #40 (F05 a F09 para `develop`) e #41 (F10) | Aceitar o #40 e depois o #41; testar no segundo celular real, medir os 2 s e a distância de 20 a 40 cm, com vídeo no PR; depois, F11 |
 | 2026-11-05 | F09 | Minhas autorizações (T04): ativas, anteriores recolhidas, aviso de fora do horário em São Paulo, selos com texto, ícone e cor, vazio, erro e puxar para atualizar; contador no início. Conferido no emulador contra a API real, em 100% e 200%, com o aparelho em UTC. 648 testes, 96,4% de linhas | Revisão do PR #38; teste de 10 s com quem não conhece o sistema; "Abrir catraca" leva ao "Em breve" até a F10; depois, F10 |
 | 2026-11-03 | F08 | Lista de autorizações (T23) com filtros sozinhos e combinados, paginação e puxar para atualizar; detalhe (T25) com auditoria; cancelamento confirmado com motivo opcional, que muda o selo na lista e no detalhe sem reabrir. Conferido no emulador contra a API real, em 100% e 200%, inclusive dois administradores cancelando a mesma. 591 testes, 96,3% de linhas | Revisão do PR #31; a negação no acesso depois de cancelar depende da B15 e da F11; depois, F10 |
@@ -184,13 +192,13 @@ Nada aqui bloqueia o começo. Cada item tem uma sugestão para seguir enquanto a
 | 3 | Entra o bloco "Você pode entrar agora" na T03? | Grupo | Não implementar até o aval |
 | 4 | Ícones: os Material Symbols do Figma não vêm no `@expo/vector-icons` (que tem os Material Icons antigos). E os componentes: próprios ou `react-native-paper` (sugestão do design)? | Pedro e Eduardo | Componentes próprios em `components/ui` (como o shadcn no estudos_dpi) e um `Icon` que usa os `MaterialIcons` do `@expo/vector-icons` por enquanto; trocar depois sem mexer nas telas |
 | 5 | As rotas da B07 em diante ainda não estão no `openapi.yaml`. O Eduardo pode publicar os schemas (B07, B08, B09, B15) antes do código, para os falsos do app baterem com o real? | Eduardo | Usar os exemplos dos guias `05`, `06` e `07` do backend |
-| 6 | Se o GPS não responder em 8 s, o app envia a validação sem coordenadas (o servidor devolve `LOCALIZACAO_INVALIDA` e registra a tentativa) ou não envia? | Eduardo | Enviar sem coordenadas, para a tentativa ficar registrada (um evento por tentativa) |
+| 6 | Se o GPS não responder em 8 s, o app envia a validação sem coordenadas (o servidor devolve `LOCALIZACAO_INVALIDA` e registra a tentativa) ou não envia? | Eduardo | Feito assim na F11: envia sem coordenadas, e o evento fica registrado |
 | 7 | `GET /me/authorizations` é paginada? | Eduardo | Respondida em 05/11: é paginada, até 100 por página (B09). O app busca todas as páginas |
 | 8 | Texto para `ULTIMO_ADMIN` (e outros textos novos que não estão nos requisitos) | Eduardo | "O sistema precisa de pelo menos um administrador ativo." |
 | 9 | Coordenadas digitadas com vírgula decimal (T18, T19) | Eduardo e Pedro | Aceitar vírgula e ponto, enviar número |
 | 10 | Formato de exibição da chave do terminal na T22 (inteira, em blocos?) | Eduardo | Inteira, em fonte monoespaçada, com "Copiar chave" |
 | 11 | Regra de cor da negação (âmbar quando a pessoa resolve, vermelho quando depende da administração), e o terminal usa a mesma? | Grupo e Matheus | Seguir o `tokens.md` |
-| 12 | A animação de mola cabe na meta de 3 s? | Pedro (medindo) | Implementar e medir; se não couber, só a cor |
+| 12 | A animação de mola cabe na meta de 3 s? | Pedro (medindo) | Respondida em 07/11: cabe. No emulador, de 1,1 a 1,4 s do toque à tela do resultado; falta medir em celular real |
 | 13 | Alerta de terminal offline na T14 e na T17 | Grupo | Fora até o aval |
 | 14 | Como o visitante recebe a senha (hoje o administrador define na T16)? | Grupo e Eduardo | O administrador informa pessoalmente |
 | 15 | O raio de 100 m é máximo ou mínimo? | Professor | Máximo (decisão 1 do contrato) |

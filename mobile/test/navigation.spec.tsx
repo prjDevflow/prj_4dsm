@@ -6,6 +6,7 @@ import { http, HttpResponse } from 'msw';
 import { useSessionStore } from '@/context/SessionStore';
 import { TOKEN_KEY } from '@/context/tokenStorage';
 import type { Usuario } from '@/lib/types/auth';
+import { sampleAccessGranted } from '@/service/fakes/FakeAccessServices';
 import { FakeAuthorizationDirectory } from '@/service/fakes/FakeAuthorizationDirectory';
 import { FakeLocationDirectory } from '@/service/fakes/FakeLocationDirectory';
 import { FakeUserDirectory } from '@/service/fakes/FakeUserDirectory';
@@ -80,6 +81,10 @@ const pressLast = async (name: string) => {
 const loginScreen = () => screen.findByRole('header', { name: 'Entre com sua conta' });
 
 const leitor = 'Aponte a câmera para o QR Code da catraca.';
+const QR = 'ACS1:q3F8k2Zr1pLw9XbTn0YhVA';
+
+const denied = (code: string) =>
+  HttpResponse.json({ error: { code, message: 'Texto da API' } }, { status: 403 });
 
 describe('sessão e navegação por perfil', () => {
   beforeEach(async () => {
@@ -250,7 +255,22 @@ describe('sessão e navegação por perfil', () => {
     expect(await screen.findByRole('header', { name: 'Olá, Visitante' })).toBeOnTheScreen();
   });
 
-  it('"Abrir catraca" abre o leitor, e um QR válido segue adiante sem voltar para a câmera', async () => {
+  const readQr = async () => {
+    await renderApp();
+    await login(sampleVisitante);
+    await fireEvent.press(await screen.findByRole('button', { name: 'Abrir catraca' }));
+    await screen.findByRole('header', { name: leitor });
+    await fireEvent(await screen.findByTestId('camera'), 'barcodeScanned', { data: QR });
+  };
+
+  it('"Abrir catraca" abre o leitor, e um QR válido vai até o resultado', async () => {
+    let received: unknown;
+    server.use(
+      http.post(`${API_URL}/access/qr/validate`, async ({ request }) => {
+        received = await request.json();
+        return HttpResponse.json(sampleAccessGranted);
+      }),
+    );
     await renderApp();
     await login(sampleVisitante);
 
@@ -258,13 +278,80 @@ describe('sessão e navegação por perfil', () => {
     expect(await screen.findByRole('header', { name: leitor })).toBeOnTheScreen();
     expect(screen).toHavePathname('/access/scanner');
 
-    await fireEvent(await screen.findByTestId('camera'), 'barcodeScanned', {
-      data: 'ACS1:q3F8k2Zr1pLw9XbTn0YhVA',
-    });
+    await fireEvent(await screen.findByTestId('camera'), 'barcodeScanned', { data: QR });
 
-    expect(await screen.findByRole('header', { name: 'Validando acesso' })).toBeOnTheScreen();
+    expect(await screen.findByRole('alert')).toHaveTextContent(/Acesso autorizado/);
+    expect(received).toEqual({
+      payload: QR,
+      latitude: -23.30512,
+      longitude: -45.96551,
+      precisaoMetros: 12.5,
+    });
+  });
+
+  it('"Concluir" volta ao início, sem passar pela câmera', async () => {
+    server.use(
+      http.post(`${API_URL}/access/qr/validate`, () => HttpResponse.json(sampleAccessGranted)),
+    );
+    await readQr();
+
+    await fireEvent.press(await screen.findByRole('button', { name: 'Concluir' }));
+
+    expect(await screen.findByRole('header', { name: 'Olá, Visitante' })).toBeOnTheScreen();
+    expect(screen).toHavePathname('/');
+  });
+
+  it('"Ler outro QR Code" volta ao leitor, e ele lê de novo', async () => {
+    let validations = 0;
+    server.use(
+      http.post(`${API_URL}/access/qr/validate`, () => {
+        validations += 1;
+        return denied('CREDENCIAL_REUTILIZADA');
+      }),
+    );
+    await readQr();
+
+    await fireEvent.press(await screen.findByRole('button', { name: 'Ler outro QR Code' }));
+
+    expect(await screen.findByRole('header', { name: leitor })).toBeOnTheScreen();
+    await fireEvent(await screen.findByTestId('camera'), 'barcodeScanned', { data: QR });
+    await screen.findByRole('alert');
+    expect(validations).toBe(2);
+  });
+
+  it('"Ver minhas autorizações" abre a lista, e voltar leva ao início', async () => {
+    server.use(http.post(`${API_URL}/access/qr/validate`, () => denied('USOS_ESGOTADOS')));
+    await readQr();
+
+    await fireEvent.press(await screen.findByRole('button', { name: 'Ver minhas autorizações' }));
+
+    expect(await screen.findByRole('header', { name: 'Minhas autorizações' })).toBeOnTheScreen();
     await fireEvent.press(screen.getByRole('button', { name: 'Voltar' }));
     expect(await screen.findByRole('header', { name: 'Olá, Visitante' })).toBeOnTheScreen();
+  });
+
+  it('com a sessão expirada na validação, cai no login', async () => {
+    server.use(
+      http.post(`${API_URL}/access/qr/validate`, () =>
+        HttpResponse.json(
+          { error: { code: 'UNAUTHORIZED', message: 'Token ausente, inválido ou expirado' } },
+          { status: 401 },
+        ),
+      ),
+    );
+    await readQr();
+
+    expect(await screen.findByRole('button', { name: 'Entrar' })).toBeOnTheScreen();
+    expect(screen).toHavePathname('/login');
+  });
+
+  it('um link para a validação sem um QR do sistema cai no leitor', async () => {
+    await renderApp();
+    await login(sampleVisitante);
+
+    await act(async () => router.push('/access/validate?payload=qualquer-coisa'));
+
+    expect(await screen.findByRole('header', { name: leitor })).toBeOnTheScreen();
   });
 
   it('"Voltar" fecha o leitor e retorna ao início', async () => {

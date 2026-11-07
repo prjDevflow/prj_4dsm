@@ -10,9 +10,10 @@ export const ScannerPage = () => {
     requestCameraAccessService: services.requestCameraAccess,
     vibrateService: services.vibrate,
     openSettingsService: services.openSettings,
-    // The validation (F11) receives the text here. `replace`: "back" must not return to a camera
-    // that already stopped reading.
-    onValidQr: () => router.replace('/em-breve/validacao'),
+    preparePositionService: services.preparePosition,
+    simulatePositionService: services.simulatePosition,
+    // `replace`: "back" must not return to a camera that already stopped reading.
+    onValidQr: (payload) => router.replace({ pathname: '/access/validate', params: { payload } }),
   });
 
   return (

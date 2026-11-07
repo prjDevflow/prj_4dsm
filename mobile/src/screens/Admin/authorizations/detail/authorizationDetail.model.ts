@@ -5,6 +5,7 @@ import { useForm } from 'react-hook-form';
 import { useToast } from '@/components/ui';
 import { loadErrorMessage } from '@/lib/apiMessages';
 import { formatDateTime, formatIsoDate } from '@/lib/dateValue';
+import { entriesLeft } from '@/lib/entriesLeft';
 import { perfilLabel } from '@/lib/perfil';
 import type { Autorizacao } from '@/lib/types/authorizations';
 import type { Page } from '@/lib/types/page';
@@ -27,13 +28,6 @@ type AuthorizationDetailModelProps = {
   cancelAuthorizationService: ICancelAuthorizationService;
 };
 
-const remainingText = (usosRestantes: number) =>
-  usosRestantes === 0
-    ? 'Nenhuma entrada restante.'
-    : usosRestantes === 1
-      ? 'Resta 1 entrada.'
-      : `Restam ${usosRestantes} entradas.`;
-
 /** The texts of T25, from the authorization as the API answers it. */
 const toDetails = (authorization: Autorizacao) => {
   const { usuario, local, dataInicio, dataFim, horaInicio, horaFim } = authorization;
@@ -50,7 +44,7 @@ const toDetails = (authorization: Autorizacao) => {
     usosRealizados,
     usosPermitidos,
     entradas: `${usosRealizados} de ${usosPermitidos} usadas`,
-    restantes: remainingText(usosRestantes),
+    restantes: `${entriesLeft(usosRestantes)}.`,
     criadaPor: `Criada por ${criadoPor.nome} em ${formatDateTime(criadoEm)}`,
     canceladaPor:
       canceladoPor && canceladoEm

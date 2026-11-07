@@ -1,22 +1,26 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
-import { AppState } from 'react-native';
+import { useEffect, useRef, useState } from 'react';
 import { isSystemQr } from '@/lib/qr';
 import type {
-  CameraAccess,
   IGetCameraAccessService,
   IOpenSettingsService,
+  IPreparePositionService,
   IRequestCameraAccessService,
+  ISimulatePositionService,
   IVibrateService,
+  SimulatedPosition,
 } from '@/service/IDeviceService';
+import { usePermission, type PermissionStatus } from '../usePermission';
 
 export type ScannerStatus = 'checking' | 'ask' | 'denied' | 'ready' | 'unavailable';
 
 const NOTICE_MS = 3_000;
 
-const accessStatus: Record<CameraAccess, ScannerStatus> = {
+const scannerStatus: Record<PermissionStatus, ScannerStatus> = {
+  checking: 'checking',
   granted: 'ready',
   undetermined: 'ask',
   denied: 'denied',
+  failed: 'unavailable',
 };
 
 type ScannerModelProps = {
@@ -24,6 +28,8 @@ type ScannerModelProps = {
   requestCameraAccessService: IRequestCameraAccessService;
   vibrateService: IVibrateService;
   openSettingsService: IOpenSettingsService;
+  preparePositionService: IPreparePositionService;
+  simulatePositionService: ISimulatePositionService;
   /** Called once, with the text of the first QR of the system. */
   onValidQr: (payload: string) => void;
 };
@@ -34,50 +40,39 @@ export const useScannerModel = ({
   requestCameraAccessService,
   vibrateService,
   openSettingsService,
+  preparePositionService,
+  simulatePositionService,
   onValidQr,
 }: ScannerModelProps) => {
-  const [status, setStatus] = useState<ScannerStatus>('checking');
+  const permission = usePermission({
+    getAccessService: getCameraAccessService,
+    requestAccessService: requestCameraAccessService,
+    openSettingsService,
+  });
   const [noticeVisible, setNoticeVisible] = useState(false);
   const [torchOn, setTorchOn] = useState(false);
+  const [positionReady, setPositionReady] = useState(false);
+  const [simulatedPosition, setSimulatedPosition] = useState(() =>
+    simulatePositionService.current(),
+  );
   const alreadyRead = useRef(false);
-  const wentToSettings = useRef(false);
   const noticeTimer = useRef<ReturnType<typeof setTimeout>>(undefined);
 
-  const askAccess = useCallback(async () => {
-    try {
-      setStatus(accessStatus[await requestCameraAccessService.exec()]);
-    } catch {
-      setStatus('unavailable');
-    }
-  }, [requestCameraAccessService]);
+  useEffect(() => () => clearTimeout(noticeTimer.current), []);
 
+  const cameraOpen = permission.status === 'granted';
+
+  // The QR lasts 15 s and the GPS can take 8 s, so the position starts before there is a QR.
   useEffect(() => {
-    const loadAccess = async () => {
-      try {
-        setStatus(accessStatus[await getCameraAccessService.exec()]);
-      } catch {
-        setStatus('unavailable');
-      }
-    };
-
-    void loadAccess();
-    // Expo Go keeps a "no" per project and ignores the settings until the app asks again, so the
-    // way back from the settings asks. Only that way: closing the system's question also fires this.
-    const subscription = AppState.addEventListener('change', (state) => {
-      if (state !== 'active') return;
-      if (wentToSettings.current) {
-        wentToSettings.current = false;
-        void askAccess();
-      } else {
-        void loadAccess();
-      }
+    if (!cameraOpen) return;
+    let active = true;
+    void preparePositionService.exec().then((ready) => {
+      if (active) setPositionReady(ready);
     });
-
     return () => {
-      subscription.remove();
-      clearTimeout(noticeTimer.current);
+      active = false;
     };
-  }, [getCameraAccessService, askAccess]);
+  }, [cameraOpen, simulatedPosition, preparePositionService]);
 
   const onRead = (text: string) => {
     if (alreadyRead.current) return;
@@ -97,16 +92,19 @@ export const useScannerModel = ({
   };
 
   return {
-    status,
+    status: scannerStatus[permission.status],
     noticeVisible,
     torchOn,
-    onAllow: askAccess,
-    onOpenSettings: async () => {
-      wentToSettings.current = true;
-      await openSettingsService.exec();
-    },
-    onCameraError: () => setStatus('unavailable'),
+    positionReady,
+    simulatedPosition,
+    onAllow: permission.ask,
+    onOpenSettings: permission.openSettings,
+    onCameraError: permission.markFailed,
     onToggleTorch: () => setTorchOn((on) => !on),
+    onSimulatePosition: (position: SimulatedPosition) => {
+      simulatePositionService.exec(position);
+      setSimulatedPosition(position);
+    },
     onRead,
   };
 };

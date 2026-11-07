@@ -1,11 +1,11 @@
 import { CameraView } from 'expo-camera';
-import { useState, type ReactNode } from 'react';
+import { useState } from 'react';
 import { Pressable, StyleSheet, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { Icon, type IconName } from '@/components/Icon';
-import { Cookie12 } from '@/components/shapes';
-import { Alert, Button, ScreenContainer, Text, TextField } from '@/components/ui';
+import { Icon } from '@/components/Icon';
+import { Alert, Button, SegmentedField, Text, TextField } from '@/components/ui';
 import { colors, radius, sizes } from '@/theme';
+import { MessageScreen } from '../MessageScreen';
 import type { useScannerModel } from './scanner.model';
 
 type ScannerViewProps = ReturnType<typeof useScannerModel> & {
@@ -16,31 +16,26 @@ type ScannerViewProps = ReturnType<typeof useScannerModel> & {
 
 const WRONG_QR = 'Este não é o QR Code da catraca.';
 
-type MessageScreenProps = {
-  icon: IconName;
-  title: string;
-  footer: ReactNode;
-  children?: ReactNode;
-};
+const simulatedPositions: { value: ScannerViewProps['simulatedPosition']; label: string }[] = [
+  { value: 'real', label: 'Real' },
+  { value: 'catraca', label: 'Na catraca' },
+  { value: 'longe', label: 'A 200 m' },
+];
 
-// T06: the same layout explains the question, the refusal and a phone without a camera.
-const MessageScreen = ({ icon, title, footer, children }: MessageScreenProps) => (
-  <ScreenContainer footer={footer} contentStyle={styles.message}>
-    <Cookie12 color={colors.primariaContainer} size={120}>
-      <Icon name={icon} size={56} color={colors.primariaContainerSobre} />
-    </Cookie12>
-    <Text variant="pessoaTitulo" accessibilityRole="header">
-      {title}
-    </Text>
-    {children}
-  </ScreenContainer>
-);
+type DevToolsProps = Pick<ScannerViewProps, 'onRead' | 'simulatedPosition' | 'onSimulatePosition'>;
 
-const DevPasteField = ({ onRead }: { onRead: (text: string) => void }) => {
+// In `__DEV__` only: to rehearse the M4 without a QR on a screen and without walking to the turnstile.
+const DevTools = ({ onRead, simulatedPosition, onSimulatePosition }: DevToolsProps) => {
   const [text, setText] = useState('');
 
   return (
     <View style={styles.devPaste}>
+      <SegmentedField
+        label="Simular posição"
+        options={simulatedPositions}
+        value={simulatedPosition}
+        onChange={onSimulatePosition}
+      />
       <TextField
         label="Texto do QR Code"
         value={text}
@@ -82,16 +77,28 @@ const ScannerFrame = () => (
 
 type ReaderProps = Pick<
   ScannerViewProps,
-  'noticeVisible' | 'torchOn' | 'onRead' | 'onCameraError' | 'onToggleTorch' | 'onBack' | 'devPaste'
+  | 'noticeVisible'
+  | 'torchOn'
+  | 'positionReady'
+  | 'simulatedPosition'
+  | 'onRead'
+  | 'onCameraError'
+  | 'onToggleTorch'
+  | 'onSimulatePosition'
+  | 'onBack'
+  | 'devPaste'
 >;
 
 // T07 Leitor (Figma "Passe"), everything floating over the camera.
 const Reader = ({
   noticeVisible,
   torchOn,
+  positionReady,
+  simulatedPosition,
   onRead,
   onCameraError,
   onToggleTorch,
+  onSimulatePosition,
   onBack,
   devPaste,
 }: ReaderProps) => (
@@ -121,9 +128,23 @@ const Reader = ({
             O QR Code muda a cada 10 segundos. Se der erro, leia o novo.
           </Text>
         )}
+        {positionReady ? (
+          <View style={styles.positionReady}>
+            <Icon name="location_on" size={18} color={colors.sucessoContainerSobre} />
+            <Text variant="pessoaApoio" color="sucessoContainerSobre">
+              Localização pronta
+            </Text>
+          </View>
+        ) : null}
       </View>
 
-      {devPaste ? <DevPasteField onRead={onRead} /> : null}
+      {devPaste ? (
+        <DevTools
+          onRead={onRead}
+          simulatedPosition={simulatedPosition}
+          onSimulatePosition={onSimulatePosition}
+        />
+      ) : null}
 
       <View style={styles.actions}>
         <Pressable
@@ -151,10 +172,13 @@ export const ScannerView = ({
   status,
   noticeVisible,
   torchOn,
+  positionReady,
+  simulatedPosition,
   onAllow,
   onOpenSettings,
   onCameraError,
   onToggleTorch,
+  onSimulatePosition,
   onRead,
   onBack,
   devPaste,
@@ -199,7 +223,13 @@ export const ScannerView = ({
         footer={<Button variant="texto" label="Voltar" onPress={onBack} />}
       >
         {noticeVisible ? <Alert tone="aviso" message={WRONG_QR} /> : null}
-        {devPaste ? <DevPasteField onRead={onRead} /> : null}
+        {devPaste ? (
+          <DevTools
+            onRead={onRead}
+            simulatedPosition={simulatedPosition}
+            onSimulatePosition={onSimulatePosition}
+          />
+        ) : null}
       </MessageScreen>
     );
   }
@@ -208,9 +238,12 @@ export const ScannerView = ({
     <Reader
       noticeVisible={noticeVisible}
       torchOn={torchOn}
+      positionReady={positionReady}
+      simulatedPosition={simulatedPosition}
       onRead={onRead}
       onCameraError={onCameraError}
       onToggleTorch={onToggleTorch}
+      onSimulatePosition={onSimulatePosition}
       onBack={onBack}
       devPaste={devPaste}
     />
@@ -222,7 +255,6 @@ const CORNER_SIZE = 56;
 
 const styles = StyleSheet.create({
   fill: { flex: 1 },
-  message: { gap: 24, paddingTop: 48 },
   reader: { flex: 1, backgroundColor: colors.fundoLeitor },
   overlay: { flex: 1, gap: 16, paddingHorizontal: 16, paddingVertical: 8 },
   instruction: {
@@ -249,6 +281,15 @@ const styles = StyleSheet.create({
     borderRadius: radius.alerta,
     overflow: 'hidden',
     backgroundColor: colors.fundoLeitor,
+  },
+  positionReady: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: radius.pilula,
+    backgroundColor: colors.sucessoContainer,
   },
   devPaste: {
     gap: 8,

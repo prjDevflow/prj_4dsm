@@ -1,4 +1,5 @@
 import { createServices } from './container';
+import { FakeValidateQrService } from './fakes/FakeAccessServices';
 import {
   FakeCancelAuthorizationService,
   FakeCreateAuthorizationService,
@@ -17,17 +18,34 @@ import { FakeGetHealthService } from './fakes/FakeGetHealthService';
 import { FakeGetMeService } from './fakes/FakeGetMeService';
 import { FakeLoginUserService } from './fakes/FakeLoginUserService';
 import {
+  FakeGetLocationAccessService,
+  FakeGetPositionService,
+  FakePreparePositionService,
+  FakeRequestLocationAccessService,
+  FakeResultFeedbackService,
+  FakeSimulatePositionService,
+} from './fakes/FakePositionServices';
+import {
   FakeCreateUserService,
   FakeGetUserService,
   FakeListUsersService,
   FakeUpdateUserService,
 } from './fakes/FakeUserServices';
+import { ValidateQrService } from './implementations/AccessServices';
 import { CreateUserService } from './implementations/CreateUserService';
 import { GetHealthService } from './implementations/GetHealthService';
 import { GetMeService } from './implementations/GetMeService';
 import { GetUserService } from './implementations/GetUserService';
 import { ListUsersService } from './implementations/ListUsersService';
 import { LoginUserService } from './implementations/LoginUserService';
+import {
+  GetLocationAccessService,
+  GetPositionService,
+  PreparePositionService,
+  RequestLocationAccessService,
+  ResultFeedbackService,
+  SimulatePositionService,
+} from './implementations/PositionServices';
 import { UpdateUserService } from './implementations/UpdateUserService';
 import {
   FakeClipboardService,
@@ -115,6 +133,32 @@ describe('createServices', () => {
     expect(fake.requestCameraAccess).toBeInstanceOf(FakeRequestCameraAccessService);
     expect(fake.vibrate).toBeInstanceOf(FakeVibrateService);
     expect(fake.openSettings).toBeInstanceOf(FakeOpenSettingsService);
+  });
+
+  it('a posição da validação é real por padrão e falsa com "position" na lista', () => {
+    const real = createServices([]);
+    const fake = createServices(['position']);
+
+    expect(real.getLocationAccess).toBeInstanceOf(GetLocationAccessService);
+    expect(real.requestLocationAccess).toBeInstanceOf(RequestLocationAccessService);
+    expect(real.preparePosition).toBeInstanceOf(PreparePositionService);
+    expect(real.getPosition).toBeInstanceOf(GetPositionService);
+    expect(real.simulatePosition).toBeInstanceOf(SimulatePositionService);
+    expect(fake.getLocationAccess).toBeInstanceOf(FakeGetLocationAccessService);
+    expect(fake.requestLocationAccess).toBeInstanceOf(FakeRequestLocationAccessService);
+    expect(fake.preparePosition).toBeInstanceOf(FakePreparePositionService);
+    expect(fake.getPosition).toBeInstanceOf(FakeGetPositionService);
+    expect(fake.simulatePosition).toBeInstanceOf(FakeSimulatePositionService);
+  });
+
+  it('a validação do QR é real por padrão e falsa com "validateQr" na lista', () => {
+    expect(createServices([]).validateQr).toBeInstanceOf(ValidateQrService);
+    expect(createServices(['validateQr']).validateQr).toBeInstanceOf(FakeValidateQrService);
+  });
+
+  it('a vibração do resultado acompanha a do leitor, em "camera"', () => {
+    expect(createServices([]).resultFeedback).toBeInstanceOf(ResultFeedbackService);
+    expect(createServices(['camera']).resultFeedback).toBeInstanceOf(FakeResultFeedbackService);
   });
 
   it('autorizações são reais por padrão e falsas com "authorizations" na lista', () => {

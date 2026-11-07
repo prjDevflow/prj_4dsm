@@ -1,23 +1,34 @@
 import { act, renderHook, waitFor } from '@testing-library/react-native';
 import { AppState, type AppStateStatus } from 'react-native';
-import type { CameraAccess } from '@/service/IDeviceService';
+import type { PermissionAccess } from '@/service/IDeviceService';
 import {
   FakeGetCameraAccessService,
   FakeOpenSettingsService,
   FakeRequestCameraAccessService,
   FakeVibrateService,
 } from '@/service/fakes/FakeDeviceServices';
+import {
+  FakePreparePositionService,
+  FakeSimulatePositionService,
+} from '@/service/fakes/FakePositionServices';
 import { useScannerModel } from './scanner.model';
 
 const VALID_QR = 'ACS1:q3F8k2Zr1pLw9XbTn0YhVA';
 const OTHER_QR = 'https://exemplo.com.br';
 
-const setup = async (access: CameraAccess = 'granted', answer: CameraAccess = 'granted') => {
+const setup = async (
+  access: PermissionAccess = 'granted',
+  answer: PermissionAccess = 'granted',
+  preparePositionService = new FakePreparePositionService(),
+  simulatePositionService = new FakeSimulatePositionService(),
+) => {
   const services = {
     getCameraAccessService: new FakeGetCameraAccessService(access),
     requestCameraAccessService: new FakeRequestCameraAccessService(answer),
     vibrateService: new FakeVibrateService(),
     openSettingsService: new FakeOpenSettingsService(),
+    preparePositionService,
+    simulatePositionService,
   };
   const onValidQr = jest.fn();
   const hook = await renderHook(() => useScannerModel({ ...services, onValidQr }));
@@ -159,6 +170,60 @@ describe('useScannerModel: permissão', () => {
     await act(async () => result.current.onCameraError());
 
     expect(result.current.status).toBe('unavailable');
+  });
+});
+
+describe('useScannerModel: posição pronta antes do QR', () => {
+  it('com a câmera aberta, já começa a pegar a posição', async () => {
+    const { result, preparePositionService } = await setup('granted');
+
+    await waitFor(() => expect(result.current.positionReady).toBe(true));
+    expect(preparePositionService.calls).toBe(1);
+  });
+
+  it('sem a câmera, não liga o GPS', async () => {
+    const { result, preparePositionService } = await setup('denied');
+
+    await act(async () => {});
+    expect(preparePositionService.calls).toBe(0);
+    expect(result.current.positionReady).toBe(false);
+  });
+
+  it('se a posição não vier, o leitor segue normalmente', async () => {
+    const preparePositionService = new FakePreparePositionService(false);
+    const { result } = await setup('granted', 'granted', preparePositionService);
+
+    await waitFor(() => expect(preparePositionService.calls).toBe(1));
+    expect(result.current.positionReady).toBe(false);
+    expect(result.current.status).toBe('ready');
+  });
+
+  it('a permissão concedida na hora também prepara a posição', async () => {
+    const { result, preparePositionService } = await setup('undetermined', 'granted');
+
+    await act(() => result.current.onAllow());
+
+    await waitFor(() => expect(preparePositionService.calls).toBe(1));
+  });
+
+  it('começa com a posição simulada que já estava escolhida', async () => {
+    const simulatePositionService = new FakeSimulatePositionService();
+    simulatePositionService.exec('longe');
+
+    const { result } = await setup('granted', 'granted', undefined, simulatePositionService);
+
+    expect(result.current.simulatedPosition).toBe('longe');
+  });
+
+  it('trocar a posição simulada prepara de novo', async () => {
+    const { result, preparePositionService, simulatePositionService } = await setup();
+    await waitFor(() => expect(preparePositionService.calls).toBe(1));
+
+    await act(async () => result.current.onSimulatePosition('catraca'));
+
+    expect(simulatePositionService.current()).toBe('catraca');
+    expect(result.current.simulatedPosition).toBe('catraca');
+    await waitFor(() => expect(preparePositionService.calls).toBe(2));
   });
 });
 

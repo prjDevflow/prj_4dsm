@@ -48,12 +48,13 @@ São as senhas públicas do `backend/.env.example`, só para desenvolvimento. A 
 reabrir o app, a abertura (T01) confere o token com `GET /auth/me` e leva direto ao início. Os blocos
 "Usuários" (F05), "Locais e terminais" (F06) e "Autorizações" (F07 e F08) do administrador abrem as
 telas de cadastro e consulta. Na pessoa, "Minhas autorizações" (F09) mostra as autorizações dela, e o
-início conta as ativas. "Abrir catraca" abre o leitor de QR Code (F10), e um QR válido segue para a
-tela "Em breve" da validação até a F11. Os outros blocos e atalhos abrem telas "Em breve" até as
-etapas seguintes.
+início conta as ativas. "Abrir catraca" abre o leitor de QR Code (F10). Um QR válido vai para a
+validação (F11), que confere a localização, chama a API e mostra o resultado. Os outros blocos e
+atalhos abrem telas "Em breve" até as etapas seguintes.
 
 Em desenvolvimento, o leitor mostra o campo "Texto do QR Code", para colar um `ACS1:...` sem usar a
-câmera. No Android, o Expo Go guarda por projeto quem negou a câmera: depois de liberar nas
+câmera, e "Simular posição": "Na catraca" usa a posição do seed e "A 200 m" ensaia o
+`DISTANTE_DO_TERMINAL`. Longe da catraca, sem simular, a API nega por distância. No Android, o Expo Go guarda por projeto quem negou a câmera: depois de liberar nas
 configurações, ele pergunta de novo ao voltar para o app.
 
 A chave de um terminal novo (ou gerada de novo) aparece uma vez só, na tela "Chave do terminal". Ela não
@@ -103,7 +104,8 @@ Eles guardam tudo em memória com as regras da API (pessoa e local ativos, datas
 usos e cancelamento idempotente), usando as mesmas pessoas e locais dos falsos `users` e `locations`, e
 já vêm com exemplos das quatro situações, inclusive para `visitante@dev.local`.
 
-`camera` troca o que o leitor pede ao aparelho: a permissão da câmera, a vibração e as configurações.
+`camera` troca o que o leitor pede ao aparelho: a permissão da câmera, as vibrações e as configurações.
+`position` troca a localização da validação, e `validateQr`, a própria validação.
 
 ## Tema e componentes
 

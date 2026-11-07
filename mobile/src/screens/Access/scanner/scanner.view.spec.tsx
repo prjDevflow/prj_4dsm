@@ -1,11 +1,15 @@
 import { fireEvent, render, screen } from '@testing-library/react-native';
-import type { CameraAccess } from '@/service/IDeviceService';
+import type { PermissionAccess } from '@/service/IDeviceService';
 import {
   FakeGetCameraAccessService,
   FakeOpenSettingsService,
   FakeRequestCameraAccessService,
   FakeVibrateService,
 } from '@/service/fakes/FakeDeviceServices';
+import {
+  FakePreparePositionService,
+  FakeSimulatePositionService,
+} from '@/service/fakes/FakePositionServices';
 import { useScannerModel } from './scanner.model';
 import { ScannerView } from './scanner.view';
 
@@ -13,15 +17,18 @@ const VALID_QR = 'ACS1:q3F8k2Zr1pLw9XbTn0YhVA';
 
 // The view with its real model and fake services: what the page renders, without the router.
 const renderScreen = async ({
-  access = 'granted' as CameraAccess,
-  answer = 'granted' as CameraAccess,
+  access = 'granted' as PermissionAccess,
+  answer = 'granted' as PermissionAccess,
   devPaste = false,
+  positionReady = true,
 } = {}) => {
   const services = {
     getCameraAccessService: new FakeGetCameraAccessService(access),
     requestCameraAccessService: new FakeRequestCameraAccessService(answer),
     vibrateService: new FakeVibrateService(),
     openSettingsService: new FakeOpenSettingsService(),
+    preparePositionService: new FakePreparePositionService(positionReady),
+    simulatePositionService: new FakeSimulatePositionService(),
   };
   const onValidQr = jest.fn();
   const onBack = jest.fn();
@@ -132,6 +139,35 @@ describe('Leitor (T07)', () => {
     expect(screen.getByRole('button', { name: 'Voltar' })).toBeOnTheScreen();
     expect(screen.getByRole('button', { name: 'Ligar lanterna' })).toBeOnTheScreen();
     expect(screen.getByTestId('scanner-frame')).toBeOnTheScreen();
+  });
+
+  it('avisa que a localização está pronta', async () => {
+    await renderScreen();
+
+    expect(await screen.findByText('Localização pronta')).toBeOnTheScreen();
+  });
+
+  it('sem a posição, não promete nada', async () => {
+    await renderScreen({ positionReady: false });
+
+    await screen.findByRole('header', { name: instruction });
+    expect(screen.queryByText('Localização pronta')).toBeNull();
+  });
+
+  it('em desenvolvimento, dá para simular onde o celular está', async () => {
+    const { simulatePositionService } = await renderScreen({ devPaste: true });
+
+    await fireEvent.press(await screen.findByRole('radio', { name: 'A 200 m' }));
+
+    expect(simulatePositionService.current()).toBe('longe');
+    expect(screen.getByRole('radio', { name: 'A 200 m' })).toBeChecked();
+  });
+
+  it('fora do desenvolvimento, não dá para simular a posição', async () => {
+    await renderScreen();
+
+    await screen.findByRole('header', { name: instruction });
+    expect(screen.queryByRole('radio')).toBeNull();
   });
 
   it('a câmera só procura QR Code', async () => {

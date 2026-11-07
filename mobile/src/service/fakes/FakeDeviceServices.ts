@@ -1,5 +1,5 @@
 import type {
-  CameraAccess,
+  PermissionAccess,
   Coordinates,
   IClipboardService,
   ICurrentPositionService,
@@ -41,9 +41,9 @@ export class FakeClipboardService implements IClipboardService {
 export class FakeGetCameraAccessService implements IGetCameraAccessService {
   calls = 0;
 
-  constructor(public access: CameraAccess = 'granted') {}
+  constructor(public access: PermissionAccess = 'granted') {}
 
-  async exec(): Promise<CameraAccess> {
+  async exec(): Promise<PermissionAccess> {
     this.calls += 1;
     return this.access;
   }
@@ -53,9 +53,9 @@ export class FakeGetCameraAccessService implements IGetCameraAccessService {
 export class FakeRequestCameraAccessService implements IRequestCameraAccessService {
   calls = 0;
 
-  constructor(public answer: CameraAccess = 'granted') {}
+  constructor(public answer: PermissionAccess = 'granted') {}
 
-  async exec(): Promise<CameraAccess> {
+  async exec(): Promise<PermissionAccess> {
     this.calls += 1;
     return this.answer;
   }
