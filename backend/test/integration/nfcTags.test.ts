@@ -61,15 +61,29 @@ describe('POST /api/v1/nfc-tags', () => {
     });
   });
 
-  it('grava o mesmo UID para 04:a1:b2:c3, 04-A1-B2-C3 e 04a1b2c3', async () => {
+  const WRITTEN_AS = ['04:a1:b2:c3', '04-A1-B2-C3', '04 a1 b2 c3', '04a1b2c3'];
+
+  it.each(WRITTEN_AS)('grava %s como 04A1B2C3', async (uid) => {
     const admin = await asAdmin();
     const user = await insertUser();
 
-    for (const [i, uid] of ['04:a1:b2:c3', '04-A1-B2-C3', '04 a1 b2 c3'].entries()) {
-      const res = await post(admin, { usuarioId: user.id, uid });
-      expect(res.status, uid).toBe(i === 0 ? 201 : 409);
-    }
+    const res = await post(admin, { usuarioId: user.id, uid });
+
+    expect(res.status).toBe(201);
+    expect(res.body.uid).toBe('04A1B2C3');
     expect((await prisma.nfcTag.findMany()).map((t) => t.uid)).toEqual(['04A1B2C3']);
+  });
+
+  it.each(WRITTEN_AS)('trata %s como a tag 04A1B2C3 que já existe (409)', async (uid) => {
+    const admin = await asAdmin();
+    const user = await insertUser();
+    await insertNfcTag({ usuarioId: user.id, uid: '04A1B2C3' });
+
+    const res = await post(admin, { usuarioId: user.id, uid });
+
+    expect(res.status).toBe(409);
+    expect(res.body.error.code).toBe('TAG_JA_CADASTRADA');
+    expect(await prisma.nfcTag.count()).toBe(1);
   });
 
   it('descricao ausente ou em branco vira null, e o texto é aparado', async () => {
