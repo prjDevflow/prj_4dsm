@@ -31,7 +31,7 @@ Legenda: 📄 exigência do documento oficial do desafio · 💡 decisão ou sug
 
 **Critérios de aceitação**
 
-- [ ] Com permissão, a câmera abre em até 2 s e lê o QR mostrado na tela do computador (e, depois, no terminal). (no emulador, com um QR como imagem da câmera, abriu e leu em menos de 2 s; falta medir em celular real)
+- [ ] Com permissão, a câmera abre em até 2 s e lê o QR mostrado na tela do computador (e, depois, no terminal). (no emulador, com um QR como imagem da câmera, abriu e leu em menos de 2 s; no iPhone, leu o QR na tela do computador; falta medir os 2 s em celular real)
 - [x] QR de outro tipo não abre a validação; mostra o aviso e continua lendo. (leitura real no emulador, com um QR de link)
 - [x] Negar a permissão mostra a explicação e o caminho para as configurações, sem travar o app. (emulador; no Expo Go, a volta das configurações pergunta de novo)
 - [x] O mesmo QR não dispara duas validações.
