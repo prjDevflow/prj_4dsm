@@ -6,7 +6,18 @@ import { useTheme, type ColorName, type Scale } from '@/theme';
 import { Text } from './Text';
 
 export type ButtonVariant =
-  'principal' | 'tonal' | 'contorno' | 'texto' | 'perigo' | 'perigoContorno' | 'catraca';
+  | 'principal'
+  | 'tonal'
+  | 'contorno'
+  | 'texto'
+  | 'perigo'
+  | 'perigoContorno'
+  | 'catraca'
+  | 'resultadoAutorizado'
+  | 'resultadoNegado'
+  | 'resultadoNegadoContorno'
+  | 'resultadoTente'
+  | 'resultadoTenteContorno';
 
 // tokens.md, "Cores de cada tipo de botão"
 const palette: Record<
@@ -20,6 +31,12 @@ const palette: Record<
   perigo: { background: 'erro', text: 'erroSobre' },
   perigoContorno: { text: 'erro', border: 'erro' },
   catraca: { background: 'acao', text: 'acaoSobre' },
+  // Over the full colors of T10 and T11.
+  resultadoAutorizado: { background: 'branco', text: 'resultadoAutorizado' },
+  resultadoNegado: { background: 'branco', text: 'resultadoNegado' },
+  resultadoNegadoContorno: { text: 'branco', border: 'branco' },
+  resultadoTente: { background: 'acaoSobre', text: 'resultadoTente' },
+  resultadoTenteContorno: { text: 'acaoSobre', border: 'acaoSobre' },
 };
 
 export type ButtonProps = {

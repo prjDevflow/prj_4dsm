@@ -1,5 +1,7 @@
+import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import { fireEvent, render, screen, waitFor, within } from '@testing-library/react-native';
 import { AccessibilityInfo, Animated } from 'react-native';
+import { toMaterialIconName, type IconName } from '@/components/Icon';
 import { denialReasons, type DenialReason } from '@/lib/denialReasons';
 import { colors } from '@/theme';
 import type { AccessResult, ValidateStage } from './validateAccess.model';
@@ -30,6 +32,12 @@ const renderScreen = async ({
   await render(<ValidateAccessView stage={stage} located={located} result={result} {...actions} />);
   return actions;
 };
+
+// The icon is decorative for the screen reader: the title and the text say the same.
+const resultIcon = () => screen.getByTestId('result-icon', { includeHiddenElements: true });
+
+const glyphOf = (name: IconName) =>
+  String.fromCodePoint(Number(MaterialIcons.glyphMap[toMaterialIconName(name)]));
 
 const location = 'Precisamos da sua localização para confirmar que você está perto da catraca.';
 
@@ -119,7 +127,7 @@ describe('Acesso autorizado (T10)', () => {
   it('o ícone acompanha a cor', async () => {
     await renderScreen({ result: granted });
 
-    expect(screen.getByTestId('result-icon')).toHaveProp('name', 'check');
+    expect(resultIcon()).toHaveTextContent(glyphOf('check'));
   });
 
   it('"Concluir" volta ao início', async () => {
@@ -164,7 +172,7 @@ describe('Acesso negado (T11)', () => {
     const alert = screen.getByRole('alert');
     expect(within(alert).getByText('Acesso negado')).toBeOnTheScreen();
     expect(within(alert).getByText(message)).toBeOnTheScreen();
-    expect(screen.getByTestId('result-icon')).toHaveProp('name', icon.replace(/_/g, '-'));
+    expect(resultIcon()).toHaveTextContent(glyphOf(icon));
     expect(screen.getByRole('button', { name: primaryButton[code] })).toBeOnTheScreen();
     expect(screen.getByRole('button', { name: 'Voltar ao início' })).toBeOnTheScreen();
   });
