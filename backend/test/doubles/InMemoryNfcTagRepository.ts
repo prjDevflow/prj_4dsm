@@ -13,6 +13,14 @@ export class InMemoryNfcTagRepository implements INfcTagRepository {
     this.items.set(tag.id, { ...tag });
   }
 
+  async updateStatus(id: string, ativa: boolean) {
+    const tag = this.items.get(id);
+    if (!tag) return null;
+    const updated = { ...tag, ativa };
+    this.items.set(id, updated);
+    return { ...updated };
+  }
+
   /** Everything stored, in insertion order (for assertions). */
   all() {
     return [...this.items.values()].map((tag) => ({ ...tag }));

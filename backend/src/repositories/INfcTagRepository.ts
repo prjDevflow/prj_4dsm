@@ -6,4 +6,8 @@ export interface INfcTagRepository {
    * decides, so two simultaneous requests with the same UID cannot both win.
    */
   save(tag: NfcTag): Promise<void>;
+  /**
+   * Turns a tag on or off and writes nothing else. The tag after the change, or null when it does not exist.
+   */
+  updateStatus(id: string, ativa: boolean): Promise<NfcTag | null>;
 }
