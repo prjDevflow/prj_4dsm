@@ -95,11 +95,11 @@ Outros: 401 (sessão), 422 `VALIDATION_ERROR` (payload fora do formato; não dev
 
 **Critérios de aceitação**
 
-- [x] Do QR lido ao resultado em menos de 3 s no caminho feliz, com a posição já obtida. (emulador, com a API real: de 1,1 a 1,4 s do toque à tela, com a posição pronta; falta medir em celular real)
+- [ ] Do QR lido ao resultado em menos de 3 s no caminho feliz, com a posição já obtida. (emulador, com a API real: de 1,1 a 1,4 s do toque à tela, com a posição pronta; falta medir em celular real)
 - [x] Cada um dos 10 motivos mostra o texto, o tom, o ícone e os botões certos, sem código técnico. (os 10 conferidos no emulador contra a API real)
 - [x] O resultado nunca depende só da cor: ícone, título e texto sempre presentes.
 - [x] Localização negada leva à explicação e às configurações, sem travar. (emulador, inclusive a primeira instalação e a volta das configurações)
-- [x] Com o terminal (ou o simulador) e o backend reais, o app e a catraca mostram a mesma decisão. (terminal simulado por HTTP: `GET /terminal/commands` trouxe `ABRIR` ou `NEGAR` com o mesmo motivo do app; falta o terminal físico)
+- [x] Com o terminal (ou o simulador) e o backend reais, o app e a catraca mostram a mesma decisão. (terminal simulado por HTTP: `GET /terminal/commands` trouxe `ABRIR` ou `NEGAR` com o mesmo motivo do app, no emulador e no iPhone, com a câmera lendo o QR que muda; falta o terminal físico)
 
 **Definição de pronto**
 
