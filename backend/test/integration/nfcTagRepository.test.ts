@@ -156,6 +156,15 @@ describe('PrismaNfcTagRepository.list', () => {
     expect(both.total).toBe(1);
   });
 
+  it('deve limitar a página ao pageSize', async () => {
+    await seed();
+
+    const first = await tags.list({ page: 1, pageSize: 2 });
+
+    expect(uids(first)).toEqual(['01000004', '01000003']);
+    expect(first.total).toBe(4);
+  });
+
   it('deve paginar e manter o total de antes da página', async () => {
     await seed();
 

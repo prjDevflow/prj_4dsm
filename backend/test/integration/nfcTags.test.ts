@@ -273,6 +273,16 @@ describe('GET /api/v1/nfc-tags', () => {
     expect(res.body.total).toBe(0);
   });
 
+  it('limita a primeira página ao pageSize e mantém o total', async () => {
+    const admin = await asAdmin();
+    await seed();
+
+    const res = await list(admin, '?pageSize=2');
+
+    expect(uids(res)).toEqual(['01000004', '01000003']);
+    expect(res.body).toMatchObject({ page: 1, pageSize: 2, total: 4 });
+  });
+
   it('pagina com page e pageSize e mantém o total', async () => {
     const admin = await asAdmin();
     await seed();
