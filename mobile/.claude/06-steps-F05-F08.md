@@ -128,7 +128,7 @@ Não há campo "situação": toda autorização nasce ativa. Sem pessoas ou loca
 **Critérios de aceitação**
 
 - [x] Não dá para escolher data final antes da inicial nem horário final igual ou antes do inicial.
-- [ ] Depois de criar, a autorização aparece na lista com "Ativa" e o visitante a vê na T04. (na lista, conferido em 03/11 com a F08 contra a API real: aparece no topo com "Ativa"; falta a T04, que é a F09)
+- [x] Depois de criar, a autorização aparece na lista com "Ativa" e o visitante a vê na T04. (na lista, conferido em 03/11 com a F08; na T04, com a F09)
 
 **Definição de pronto**
 
@@ -164,7 +164,7 @@ Depois de cancelar: aviso curto e o selo muda para "Cancelada" na lista e no det
 **Critérios de aceitação**
 
 - [x] A confirmação sempre aparece antes de cancelar.
-- [ ] Depois do cancelamento, a próxima leitura do QR com essa autorização é negada com "Sua autorização foi cancelada. Procure a administração." (cenário 3 do M4). (depende da B15, que ainda não existe, e da F11; em 03/11 a API já devolve a autorização como CANCELADA)
+- [x] Depois do cancelamento, a próxima leitura do QR com essa autorização é negada com "Sua autorização foi cancelada. Procure a administração." (cenário 3 do M4). (conferido em 07/11 no emulador, com a API real da `develop`)
 
 **Definição de pronto**
 
