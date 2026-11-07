@@ -6,8 +6,8 @@ import type { IListNfcTagsDTO } from './ListNfcTags_DTO';
 export class ListNfcTagsUseCase {
   constructor(private tags: INfcTagRepository) {}
 
-  async execute(_input: IListNfcTagsDTO): Promise<Page<NfcTag>> {
-    void this.tags;
-    throw new Error('ListNfcTags ainda não implementado');
+  async execute(input: IListNfcTagsDTO): Promise<Page<NfcTag>> {
+    const { items, total } = await this.tags.list(input);
+    return { data: items, page: input.page, pageSize: input.pageSize, total };
   }
 }
