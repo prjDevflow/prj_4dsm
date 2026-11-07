@@ -24,13 +24,10 @@ export const usePermission = ({
   const [status, setStatus] = useState<PermissionStatus>('checking');
   const wentToSettings = useRef(false);
 
-  const update = useCallback(async (reader: AccessReader) => {
-    try {
-      setStatus(await reader.exec());
-    } catch {
-      setStatus('failed');
-    }
-  }, []);
+  const update = useCallback(
+    (reader: AccessReader) => reader.exec().then(setStatus, () => setStatus('failed')),
+    [],
+  );
 
   useEffect(() => {
     void update(getAccessService);

@@ -12,7 +12,10 @@ import { useScannerModel } from './scanner.model';
 const VALID_QR = 'ACS1:q3F8k2Zr1pLw9XbTn0YhVA';
 const OTHER_QR = 'https://exemplo.com.br';
 
-const setup = async (access: PermissionAccess = 'granted', answer: PermissionAccess = 'granted') => {
+const setup = async (
+  access: PermissionAccess = 'granted',
+  answer: PermissionAccess = 'granted',
+) => {
   const services = {
     getCameraAccessService: new FakeGetCameraAccessService(access),
     requestCameraAccessService: new FakeRequestCameraAccessService(answer),
