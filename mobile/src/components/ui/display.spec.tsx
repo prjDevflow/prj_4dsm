@@ -41,6 +41,26 @@ describe('FilterChip', () => {
 });
 
 describe('StatusBadge', () => {
+  it.each<[BadgeStatus, string]>([
+    ['ATIVA', 'Ativa'],
+    ['CANCELADA', 'Cancelada'],
+    ['EXPIRADA', 'Expirada'],
+    ['ESGOTADA', 'Esgotada'],
+  ])('com withIcon, %s mostra ícone, texto e cor', async (status, label) => {
+    await render(<StatusBadge status={status} withIcon />);
+
+    expect(screen.getByText(label)).toBeOnTheScreen();
+    expect(
+      screen.getByTestId('status-pill-icon', { includeHiddenElements: true }),
+    ).toBeOnTheScreen();
+  });
+
+  it('sem withIcon, o selo continua só com texto e cor', async () => {
+    await render(<StatusBadge status="ATIVA" />);
+
+    expect(screen.queryByTestId('status-pill-icon', { includeHiddenElements: true })).toBeNull();
+  });
+
   it.each<[BadgeStatus, string, string, string]>([
     ['ATIVA', 'Ativa', colors.sucessoContainer, colors.sucessoContainerSobre],
     ['CANCELADA', 'Cancelada', colors.erroContainer, colors.erroContainerSobre],
@@ -134,6 +154,41 @@ describe('ListItem', () => {
     expect(onPress).toHaveBeenCalledTimes(1);
   });
 
+  it('aceita mais de um selo (perfil e "Inativo") e lê todos', async () => {
+    await render(
+      <ListItem
+        title="Ana Lima"
+        subtitle="ana.lima@email.com"
+        badge={[{ tone: 'neutro', label: 'Condômino' }, { status: 'INATIVO' }]}
+        onPress={jest.fn()}
+      />,
+    );
+
+    expect(
+      screen.getByRole('button', { name: 'Ana Lima, ana.lima@email.com, Condômino, Inativo' }),
+    ).toBeOnTheScreen();
+    expect(screen.getAllByTestId('status-badge')).toHaveLength(2);
+  });
+
+  it('mostra linhas de detalhe depois do subtítulo e lê todas', async () => {
+    await render(
+      <ListItem
+        title="Maria Souza"
+        subtitle="Catraca Social, Edifício Central"
+        details={['20/10 a 25/10 · 08:00 às 18:00', 'Entradas: 1 de 3']}
+        badge={{ status: 'ATIVA' }}
+        onPress={jest.fn()}
+      />,
+    );
+
+    expect(screen.getByText('Entradas: 1 de 3')).toBeOnTheScreen();
+    expect(
+      screen.getByRole('button', {
+        name: 'Maria Souza, Catraca Social, Edifício Central, 20/10 a 25/10 · 08:00 às 18:00, Entradas: 1 de 3, Ativa',
+      }),
+    ).toBeOnTheScreen();
+  });
+
   it('sem onPress não é botão', async () => {
     await render(<ListItem title="Catraca Social" subtitle="QR Code" />);
 
@@ -143,6 +198,20 @@ describe('ListItem', () => {
 });
 
 describe('NavRow', () => {
+  it('o contador aparece como número e é lido por extenso', async () => {
+    await render(
+      <NavRow
+        icon="confirmation_number"
+        label="Minhas autorizações"
+        count={{ value: 2, label: '2 ativas' }}
+        onPress={jest.fn()}
+      />,
+    );
+
+    expect(screen.getByText('2')).toBeOnTheScreen();
+    expect(screen.getByRole('button', { name: 'Minhas autorizações, 2 ativas' })).toBeOnTheScreen();
+  });
+
   it('é um botão com o texto e o detalhe, na superfície alta, raio 20 e 64 de altura', async () => {
     const onPress = jest.fn();
     await render(
@@ -163,6 +232,23 @@ describe('NavRow', () => {
       minHeight: 64,
     });
     expect(onPress).toHaveBeenCalledTimes(1);
+  });
+
+  it('aceita um selo antes da seta, lido junto ("1 offline")', async () => {
+    await render(
+      <NavRow
+        icon="tablet_android"
+        label="Terminais"
+        detail="4 terminais, 1 offline"
+        badge={{ tone: 'aviso', label: '1 offline' }}
+        onPress={jest.fn()}
+      />,
+    );
+
+    expect(
+      screen.getByRole('button', { name: 'Terminais, 4 terminais, 1 offline, 1 offline' }),
+    ).toBeOnTheScreen();
+    expect(screen.getByTestId('status-badge')).toHaveStyle({ backgroundColor: colors.aviso });
   });
 });
 

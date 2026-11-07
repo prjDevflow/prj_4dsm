@@ -24,18 +24,18 @@ Legenda: 📄 exigência do documento oficial do desafio · 💡 decisão ou sug
 
 **Lista de testes**
 
-- [ ] U `isSystemQr`: aceita o exemplo do contrato; recusa link, texto vazio, `ACS2:`, 21 e 23 caracteres, caractere fora do base64url.
-- [ ] U model do leitor: QR de outro tipo mostra o aviso e não navega.
-- [ ] U model do leitor: QR válido navega uma vez só, mesmo com três leituras seguidas da mesma imagem.
-- [ ] U permissão: negada mostra o texto e o botão "Abrir configurações"; concedida mostra a câmera.
+- [x] U `isSystemQr`: aceita o exemplo do contrato; recusa link, texto vazio, `ACS2:`, 21 e 23 caracteres, caractere fora do base64url.
+- [x] U model do leitor: QR de outro tipo mostra o aviso e não navega.
+- [x] U model do leitor: QR válido navega uma vez só, mesmo com três leituras seguidas da mesma imagem.
+- [x] U permissão: negada mostra o texto e o botão "Abrir configurações"; concedida mostra a câmera.
 
 **Critérios de aceitação**
 
-- [ ] Com permissão, a câmera abre em até 2 s e lê o QR mostrado na tela do computador (e, depois, no terminal).
-- [ ] QR de outro tipo não abre a validação; mostra o aviso e continua lendo.
-- [ ] Negar a permissão mostra a explicação e o caminho para as configurações, sem travar o app.
-- [ ] O mesmo QR não dispara duas validações.
-- [ ] Leitura a 20–40 cm de uma tela pequena (o OLED do terminal), com luz normal.
+- [ ] Com permissão, a câmera abre em até 2 s e lê o QR mostrado na tela do computador (e, depois, no terminal). (no emulador, com um QR como imagem da câmera, abriu e leu em menos de 2 s; no iPhone, leu o QR na tela do computador; falta medir os 2 s em celular real)
+- [x] QR de outro tipo não abre a validação; mostra o aviso e continua lendo. (leitura real no emulador, com um QR de link)
+- [x] Negar a permissão mostra a explicação e o caminho para as configurações, sem travar o app. (emulador; no Expo Go, a volta das configurações pergunta de novo)
+- [x] O mesmo QR não dispara duas validações.
+- [ ] Leitura a 20–40 cm de uma tela pequena (o OLED do terminal), com luz normal. (depende de celular real)
 
 **Definição de pronto**
 
@@ -126,17 +126,18 @@ Outros: 401 (sessão), 422 `VALIDATION_ERROR` (payload fora do formato; não dev
 
 **Lista de testes**
 
-- [ ] U formatters: datas, horas e instantes em São Paulo (inclusive um instante perto da meia-noite UTC).
-- [ ] U model: separa ativas e anteriores pela `situacaoEfetiva`; ativas primeiro.
-- [ ] U model: aviso de fora do horário com o relógio antes, dentro e depois da janela (limites inclusivos).
-- [ ] U tela: os quatro selos (Ativa, Cancelada, Expirada, Esgotada) com texto e ícone; lista vazia; erro com "Tentar novamente".
+- [x] U formatters: datas, horas e instantes em São Paulo (inclusive um instante perto da meia-noite UTC).
+- [x] U model: separa ativas e anteriores pela `situacaoEfetiva`; ativas primeiro.
+- [x] U model: aviso de fora do horário com o relógio antes, dentro e depois da janela (limites inclusivos).
+- [x] U tela: os quatro selos (Ativa, Cancelada, Expirada, Esgotada) com texto e ícone; lista vazia; erro com "Tentar novamente".
 
 **Critérios de aceitação**
 
-- [ ] A pessoa vê **só** as próprias autorizações (confira com o visitante e o condômino do seed).
-- [ ] Ativas primeiro; o resto em "Anteriores".
-- [ ] Datas e horas em `dd/MM/aaaa` e `HH:mm`, fuso de São Paulo.
-- [ ] "Abrir catraca" leva ao leitor.
+- [x] A pessoa vê **só** as próprias autorizações (confira com o visitante e o condômino do seed). (05/11, API real: o visitante vê as dele, mesmo pedindo o `usuarioId` de outra pessoa; o condômino vê a tela vazia; sair e entrar com outra conta não mostra as da anterior)
+- [x] Ativas primeiro; o resto em "Anteriores".
+- [x] Os selos usam texto, ícone e cor.
+- [x] Datas e horas em `dd/MM/aaaa` e `HH:mm`, fuso de São Paulo. (a validade segue o Figma, "Válida de 20/10 a 25/10", com o ano só quando o período cruza o ano; conferido com o emulador em UTC)
+- [ ] "Abrir catraca" leva ao leitor. (leva ao "Em breve" do leitor; o leitor é a F10)
 
 **Definição de pronto**
 

@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useMemo, useState, type ReactNode } from 'react';
 import { FlatList, Modal, Pressable, StyleSheet, View } from 'react-native';
 import { Icon } from '@/components/Icon';
 import { useReducedMotion, useTheme } from '@/theme';
@@ -8,7 +8,13 @@ import { ScreenContainer } from './ScreenContainer';
 import { Text } from './Text';
 import { TextField } from './TextField';
 
-export type SelectOption<T extends string> = { value: T; label: string; description?: string };
+export type SelectOption<T extends string> = {
+  value: T;
+  label: string;
+  description?: string;
+  /** Options with a group show under a title per group ("Edifício Central"), in the given order. */
+  group?: string;
+};
 
 type SelectFieldProps<T extends string> = {
   label: string;
@@ -22,6 +28,8 @@ type SelectFieldProps<T extends string> = {
   help?: string;
   error?: string;
   disabled?: boolean;
+  /** Replaces the field box (a filter chip or a search pill that opens the same list). */
+  renderTrigger?: (trigger: { selected?: SelectOption<T>; open: () => void }) => ReactNode;
 };
 
 const normalize = (text: string) => text.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase();
@@ -38,6 +46,7 @@ export const SelectField = <T extends string>({
   help,
   error,
   disabled = false,
+  renderTrigger,
 }: SelectFieldProps<T>) => {
   const theme = useTheme();
   const reducedMotion = useReducedMotion();
@@ -66,23 +75,29 @@ export const SelectField = <T extends string>({
 
   return (
     <View style={fieldStyles.field}>
-      <FieldLabel label={label} />
-      <Pressable
-        accessibilityRole="button"
-        accessibilityLabel={label}
-        accessibilityValue={{ text: selected?.label ?? placeholder }}
-        accessibilityHint={error ?? help}
-        accessibilityState={{ disabled, expanded: open }}
-        disabled={disabled}
-        onPress={() => setOpen(true)}
-        style={[fieldBoxStyle(theme, { error: !!error }), disabled && styles.disabled]}
-      >
-        <Text color={selected ? 'texto' : 'contorno'} style={styles.value}>
-          {selected?.label ?? placeholder}
-        </Text>
-        <Icon name="arrow_drop_down" color={theme.colors.textoApoio} />
-      </Pressable>
-      <FieldMessage help={help} error={error} />
+      {renderTrigger ? (
+        renderTrigger({ selected, open: () => setOpen(true) })
+      ) : (
+        <>
+          <FieldLabel label={label} />
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel={label}
+            accessibilityValue={{ text: selected?.label ?? placeholder }}
+            accessibilityHint={error ?? help}
+            accessibilityState={{ disabled, expanded: open }}
+            disabled={disabled}
+            onPress={() => setOpen(true)}
+            style={[fieldBoxStyle(theme, { error: !!error }), disabled && styles.disabled]}
+          >
+            <Text color={selected ? 'texto' : 'contorno'} style={styles.value}>
+              {selected?.label ?? placeholder}
+            </Text>
+            <Icon name="arrow_drop_down" color={theme.colors.textoApoio} />
+          </Pressable>
+          <FieldMessage help={help} error={error} />
+        </>
+      )}
 
       <Modal visible={open} animationType={reducedMotion ? 'none' : 'slide'} onRequestClose={close}>
         <ScreenContainer scroll={false} header={<Header title={label} onBack={close} />}>
@@ -101,36 +116,50 @@ export const SelectField = <T extends string>({
             keyExtractor={(option) => option.value}
             keyboardShouldPersistTaps="handled"
             ListEmptyComponent={<Text color="textoApoio">Nenhuma opção encontrada.</Text>}
-            renderItem={({ item }) => {
+            renderItem={({ item, index }) => {
               const checked = item.value === value;
+              const startsGroup =
+                item.group !== undefined && visibleOptions[index - 1]?.group !== item.group;
               return (
-                <Pressable
-                  accessibilityRole="radio"
-                  accessibilityLabel={item.label}
-                  accessibilityHint={item.description}
-                  accessibilityState={{ checked }}
-                  onPress={() => choose(item)}
-                  style={({ pressed }) => [
-                    styles.option,
-                    { borderBottomColor: theme.colors.contornoSuave },
-                    pressed && { backgroundColor: theme.colors.superficieAlta },
-                  ]}
-                >
-                  <View style={styles.optionTexts}>
-                    <Text variant={theme.scale === 'admin' ? 'adminItem' : 'pessoaCorpoForte'}>
-                      {item.label}
+                <>
+                  {startsGroup ? (
+                    <Text
+                      variant={theme.scale === 'admin' ? 'adminRotulo' : 'pessoaRotulo'}
+                      color="textoApoio"
+                      accessibilityRole="header"
+                      style={styles.group}
+                    >
+                      {item.group}
                     </Text>
-                    {item.description ? (
-                      <Text
-                        variant={theme.scale === 'admin' ? 'adminApoio' : 'pessoaApoio'}
-                        color="textoApoio"
-                      >
-                        {item.description}
+                  ) : null}
+                  <Pressable
+                    accessibilityRole="radio"
+                    accessibilityLabel={item.label}
+                    accessibilityHint={item.description}
+                    accessibilityState={{ checked }}
+                    onPress={() => choose(item)}
+                    style={({ pressed }) => [
+                      styles.option,
+                      { borderBottomColor: theme.colors.contornoSuave },
+                      pressed && { backgroundColor: theme.colors.superficieAlta },
+                    ]}
+                  >
+                    <View style={styles.optionTexts}>
+                      <Text variant={theme.scale === 'admin' ? 'adminItem' : 'pessoaCorpoForte'}>
+                        {item.label}
                       </Text>
-                    ) : null}
-                  </View>
-                  {checked ? <Icon name="check" color={theme.colors.primaria} /> : null}
-                </Pressable>
+                      {item.description ? (
+                        <Text
+                          variant={theme.scale === 'admin' ? 'adminApoio' : 'pessoaApoio'}
+                          color="textoApoio"
+                        >
+                          {item.description}
+                        </Text>
+                      ) : null}
+                    </View>
+                    {checked ? <Icon name="check" color={theme.colors.primaria} /> : null}
+                  </Pressable>
+                </>
               );
             }}
           />
@@ -152,4 +181,5 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
   },
   optionTexts: { flex: 1, gap: 2 },
+  group: { paddingTop: 20, paddingBottom: 4 },
 });

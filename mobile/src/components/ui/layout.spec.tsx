@@ -1,6 +1,8 @@
 import { fireEvent, render, screen } from '@testing-library/react-native';
+import { Dimensions } from 'react-native';
 import { colors, ThemeProvider, typography } from '@/theme';
 import { Fab } from './Fab';
+import { FieldRow } from './FieldRow';
 import { Header } from './Header';
 import { ScreenContainer } from './ScreenContainer';
 import { Text } from './Text';
@@ -97,5 +99,40 @@ describe('Fab', () => {
     expect(screen.getByRole('button', { name: 'Abrir catraca' })).toHaveStyle({
       backgroundColor: colors.acao,
     });
+  });
+});
+
+describe('FieldRow', () => {
+  afterEach(() => jest.restoreAllMocks());
+
+  const withFontScale = (fontScale: number) => {
+    const window = Dimensions.get('window');
+    jest.spyOn(Dimensions, 'get').mockReturnValue({ ...window, fontScale });
+  };
+
+  it('com a fonte normal, cada campo pede 140 de largura (dois cabem lado a lado)', async () => {
+    withFontScale(1);
+    await render(
+      <FieldRow>
+        <Text>Data inicial</Text>
+        <Text>Data final</Text>
+      </FieldRow>,
+    );
+
+    const cells = screen.getAllByTestId('field-row-cell');
+    expect(cells).toHaveLength(2);
+    expect(cells[0]).toHaveStyle({ flexBasis: 140, flexGrow: 1 });
+  });
+
+  it('com a fonte em 200%, cada campo pede o dobro e vai para a sua linha', async () => {
+    withFontScale(2);
+    await render(
+      <FieldRow>
+        <Text>Data inicial</Text>
+        <Text>Data final</Text>
+      </FieldRow>,
+    );
+
+    expect(screen.getAllByTestId('field-row-cell')[1]).toHaveStyle({ flexBasis: 280 });
   });
 });

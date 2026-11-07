@@ -13,4 +13,8 @@ export const handlers = [
       db: 'up',
     }),
   ),
+  // The person's home asks for this as soon as it opens; nobody has authorizations by default.
+  http.get(`${API_URL}/me/authorizations`, () =>
+    HttpResponse.json({ data: [], page: 1, pageSize: 100, total: 0 }),
+  ),
 ];
