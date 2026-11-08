@@ -31,8 +31,12 @@ export function createApp({
   isProduction = container.env.NODE_ENV === 'production',
   extraRoutes,
   logger = container.pino,
+  trustProxy = container.env.TRUST_PROXY,
 }: AppOptions = {}) {
   const app = express();
+
+  // Decides where `req.ip` comes from, which every per-IP rate limit uses. A hop count, never `true`.
+  app.set('trust proxy', trustProxy);
 
   app.use(requestId);
   app.use(makeRequestLogger(logger));
