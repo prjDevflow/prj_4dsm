@@ -2,6 +2,8 @@ import { AccessEvent } from '../../../entities/AccessEvent';
 import { isNfcDenialReason, type NfcDenialReason } from '../../../entities/DenialReason';
 import type { Terminal } from '../../../entities/Terminal';
 import { AccessEvaluator } from '../../../entities/rules/AccessEvaluator';
+import type { NfcTag } from '../../../entities/NfcTag';
+import { isEnrollModeActive } from '../../../entities/rules/isEnrollModeActive';
 import { normalizeUid } from '../../../entities/rules/normalizeUid';
 import type { IClock } from '../../../providers/IClock';
 import type { IIdGenerator } from '../../../providers/IIdGenerator';
@@ -13,6 +15,7 @@ import type { ITerminalRepository } from '../../../repositories/ITerminalReposit
 import type { IUserRepository } from '../../../repositories/IUserRepository';
 import { ConflictError } from '../../../shared/errors/AppError';
 import type { AccessEventRecorder } from '../../Events/AccessEventRecorder';
+import { requireActiveUser } from '../requireActiveUser';
 
 export interface ValidateNfcAccessInput {
   /** From the key of the terminal. */
@@ -59,6 +62,17 @@ export class ValidateNfcAccessUseCase {
     // A retry of a read already decided gets the same answer, whatever changed since.
     const decided = await this.events.findByClientEventId(input.idempotencyKey);
     if (decided) return this.replay(decided, terminal.id);
+
+    // The administrator asked the terminal to link the next tag: this read is that tag, not an access. The
+    // mode is spent first, by one conditional write, so of two reads at once only one links a tag.
+    const enrollUserId = terminal.modoCadastroUsuarioId;
+    if (
+      enrollUserId &&
+      isEnrollModeActive(terminal, now) &&
+      (await this.terminals.consumeEnrollMode(terminal.id, enrollUserId, now))
+    ) {
+      return this.enroll(uid, enrollUserId, now);
+    }
 
     // The same tag read again in a burst is one attempt, not several (a card held against the reader).
     const since = new Date(now.getTime() - this.config.debounceSeconds * 1000);
@@ -135,5 +149,20 @@ export class ValidateNfcAccessUseCase {
       if (isNfcDenialReason(event.motivo)) return { resultado: 'NEGADO', motivo: event.motivo };
     }
     throw new ConflictError('CONFLICT', 'Esta Idempotency-Key já foi usada por outro evento');
+  }
+  /** Links the tag to the user the administrator named. No access happens, so no use is spent and no event stored. */
+  private async enroll(uid: string, userId: string, now: Date): Promise<NfcAccessDecision> {
+    const user = await requireActiveUser(this.users, userId);
+    const tag: NfcTag = {
+      id: this.ids.next(),
+      usuarioId: user.id,
+      uid,
+      descricao: null,
+      ativa: true,
+      criadaEm: now,
+    };
+    // A UID that already exists is a 409 thrown by the store, whose unique index also settles simultaneous reads.
+    await this.tags.save(tag);
+    return { resultado: 'CADASTRADA' };
   }
 }
