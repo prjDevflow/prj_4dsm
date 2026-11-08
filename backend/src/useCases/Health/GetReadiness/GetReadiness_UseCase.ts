@@ -9,11 +9,20 @@ export class GetReadinessUseCase {
   ) {}
 
   async execute(): Promise<IGetReadinessResponseDTO> {
-    const up = await this.database.ping();
+    const up = await this.isDatabaseUp();
     return {
       status: up ? 'ready' : 'unavailable',
       db: up ? 'up' : 'down',
       time: this.clock.now().toISOString(),
     };
+  }
+
+  // A broken database is the answer ("not ready"), not an error of this endpoint.
+  private async isDatabaseUp(): Promise<boolean> {
+    try {
+      return await this.database.ping();
+    } catch {
+      return false;
+    }
   }
 }
