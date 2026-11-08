@@ -3,6 +3,7 @@ import type {
   IAccessEventRepository,
 } from '../../../repositories/IAccessEventRepository';
 import type { Page } from '../../../shared/pagination';
+import { toAccessEventPage } from '../accessEventPage';
 import type { IListAccessEventsDTO } from './ListAccessEvents_DTO';
 
 export class ListAccessEventsUseCase {
@@ -10,6 +11,6 @@ export class ListAccessEventsUseCase {
 
   async execute(input: IListAccessEventsDTO): Promise<Page<AccessEventDetails>> {
     const result = await this.events.list(input);
-    return { data: result.items, page: input.page, pageSize: input.pageSize, total: result.total };
+    return toAccessEventPage(result, input);
   }
 }
