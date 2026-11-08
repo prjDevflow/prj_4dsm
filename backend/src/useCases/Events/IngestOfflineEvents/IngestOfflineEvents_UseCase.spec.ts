@@ -6,7 +6,7 @@ import { InMemoryTerminalRepository } from '../../../../test/doubles/InMemoryTer
 import { SequentialIdGenerator } from '../../../../test/doubles/SequentialIdGenerator';
 import { makeNfcTag } from '../../../../test/factories/makeNfcTag';
 import { makeTerminal } from '../../../../test/factories/makeTerminal';
-import { ValidationError } from '../../../shared/errors/AppError';
+import { UnauthorizedError, ValidationError } from '../../../shared/errors/AppError';
 import { IngestOfflineEventsUseCase, type OfflineEventInput } from './IngestOfflineEvents_UseCase';
 
 const TERMINAL_ID = '00000000-0000-4000-8000-0000000000a9';
@@ -335,7 +335,36 @@ describe('IngestOfflineEvents', () => {
     });
   });
 
-  it.todo('deve propagar a falha de gravação sem contar nada como aceito');
-  it.todo('deve recusar com 401 quando o terminal não existe mais');
-  it.todo('deve não consumir uso nem alterar a autorização');
+  describe('falhas', () => {
+    it('deve propagar a falha de gravação, para o terminal reenviar o lote', async () => {
+      const { send, seed, events } = makeSut();
+      await seed();
+      events.failWith(new Error('banco fora do ar'));
+
+      await expect(send([offlineEvent(1), offlineEvent(2)])).rejects.toThrow('banco fora do ar');
+    });
+
+    it('deve gravar o lote reenviado depois de uma falha, sem duplicar', async () => {
+      const { send, seed, events } = makeSut();
+      await seed();
+      const batch = [offlineEvent(1), offlineEvent(2)];
+      events.failWith(new Error('banco fora do ar'));
+      await send(batch).catch(() => undefined);
+      events.failWith(null);
+
+      const result = await send(batch);
+
+      expect(result).toEqual({ aceitos: 2, duplicados: 0 });
+      expect(events.all()).toHaveLength(2);
+    });
+
+    it('deve recusar com 401 quando o terminal não existe mais', async () => {
+      const { send, events } = makeSut();
+
+      const error = await send([offlineEvent()]).catch((e: unknown) => e);
+
+      expect(error).toBeInstanceOf(UnauthorizedError);
+      expect(events.all()).toEqual([]);
+    });
+  });
 });

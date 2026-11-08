@@ -141,8 +141,8 @@ export class InMemoryAccessEventRepository implements IAccessEventRepository {
     return newestFirst[0] ? { ...newestFirst[0] } : null;
   }
 
-  /** Makes every following `append` fail with `error`, like a database that stopped answering. */
-  failWith(error: Error) {
+  /** Makes every following write fail with `error`, like a database that stopped answering; `null` heals it. */
+  failWith(error: Error | null) {
     this.failure = error;
   }
 

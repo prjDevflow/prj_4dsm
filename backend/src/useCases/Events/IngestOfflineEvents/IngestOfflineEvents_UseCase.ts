@@ -54,27 +54,31 @@ export class IngestOfflineEventsUseCase {
 
     // The whole batch is checked before anything is stored: one bad event rejects all of them.
     const now = this.clock.now();
-    const problems = input.events.flatMap((event, index) => this.check(event, index, now));
+    const normalized = input.events.map((event) => normalizeUid(event.uid));
+    const problems = input.events.flatMap((event, index) =>
+      this.check(event, normalized[index] ?? null, index, now),
+    );
     if (problems.length > 0) throw new ValidationError('Dados inválidos', problems);
 
-    // `check` already refused any UID that does not normalize.
-    const uids = input.events.map((event) => normalizeUid(event.uid) as string);
+    // `check` refused any UID that does not normalize, so none is null from here on.
+    const uids = normalized as string[];
     const owners = await this.findOwners(uids);
 
-    const events = input.events.map((event, index) =>
-      AccessEvent.denied({
+    const events = input.events.map((event, index) => {
+      const uid = uids[index] as string;
+      return AccessEvent.denied({
         id: this.ids.next(),
         ocorridoEm: event.ocorridoEm,
         metodo: event.metodo,
         terminalId: terminal.id,
         accessPointId: terminal.accessPointId,
         // The tag tells who tried, active or not; an unknown tag leaves the person out.
-        usuarioId: owners.get(uids[index] as string) ?? null,
+        usuarioId: owners.get(uid) ?? null,
         clientEventId: event.clientEventId,
-        uid: uids[index],
+        uid,
         motivo: event.motivo,
-      }),
-    );
+      });
+    });
 
     const stored = await this.events.appendIfAbsent(events);
     return { aceitos: stored, duplicados: events.length - stored };
@@ -84,13 +88,18 @@ export class IngestOfflineEventsUseCase {
    * What is wrong with one event, one entry per field, in the order of the contract. A terminal that is
    * offline can only deny, so an approval, another method or another reason is not something it may send.
    */
-  private check(event: OfflineEventInput, index: number, now: Date): ErrorDetails {
+  private check(
+    event: OfflineEventInput,
+    uid: string | null,
+    index: number,
+    now: Date,
+  ): ErrorDetails {
     const problems: ErrorDetails = [];
     const at = (field: string) => `events.${index}.${field}`;
     if (event.metodo !== 'NFC') {
       problems.push({ field: at('metodo'), message: 'só NFC pode ser enviado em lote' });
     }
-    if (!normalizeUid(event.uid)) problems.push({ field: at('uid'), message: UID_MESSAGE });
+    if (!uid) problems.push({ field: at('uid'), message: UID_MESSAGE });
     if (!isWithinOfflineWindow(event.ocorridoEm, now)) {
       problems.push({
         field: at('ocorridoEm'),
