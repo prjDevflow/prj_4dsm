@@ -2,7 +2,13 @@ openapi: 3.1.0
 info:
   title: API de Controle de Acesso
   version: 0.1.0
-  description: Backend do sistema integrado de controle de acesso (ABP 2026-2).
+  description: >-
+    Backend do sistema integrado de controle de acesso (ABP 2026-2).
+
+
+    **Corpo grande demais:** em qualquer rota, um corpo acima de 100 kb dá `413` com o código
+    `PAYLOAD_TOO_LARGE` (antes era um `500`); o lote offline (`POST /terminal/events/batch`) tem um limite
+    próprio, de 64 kb. Nada é processado.
 servers:
   - url: http://localhost:3000/api/v1
     description: Local
@@ -2086,7 +2092,7 @@ paths:
         **Limites:** de 1 a 50 eventos por lote e corpo de até 64 kb (acima disso, 413
         `PAYLOAD_TOO_LARGE`). `ocorridoEm` é o instante do relógio do terminal e precisa estar entre
         7 dias antes e 5 minutos depois do relógio do servidor, as duas pontas incluídas. Um problema em
-        qualquer evento rejeita o lote inteiro com 422, sem gravar nada, e o `details` lista cada
+        qualquer evento rejeita o lote inteiro com 422, sem gravar nada, e o `details` aponta cada
         problema com o índice do evento (`events.1.resultado`).
 
 
@@ -3893,9 +3899,11 @@ components:
     OfflineBatchValidationError:
       description: >-
         O lote inteiro foi rejeitado e nada foi gravado. O `details` traz um item por problema, com o
-        índice do evento no campo (`events.1.resultado`): evento que não pode ser enviado por um terminal
-        sem conexão (aprovação, método que não seja NFC, motivo que não seja `TERMINAL_OFFLINE`), UID ou
-        instante inválido, `ocorridoEm` fora da janela, ou lote vazio ou com mais de 50 eventos.
+        índice do evento no campo (`events.1.resultado`). Os problemas de formato (chave que não é UUID,
+        instante inválido, valor fora do vocabulário do contrato, lote vazio ou com mais de 50 eventos)
+        vêm sozinhos; corrigidos esses, vêm os das regras do terminal sem conexão, todos de uma vez
+        (aprovação, método que não seja NFC, motivo que não seja `TERMINAL_OFFLINE`, UID inválido e
+        `ocorridoEm` fora da janela).
       content:
         application/json:
           schema:
