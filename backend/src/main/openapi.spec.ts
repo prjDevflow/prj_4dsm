@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { QR_DENIAL_REASONS } from '../entities/DenialReason';
+import { NFC_DENIAL_REASONS, QR_DENIAL_REASONS } from '../entities/DenialReason';
 import { QR_DENIAL_MESSAGES, QR_GRANTED_MESSAGE } from '../useCases/Access/qrDenialMessages';
 import { UID_MESSAGE } from '../useCases/Nfc/uidField';
 import { loadOpenApiSpec } from './openapi';
@@ -83,5 +83,89 @@ describe('openapi.yaml: tags NFC', () => {
     expect(Object.keys(paths['/nfc-tags/{id}'] ?? {})).toContain('patch');
     expect(Object.keys(paths['/terminals/{id}/enroll-mode'] ?? {})).toContain('post');
     expect(responses().NfcTagConflict).toBeDefined();
+  });
+});
+
+describe('openapi.yaml: POST /terminal/nfc', () => {
+  interface NfcOperation {
+    parameters?: { name: string; in: string; required?: boolean; schema?: { format?: string } }[];
+    security?: Record<string, unknown>[];
+    responses: Record<
+      string,
+      {
+        $ref?: string;
+        content?: {
+          'application/json': { examples?: Record<string, { value: unknown }>; example?: unknown };
+        };
+      }
+    >;
+  }
+
+  const nfc = () =>
+    (loadOpenApiSpec() as unknown as { paths: Record<string, { post?: NfcOperation }> }).paths[
+      '/terminal/nfc'
+    ]?.post;
+
+  it('deve trazer um exemplo de 200 para a autorização, o cadastro e cada um dos sete motivos de negação', () => {
+    const examples = nfc()?.responses['200']?.content?.['application/json'].examples ?? {};
+
+    expect(Object.keys(examples).sort()).toEqual(
+      ['AUTORIZADO', 'CADASTRADA', ...NFC_DENIAL_REASONS].sort(),
+    );
+    expect(examples.AUTORIZADO?.value).toEqual({ resultado: 'AUTORIZADO', aberturaMs: 5000 });
+    expect(examples.CADASTRADA?.value).toEqual({ resultado: 'CADASTRADA' });
+    for (const reason of NFC_DENIAL_REASONS) {
+      expect(examples[reason]?.value, reason).toEqual({ resultado: 'NEGADO', motivo: reason });
+    }
+  });
+
+  it('deve exigir o cabeçalho Idempotency-Key no formato de UUID', () => {
+    const header = nfc()?.parameters?.find((p) => p.name === 'Idempotency-Key');
+
+    expect(header).toMatchObject({ in: 'header', required: true, schema: { format: 'uuid' } });
+  });
+
+  it('deve ser autenticada pela chave do terminal, nunca pelo token de usuário', () => {
+    expect(nfc()?.security).toEqual([{ terminalId: [], terminalKey: [] }]);
+  });
+
+  it.each(['401', '403', '409', '422', '500'])('deve documentar a resposta %s', (status) => {
+    expect(nfc()?.responses[status]).toBeDefined();
+  });
+
+  it('deve documentar os dois 409: a chave já usada e a tag já cadastrada pelo modo de cadastro', () => {
+    const conflict = loadOpenApiSpec() as unknown as {
+      components: {
+        responses: Record<
+          string,
+          { content: { 'application/json': { examples: Record<string, unknown> } } }
+        >;
+      };
+    };
+    const ref = nfc()?.responses['409']?.$ref ?? '';
+    const name = ref.split('/').pop() ?? '';
+    const examples = conflict.components.responses[name]?.content['application/json'].examples;
+
+    expect(Object.keys(examples ?? {}).sort()).toEqual(['chaveRepetida', 'tagJaCadastrada']);
+  });
+
+  it('deve trazer o 422 de Idempotency-Key ausente ou fora do formato', () => {
+    const spec = loadOpenApiSpec() as unknown as {
+      components: {
+        responses: Record<
+          string,
+          { content: { 'application/json': { examples: Record<string, ErrorExample> } } }
+        >;
+      };
+    };
+    const name = (nfc()?.responses['422']?.$ref ?? '').split('/').pop() ?? '';
+    const examples = spec.components.responses[name]?.content['application/json'].examples ?? {};
+
+    expect(examples.chaveInvalida?.value.error.details).toEqual([
+      { field: 'Idempotency-Key', message: 'deve ser um UUID' },
+    ]);
+    expect(examples.uidInvalido?.value.error.details).toEqual([
+      { field: 'uid', message: UID_MESSAGE },
+    ]);
   });
 });
