@@ -57,6 +57,7 @@ Variáveis do `.env`:
 | `QR_VALIDATE_MAX_PER_MINUTE`                           | `10`                    | validações de QR por minuto por usuário (acima, 429)       |
 | `MAX_DISTANCE_M`                                       | `100`                   | distância máxima, em metros, entre o celular e o terminal  |
 | `ENROLL_MODE_SECONDS`                                  | `60`                    | segundos do modo de cadastro de tag NFC no terminal        |
+| `NFC_DEBOUNCE_SECONDS`                                 | `3`                     | segundos em que a mesma tag repete a decisão no terminal   |
 | `SEED_*`                                               | ver `.env.example`      | credenciais e local do seed de desenvolvimento             |
 
 O `.env` nunca vai para o Git nem para a imagem Docker. Troque a senha do exemplo no seu `.env`.

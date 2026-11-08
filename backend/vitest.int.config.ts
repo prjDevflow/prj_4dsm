@@ -25,6 +25,8 @@ export default defineConfig({
       BCRYPT_COST: '4',
       // Not the default (60): the enroll-mode test then fails if the wiring of the variable breaks.
       ENROLL_MODE_SECONDS: '45',
+      // Not the default (3): the debounce test then fails if the wiring of the variable breaks.
+      NFC_DEBOUNCE_SECONDS: '5',
     },
   },
 });
