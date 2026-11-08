@@ -72,6 +72,18 @@ describe('ListMyAccessEvents', () => {
     expect(parsed).toEqual({ metodo: 'NFC', page: 1, pageSize: 20 });
   });
 
+  it('deve usar o id do token mesmo que a entrada traga outro usuarioId', async () => {
+    const { sut, add } = await makeSut();
+    const mine = await add({ usuarioId: MARIA.id });
+    await add({ usuarioId: JOAO.id });
+    // The schema already drops it, but the use case must not depend on that: the token wins by itself.
+    const smuggled = { ...query(), usuarioId: JOAO.id } as IListMyAccessEventsDTO;
+
+    const result = await sut.execute(MARIA.id, smuggled);
+
+    expect(result.data.map((item) => item.id)).toEqual([mine]);
+  });
+
   // Each row: the filter, an event that matches it and one that differs only in that field.
   const filters: Array<
     [
