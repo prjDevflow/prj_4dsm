@@ -1,5 +1,6 @@
 import { AccessEvent } from '../../../entities/AccessEvent';
 import type { NfcDenialReason } from '../../../entities/DenialReason';
+import type { Terminal } from '../../../entities/Terminal';
 import { AccessEvaluator } from '../../../entities/rules/AccessEvaluator';
 import { normalizeUid } from '../../../entities/rules/normalizeUid';
 import type { IClock } from '../../../providers/IClock';
@@ -54,10 +55,15 @@ export class ValidateNfcAccessUseCase {
     const uid = normalizeUid(input.uid);
     if (!terminal || !uid) throw new Error('B17: ainda não implementado');
 
+    // Who is it, in the order of doc 03, section 5.2: the tag, then the person.
     const tag = await this.tags.findByUid(uid);
-    if (!tag) throw new Error('B17: ainda não implementado');
+    if (!tag) return this.deny('TAG_DESCONHECIDA', { terminal, uid, input });
+    if (!tag.ativa)
+      return this.deny('TAG_INATIVA', { terminal, uid, input, userId: tag.usuarioId });
     const user = await this.users.findById(tag.usuarioId);
-    if (!user) throw new Error('B17: ainda não implementado');
+    // The foreign key makes the owner certain; if the row is gone anyway, the tag is as good as unknown.
+    if (!user) return this.deny('TAG_DESCONHECIDA', { terminal, uid, input });
+    if (!user.ativo) return this.deny('USUARIO_INATIVO', { terminal, uid, input, userId: user.id });
 
     const authorizations = await this.authorizations.findByUserAndAccessPoint(
       user.id,
@@ -88,5 +94,21 @@ export class ValidateNfcAccessUseCase {
     if (!result.ok) throw new Error('B17: ainda não implementado');
 
     return { resultado: 'AUTORIZADO', aberturaMs: this.config.aberturaMs };
+  }
+  /** Records the denial (it never throws: the person is told no even if the event cannot be stored). */
+  private async deny(
+    reason: NfcDenialReason,
+    attempt: { terminal: Terminal; uid: string; input: ValidateNfcAccessInput; userId?: string },
+  ): Promise<NfcAccessDecision> {
+    await this.recorder.recordDenied({
+      metodo: 'NFC',
+      motivo: reason,
+      usuarioId: attempt.userId ?? null,
+      terminalId: attempt.terminal.id,
+      accessPointId: attempt.terminal.accessPointId,
+      clientEventId: attempt.input.idempotencyKey,
+      uid: attempt.uid,
+    });
+    return { resultado: 'NEGADO', motivo: reason };
   }
 }
