@@ -8,8 +8,8 @@ import type { IListAccessEventsDTO } from './ListAccessEvents_DTO';
 export class ListAccessEventsUseCase {
   constructor(private events: IAccessEventRepository) {}
 
-  async execute(_input: IListAccessEventsDTO): Promise<Page<AccessEventDetails>> {
-    void this.events;
-    throw new Error('não implementado');
+  async execute(input: IListAccessEventsDTO): Promise<Page<AccessEventDetails>> {
+    const result = await this.events.list(input);
+    return { data: result.items, page: input.page, pageSize: input.pageSize, total: result.total };
   }
 }
