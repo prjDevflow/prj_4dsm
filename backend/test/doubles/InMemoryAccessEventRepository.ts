@@ -19,6 +19,10 @@ export interface EventLookups {
   terminals: InMemoryTerminalRepository;
 }
 
+// PostgreSQL orders a uuid byte by byte, which for lowercase hexadecimal is plain character order;
+// `localeCompare` would depend on the machine's locale.
+const compareIdsDescending = (a: string, b: string) => (a < b ? 1 : a > b ? -1 : 0);
+
 export class InMemoryAccessEventRepository implements IAccessEventRepository {
   private items: AccessEvent[] = [];
   private failure: Error | null = null;
@@ -35,7 +39,10 @@ export class InMemoryAccessEventRepository implements IAccessEventRepository {
       .filter((e) => filter.motivo === undefined || e.motivo === filter.motivo)
       .filter((e) => filter.de === undefined || e.ocorridoEm.getTime() >= filter.de.getTime())
       .filter((e) => filter.ate === undefined || e.ocorridoEm.getTime() <= filter.ate.getTime())
-      .sort((a, b) => b.ocorridoEm.getTime() - a.ocorridoEm.getTime() || b.id.localeCompare(a.id));
+      .sort(
+        (a, b) =>
+          b.ocorridoEm.getTime() - a.ocorridoEm.getTime() || compareIdsDescending(a.id, b.id),
+      );
     const start = (filter.page - 1) * filter.pageSize;
     const page = matches.slice(start, start + filter.pageSize);
     return {
