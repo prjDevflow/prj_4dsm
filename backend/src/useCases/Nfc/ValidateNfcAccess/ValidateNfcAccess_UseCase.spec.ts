@@ -283,6 +283,14 @@ describe('ValidateNfcAccess', () => {
       expect(events.all()[0]).toMatchObject({ motivo: 'USUARIO_INATIVO', usuarioId: USER_ID });
     });
 
+    it('deve tratar como TAG_DESCONHECIDA a tag cujo dono não existe mais', async () => {
+      const { read, seed, events } = makeSut();
+      await seed({ tag: { usuarioId: '00000000-0000-4000-8000-0000000000e9' } });
+
+      expect(await read()).toEqual({ resultado: 'NEGADO', motivo: 'TAG_DESCONHECIDA' });
+      expect(events.all()[0]).toMatchObject({ motivo: 'TAG_DESCONHECIDA', usuarioId: null });
+    });
+
     it('deve conferir a tag antes do usuário: tag inativa de usuário inativo dá TAG_INATIVA', async () => {
       const { read, seed } = makeSut();
       await seed({ tag: { ativa: false }, user: { ativo: false } });

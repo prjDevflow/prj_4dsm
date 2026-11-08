@@ -40,6 +40,15 @@ export type NfcAccessDecision =
   | { resultado: 'NEGADO'; motivo: NfcDenialReason }
   | { resultado: 'CADASTRADA' };
 
+/** One read being decided: what is known about it, passed along instead of loose arguments. */
+interface Read {
+  terminal: Terminal;
+  /** Normalized. */
+  uid: string;
+  idempotencyKey: string;
+  now: Date;
+}
+
 export class ValidateNfcAccessUseCase {
   constructor(
     private terminals: ITerminalRepository,
@@ -64,9 +73,10 @@ export class ValidateNfcAccessUseCase {
     if (!uid) {
       throw new ValidationError('Dados inválidos', [{ field: 'uid', message: UID_MESSAGE }]);
     }
+    const read: Read = { terminal, uid, idempotencyKey: input.idempotencyKey, now };
 
     // A retry of a read already decided gets the same answer, whatever changed since.
-    const decided = await this.events.findByClientEventId(input.idempotencyKey);
+    const decided = await this.events.findByClientEventId(read.idempotencyKey);
     if (decided) return this.replay(decided, terminal.id);
 
     // The administrator asked the terminal to link the next tag: this read is that tag, not an access. The
@@ -77,7 +87,7 @@ export class ValidateNfcAccessUseCase {
       isEnrollModeActive(terminal, now) &&
       (await this.terminals.consumeEnrollMode(terminal.id, enrollUserId, now))
     ) {
-      return this.enroll(uid, enrollUserId, now);
+      return this.enroll(read, enrollUserId);
     }
 
     // The same tag read again in a burst is one attempt, not several (a card held against the reader).
@@ -85,15 +95,21 @@ export class ValidateNfcAccessUseCase {
     const recent = await this.events.findRecentNfc({ terminalId: terminal.id, uid, since });
     if (recent) return this.replay(recent, terminal.id);
 
+    return this.decide(read);
+  }
+
+  /** An access attempt: who the tag is, which authorization lets them through, and the approval. */
+  private async decide(read: Read): Promise<NfcAccessDecision> {
+    const { terminal, uid, now } = read;
+
     // Who is it, in the order of doc 03, section 5.2: the tag, then the person.
     const tag = await this.tags.findByUid(uid);
-    if (!tag) return this.deny('TAG_DESCONHECIDA', { terminal, uid, input });
-    if (!tag.ativa)
-      return this.deny('TAG_INATIVA', { terminal, uid, input, userId: tag.usuarioId });
+    if (!tag) return this.deny('TAG_DESCONHECIDA', read);
+    if (!tag.ativa) return this.deny('TAG_INATIVA', read, tag.usuarioId);
     const user = await this.users.findById(tag.usuarioId);
     // The foreign key makes the owner certain; if the row is gone anyway, the tag is as good as unknown.
-    if (!user) return this.deny('TAG_DESCONHECIDA', { terminal, uid, input });
-    if (!user.ativo) return this.deny('USUARIO_INATIVO', { terminal, uid, input, userId: user.id });
+    if (!user) return this.deny('TAG_DESCONHECIDA', read);
+    if (!user.ativo) return this.deny('USUARIO_INATIVO', read, user.id);
 
     const authorizations = await this.authorizations.findByUserAndAccessPoint(
       user.id,
@@ -105,9 +121,7 @@ export class ValidateNfcAccessUseCase {
       authorizations,
       now,
     });
-    if (!evaluation.granted) {
-      return this.deny(evaluation.reason, { terminal, uid, input, userId: user.id });
-    }
+    if (!evaluation.granted) return this.deny(evaluation.reason, read, user.id);
 
     const result = await this.accessGrants.commitNfcApproval({
       authorizationId: evaluation.authorization.id,
@@ -119,39 +133,40 @@ export class ValidateNfcAccessUseCase {
         accessPointId: terminal.accessPointId,
         usuarioId: user.id,
         authorizationId: evaluation.authorization.id,
-        clientEventId: input.idempotencyKey,
+        clientEventId: read.idempotencyKey,
         uid,
       }),
     });
     if (!result.ok) {
-      if (result.reason === 'USOS_ESGOTADOS') {
-        // The last uses were taken between the evaluation and the commit: a denial like any other.
-        return this.deny('USOS_ESGOTADOS', { terminal, uid, input, userId: user.id });
-      }
+      // The last uses were taken between the evaluation and the commit: a denial like any other.
+      if (result.reason === 'USOS_ESGOTADOS') return this.deny('USOS_ESGOTADOS', read, user.id);
       // Another request holds this key and won the commit: its answer is the answer to this one too.
-      const winner = await this.events.findByClientEventId(input.idempotencyKey);
+      const winner = await this.events.findByClientEventId(read.idempotencyKey);
       if (!winner) throw new Error('A Idempotency-Key foi recusada, mas o evento dela não existe');
       return this.replay(winner, terminal.id);
     }
 
     return { resultado: 'AUTORIZADO', aberturaMs: this.config.aberturaMs };
   }
+
   /** Records the denial (it never throws: the person is told no even if the event cannot be stored). */
   private async deny(
     reason: NfcDenialReason,
-    attempt: { terminal: Terminal; uid: string; input: ValidateNfcAccessInput; userId?: string },
+    read: Read,
+    userId?: string,
   ): Promise<NfcAccessDecision> {
     await this.recorder.recordDenied({
       metodo: 'NFC',
       motivo: reason,
-      usuarioId: attempt.userId ?? null,
-      terminalId: attempt.terminal.id,
-      accessPointId: attempt.terminal.accessPointId,
-      clientEventId: attempt.input.idempotencyKey,
-      uid: attempt.uid,
+      usuarioId: userId ?? null,
+      terminalId: read.terminal.id,
+      accessPointId: read.terminal.accessPointId,
+      clientEventId: read.idempotencyKey,
+      uid: read.uid,
     });
     return { resultado: 'NEGADO', motivo: reason };
   }
+
   /**
    * The answer an earlier read of this terminal got, read back from its event. A key that belongs to
    * another terminal, or to an event that was not an NFC read (a QR, a batch sent later), is a conflict.
@@ -165,16 +180,17 @@ export class ValidateNfcAccessUseCase {
     }
     throw new ConflictError('CONFLICT', 'Esta Idempotency-Key já foi usada por outro evento');
   }
+
   /** Links the tag to the user the administrator named. No access happens, so no use is spent and no event stored. */
-  private async enroll(uid: string, userId: string, now: Date): Promise<NfcAccessDecision> {
+  private async enroll(read: Read, userId: string): Promise<NfcAccessDecision> {
     const user = await requireActiveUser(this.users, userId);
     const tag: NfcTag = {
       id: this.ids.next(),
       usuarioId: user.id,
-      uid,
+      uid: read.uid,
       descricao: null,
       ativa: true,
-      criadaEm: now,
+      criadaEm: read.now,
     };
     // A UID that already exists is a 409 thrown by the store, whose unique index also settles simultaneous reads.
     await this.tags.save(tag);
