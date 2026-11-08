@@ -18,6 +18,13 @@ describe('GetReadiness', () => {
     expect(result).toEqual({ status: 'ready', db: 'up', time: '2026-11-08T12:00:00.000Z' });
   });
 
-  it.todo('deve devolver indisponível e db down quando o banco não responde');
+  it('deve devolver indisponível e db down quando o banco não responde', async () => {
+    const { sut } = makeSut('down');
+
+    const result = await sut.execute();
+
+    expect(result).toEqual({ status: 'unavailable', db: 'down', time: '2026-11-08T12:00:00.000Z' });
+  });
+
   it.todo('deve devolver indisponível, sem lançar exceção, quando o teste de conexão falha com erro');
 });
