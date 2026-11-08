@@ -82,6 +82,13 @@ const toDetails = (row: ListRow): AccessEventDetails => ({
   terminal: row.terminal,
 });
 
+// Plain code-unit order, the same in every process; an event without a key has nothing to conflict on.
+const compareKeys = (a: string | null, b: string | null) => {
+  const left = a ?? '';
+  const right = b ?? '';
+  return left < right ? -1 : left > right ? 1 : 0;
+};
+
 export class PrismaAccessEventRepository implements IAccessEventRepository {
   // A transaction client too: the approval (B15) writes the event inside its own transaction.
   constructor(private prisma: Prisma.TransactionClient) {}
@@ -116,10 +123,14 @@ export class PrismaAccessEventRepository implements IAccessEventRepository {
   }
 
   async appendIfAbsent(events: AccessEvent[]): Promise<number> {
+    // Two statements that take the same keys in opposite orders wait on each other until the database gives
+    // up on one (a deadlock, a 500). One order for every caller avoids it. The sort is stable, so a key
+    // repeated in the list keeps its first occurrence ahead of the others, and that one is stored.
+    const ordered = [...events].sort((a, b) => compareKeys(a.clientEventId, b.clientEventId));
     // `ON CONFLICT DO NOTHING` on the unique `clientEventId`: the database settles who stored a key first,
     // even when the same batch arrives twice at once.
     const { count } = await this.prisma.accessEvent.createMany({
-      data: events.map(toCreateData),
+      data: ordered.map(toCreateData),
       skipDuplicates: true,
     });
     return count;
