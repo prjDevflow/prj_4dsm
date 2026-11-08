@@ -4,6 +4,11 @@ import { DENIAL_REASONS } from '../../../entities/DenialReason';
 /** The most events one request carries (doc 07, B19). */
 export const MAX_OFFLINE_EVENTS = 50;
 
+export const OFFLINE_BATCH_SIZE_MESSAGES = {
+  min: 'deve ter ao menos 1 evento',
+  max: `deve ter no máximo ${MAX_OFFLINE_EVENTS} eventos`,
+} as const;
+
 /**
  * One attempt the terminal kept. Only the shape is checked here; what a terminal may send (a UID that
  * normalizes, denials only, NFC only, `TERMINAL_OFFLINE`, a believable time) is the use case's business,
@@ -30,8 +35,8 @@ const OfflineEventSchema = z.object(
 export const IngestOfflineEventsSchema = z.object({
   events: z
     .array(OfflineEventSchema, { error: 'obrigatório, uma lista de eventos' })
-    .min(1, 'deve ter ao menos 1 evento')
-    .max(MAX_OFFLINE_EVENTS, `deve ter no máximo ${MAX_OFFLINE_EVENTS} eventos`),
+    .min(1, OFFLINE_BATCH_SIZE_MESSAGES.min)
+    .max(MAX_OFFLINE_EVENTS, OFFLINE_BATCH_SIZE_MESSAGES.max),
 });
 
 export type IIngestOfflineEventsDTO = z.infer<typeof IngestOfflineEventsSchema>;

@@ -38,6 +38,15 @@ export interface IngestOfflineEventsResult {
   duplicados: number;
 }
 
+/** The words of the 422 for an event the terminal may not send (also the examples of `openapi.yaml`). */
+export const OFFLINE_EVENT_MESSAGES = {
+  metodo: 'só NFC pode ser enviado em lote',
+  uid: UID_MESSAGE,
+  ocorridoEm: 'deve estar entre 7 dias antes e 5 minutos depois do horário do servidor',
+  resultado: 'o terminal sem conexão só envia NEGADO; uma aprovação não pode ser enviada em lote',
+  motivo: 'deve ser TERMINAL_OFFLINE',
+} as const;
+
 export class IngestOfflineEventsUseCase {
   constructor(
     private terminals: ITerminalRepository,
@@ -97,24 +106,23 @@ export class IngestOfflineEventsUseCase {
     const problems: ErrorDetails = [];
     const at = (field: string) => `events.${index}.${field}`;
     if (event.metodo !== 'NFC') {
-      problems.push({ field: at('metodo'), message: 'só NFC pode ser enviado em lote' });
+      problems.push({ field: at('metodo'), message: OFFLINE_EVENT_MESSAGES.metodo });
     }
-    if (!uid) problems.push({ field: at('uid'), message: UID_MESSAGE });
+    if (!uid) problems.push({ field: at('uid'), message: OFFLINE_EVENT_MESSAGES.uid });
     if (!isWithinOfflineWindow(event.ocorridoEm, now)) {
       problems.push({
         field: at('ocorridoEm'),
-        message: 'deve estar entre 7 dias antes e 5 minutos depois do horário do servidor',
+        message: OFFLINE_EVENT_MESSAGES.ocorridoEm,
       });
     }
     if (event.resultado !== 'NEGADO') {
       problems.push({
         field: at('resultado'),
-        message:
-          'o terminal sem conexão só envia NEGADO; uma aprovação não pode ser enviada em lote',
+        message: OFFLINE_EVENT_MESSAGES.resultado,
       });
     }
     if (event.motivo !== 'TERMINAL_OFFLINE') {
-      problems.push({ field: at('motivo'), message: 'deve ser TERMINAL_OFFLINE' });
+      problems.push({ field: at('motivo'), message: OFFLINE_EVENT_MESSAGES.motivo });
     }
     return problems;
   }
