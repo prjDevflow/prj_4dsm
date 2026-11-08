@@ -46,26 +46,43 @@ export class IngestOfflineEventsUseCase {
     const terminal = await this.terminals.findById(input.terminalId);
     if (!terminal) throw new UnauthorizedError();
 
-    const events = input.events.map((event, index) => {
+    const uids = input.events.map((event, index) => {
       const uid = normalizeUid(event.uid);
       if (!uid) {
         throw new ValidationError('Dados inválidos', [
           { field: `events.${index}.uid`, message: 'UID inválido' },
         ]);
       }
-      return AccessEvent.denied({
+      return uid;
+    });
+    const owners = await this.findOwners(uids);
+
+    const events = input.events.map((event, index) =>
+      AccessEvent.denied({
         id: this.ids.next(),
         ocorridoEm: event.ocorridoEm,
         metodo: event.metodo,
         terminalId: terminal.id,
         accessPointId: terminal.accessPointId,
+        // The tag tells who tried, active or not; an unknown tag leaves the person out.
+        usuarioId: owners.get(uids[index]!) ?? null,
         clientEventId: event.clientEventId,
-        uid,
+        uid: uids[index],
         motivo: event.motivo,
-      });
-    });
+      }),
+    );
 
     const stored = await this.events.appendIfAbsent(events);
     return { aceitos: stored, duplicados: events.length - stored };
+  }
+
+  /** The user each distinct UID belongs to, looked up once per UID however often the batch repeats it. */
+  private async findOwners(uids: string[]): Promise<Map<string, string>> {
+    const owners = new Map<string, string>();
+    for (const uid of new Set(uids)) {
+      const tag = await this.tags.findByUid(uid);
+      if (tag) owners.set(uid, tag.usuarioId);
+    }
+    return owners;
   }
 }
