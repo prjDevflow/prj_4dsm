@@ -6,6 +6,7 @@ import { InMemoryTerminalRepository } from '../../../../test/doubles/InMemoryTer
 import { SequentialIdGenerator } from '../../../../test/doubles/SequentialIdGenerator';
 import { makeNfcTag } from '../../../../test/factories/makeNfcTag';
 import { makeTerminal } from '../../../../test/factories/makeTerminal';
+import { ValidationError } from '../../../shared/errors/AppError';
 import { IngestOfflineEventsUseCase, type OfflineEventInput } from './IngestOfflineEvents_UseCase';
 
 const TERMINAL_ID = '00000000-0000-4000-8000-0000000000a9';
@@ -209,13 +210,131 @@ describe('IngestOfflineEvents', () => {
     });
   });
 
-  it.todo(
-    'deve rejeitar AUTORIZADO com 422 no campo events.N.resultado sem gravar nenhum evento do lote',
-  );
-  it.todo('deve rejeitar ocorridoEm 6 minutos no futuro e 8 dias no passado');
-  it.todo('deve aceitar ocorridoEm 5 minutos no futuro e 7 dias no passado');
-  it.todo('deve listar todos os eventos inválidos no details e não gravar nem os válidos');
-  it.todo('deve rejeitar metodo QR e motivo diferente de TERMINAL_OFFLINE');
+  describe('validação do lote', () => {
+    const MINUTE = 60 * 1000;
+    const DAY = 24 * 60 * MINUTE;
+    const NOW = new Date('2026-10-20T14:00:00Z');
+    const at = (offsetMs: number) => new Date(NOW.getTime() + offsetMs);
+
+    /** What the use case threw, so the test reads the 422 and its details. */
+    const rejection = async (attempt: Promise<unknown>) => {
+      const error = await attempt.catch((e: unknown) => e);
+      expect(error).toBeInstanceOf(ValidationError);
+      return error as ValidationError;
+    };
+
+    it('deve rejeitar AUTORIZADO com 422 no campo events.N.resultado', async () => {
+      const { send, seed } = makeSut();
+      await seed();
+
+      const error = await rejection(
+        send([offlineEvent(1), offlineEvent(2, { resultado: 'AUTORIZADO' }), offlineEvent(3)]),
+      );
+
+      expect(error.status).toBe(422);
+      expect(error.details?.map((d) => d.field)).toEqual(['events.1.resultado']);
+    });
+
+    it('deve rejeitar o lote inteiro, sem gravar nem os eventos válidos', async () => {
+      const { send, seed, events } = makeSut();
+      await seed();
+
+      await rejection(
+        send([offlineEvent(1), offlineEvent(2, { resultado: 'AUTORIZADO' }), offlineEvent(3)]),
+      );
+
+      expect(events.all()).toEqual([]);
+    });
+
+    it.each([
+      ['6 minutos no futuro', 6 * MINUTE],
+      ['5 minutos e 1 ms no futuro', 5 * MINUTE + 1],
+      ['8 dias no passado', -8 * DAY],
+      ['7 dias e 1 ms no passado', -7 * DAY - 1],
+    ])('deve rejeitar ocorridoEm %s no campo events.N.ocorridoEm', async (_label, offset) => {
+      const { send, seed } = makeSut();
+      await seed();
+
+      const error = await rejection(send([offlineEvent(1, { ocorridoEm: at(offset) })]));
+
+      expect(error.details?.map((d) => d.field)).toEqual(['events.0.ocorridoEm']);
+    });
+
+    it.each([
+      ['5 minutos no futuro', 5 * MINUTE],
+      ['7 dias no passado', -7 * DAY],
+    ])('deve aceitar ocorridoEm %s', async (_label, offset) => {
+      const { send, seed } = makeSut();
+      await seed();
+
+      const result = await send([offlineEvent(1, { ocorridoEm: at(offset) })]);
+
+      expect(result).toEqual({ aceitos: 1, duplicados: 0 });
+    });
+
+    it('deve conferir a janela contra o relógio injetado', async () => {
+      const { send, seed, clock } = makeSut();
+      await seed();
+      const old = offlineEvent(1, { ocorridoEm: at(-7 * DAY) });
+      await send([old]);
+
+      clock.advance(1);
+      const error = await rejection(send([{ ...old, clientEventId: key(2) }]));
+
+      expect(error.details?.map((d) => d.field)).toEqual(['events.0.ocorridoEm']);
+    });
+
+    it('deve rejeitar metodo QR no campo events.N.metodo', async () => {
+      const { send, seed } = makeSut();
+      await seed();
+
+      const error = await rejection(send([offlineEvent(1, { metodo: 'QR' })]));
+
+      expect(error.details?.map((d) => d.field)).toEqual(['events.0.metodo']);
+    });
+
+    it('deve rejeitar motivo diferente de TERMINAL_OFFLINE no campo events.N.motivo', async () => {
+      const { send, seed } = makeSut();
+      await seed();
+
+      const error = await rejection(send([offlineEvent(1, { motivo: 'FORA_DO_PERIODO' })]));
+
+      expect(error.details?.map((d) => d.field)).toEqual(['events.0.motivo']);
+    });
+
+    it('deve rejeitar UID inválido no campo events.N.uid', async () => {
+      const { send, seed } = makeSut();
+      await seed();
+
+      const error = await rejection(send([offlineEvent(1, { uid: 'ZZZZZZZZ' })]));
+
+      expect(error.details?.map((d) => d.field)).toEqual(['events.0.uid']);
+    });
+
+    it('deve listar no details todos os problemas de todos os eventos, na ordem do lote', async () => {
+      const { send, seed, events } = makeSut();
+      await seed();
+
+      const error = await rejection(
+        send([
+          offlineEvent(1),
+          offlineEvent(2, { resultado: 'AUTORIZADO' }),
+          offlineEvent(3, { ocorridoEm: at(-8 * DAY), uid: 'não é hex' }),
+          offlineEvent(4, { metodo: 'QR', motivo: 'TAG_INATIVA' }),
+        ]),
+      );
+
+      expect(error.details?.map((d) => d.field)).toEqual([
+        'events.1.resultado',
+        'events.2.uid',
+        'events.2.ocorridoEm',
+        'events.3.metodo',
+        'events.3.motivo',
+      ]);
+      expect(events.all()).toEqual([]);
+    });
+  });
+
   it.todo('deve propagar a falha de gravação sem contar nada como aceito');
   it.todo('deve recusar com 401 quando o terminal não existe mais');
   it.todo('deve não consumir uso nem alterar a autorização');
