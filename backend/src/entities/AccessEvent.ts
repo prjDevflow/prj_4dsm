@@ -20,7 +20,7 @@ export interface AccessEvent {
   detalhes: Record<string, unknown> | null;
 }
 
-/** What the caller knows about the attempt. `detalhes` is built from the last two fields only. */
+/** What the caller knows about the attempt. `detalhes` is built from the last three fields only. */
 export interface NewAccessEventBase {
   id: string;
   ocorridoEm: Date;
@@ -30,16 +30,20 @@ export interface NewAccessEventBase {
   usuarioId?: string | null;
   authorizationId?: string | null;
   distanciaM?: number | null;
+  /** The `Idempotency-Key` of an NFC read: the unique column that makes a retry find this event. */
+  clientEventId?: string | null;
   /** GPS accuracy reported by the phone, in meters. */
   precisaoMetros?: number | null;
   /** SHA-256 of an unknown credential. Only a short prefix is kept. */
   credencialHash?: string | null;
+  /** UID of the tag read (normalized). Whole, because the NFC debounce must match the exact tag. */
+  uid?: string | null;
 }
 
 /** An approval always knows who, where, through which terminal and under which authorization. */
 export interface NewApprovedEvent extends Pick<
   NewAccessEventBase,
-  'id' | 'ocorridoEm' | 'metodo' | 'distanciaM' | 'precisaoMetros'
+  'id' | 'ocorridoEm' | 'metodo' | 'distanciaM' | 'clientEventId' | 'precisaoMetros' | 'uid'
 > {
   terminalId: string;
   accessPointId: string;
@@ -61,6 +65,7 @@ function buildDetails(input: NewAccessEventBase): Record<string, unknown> | null
   if (input.credencialHash != null) {
     details.credencialHashPrefixo = input.credencialHash.slice(0, CREDENTIAL_HASH_PREFIX_LENGTH);
   }
+  if (input.uid != null) details.uid = input.uid;
   return Object.keys(details).length > 0 ? details : null;
 }
 
@@ -78,7 +83,7 @@ function build(
     metodo: input.metodo,
     ...outcome,
     distanciaM: input.distanciaM ?? null,
-    clientEventId: null,
+    clientEventId: input.clientEventId ?? null,
     detalhes: buildDetails(input),
   };
 }
