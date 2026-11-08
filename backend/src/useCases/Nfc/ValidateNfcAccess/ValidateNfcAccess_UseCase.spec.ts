@@ -563,6 +563,55 @@ describe('ValidateNfcAccess', () => {
       expect(events.all()[1]?.terminalId).toBe(otherTerminalId);
     });
 
+    describe('eventos de um lote offline (B19)', () => {
+      const OFFLINE_KEY = '5a1b2c3d-4e5f-4a6b-8c7d-9e0f1a2b3c4d';
+      // What IngestOfflineEvents stores: the whole UID in `detalhes`, the terminal's own clock in `ocorridoEm`.
+      const offlineEvent = (ocorridoEm: Date) =>
+        AccessEvent.denied({
+          id: '00000000-0000-4000-8000-0000000000d1',
+          ocorridoEm,
+          metodo: 'NFC',
+          motivo: 'TERMINAL_OFFLINE',
+          terminalId: TERMINAL_ID,
+          accessPointId: POINT_ID,
+          clientEventId: OFFLINE_KEY,
+          uid: UID,
+        });
+
+      it.each([
+        ['2 s antes da leitura', -2000],
+        ['no instante da leitura', 0],
+        ['4 minutos à frente do relógio do servidor', 4 * 60 * 1000],
+      ])(
+        'deve tratar como nova tentativa a leitura quando o único evento recente do UID veio de um lote offline, %s',
+        async (_label, offset) => {
+          const { read, seed, clock, authorizations, events } = makeSut();
+          await seed();
+          await events.append(offlineEvent(new Date(clock.now().getTime() + offset)));
+
+          const decision = await read();
+
+          expect(decision).toEqual({ resultado: 'AUTORIZADO', aberturaMs: 5000 });
+          expect(authorizations.all()[0]?.usosRealizados).toBe(1);
+          expect(events.all()).toHaveLength(2);
+        },
+      );
+
+      it('deve devolver a decisão da leitura ao vivo mesmo com um evento offline mais novo do mesmo UID', async () => {
+        const { read, seed, clock, events } = makeSut();
+        await seed();
+        const first = await read();
+        clock.advance(1000);
+        await events.append(offlineEvent(clock.now()));
+        clock.advance(500);
+
+        const again = await read({ idempotencyKey: SECOND_KEY });
+
+        expect(again).toEqual(first);
+        expect(events.all()).toHaveLength(2);
+      });
+    });
+
     it('deve usar a janela de NFC_DEBOUNCE_SECONDS da configuração', async () => {
       const { read, seed, clock, events } = makeSut({ debounceSeconds: 10 });
       await seed();
