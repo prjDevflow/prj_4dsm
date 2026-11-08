@@ -60,6 +60,11 @@ export class ValidateNfcAccessUseCase {
     const decided = await this.events.findByClientEventId(input.idempotencyKey);
     if (decided) return this.replay(decided, terminal.id);
 
+    // The same tag read again in a burst is one attempt, not several (a card held against the reader).
+    const since = new Date(now.getTime() - this.config.debounceSeconds * 1000);
+    const recent = await this.events.findRecentNfc({ terminalId: terminal.id, uid, since });
+    if (recent) return this.replay(recent, terminal.id);
+
     // Who is it, in the order of doc 03, section 5.2: the tag, then the person.
     const tag = await this.tags.findByUid(uid);
     if (!tag) return this.deny('TAG_DESCONHECIDA', { terminal, uid, input });
