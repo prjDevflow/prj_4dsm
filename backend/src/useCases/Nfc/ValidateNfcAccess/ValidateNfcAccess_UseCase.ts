@@ -149,12 +149,21 @@ export class ValidateNfcAccessUseCase {
     return { resultado: 'AUTORIZADO', aberturaMs: this.config.aberturaMs };
   }
 
-  /** Records the denial (it never throws: the person is told no even if the event cannot be stored). */
+  /**
+   * Records the denial (it never throws: the person is told no even if the event cannot be stored).
+   * First looks the key up again: the request that started with it may have been decided in the
+   * meantime, and then its answer stands, not a denial born of the state it left behind (the last
+   * use it spent). A request that decides in the instant between this lookup and the write is the
+   * one case left, and it ends in the same unique key, never in a second event.
+   */
   private async deny(
     reason: NfcDenialReason,
     read: Read,
     userId?: string,
   ): Promise<NfcAccessDecision> {
+    const decided = await this.events.findByClientEventId(read.idempotencyKey);
+    if (decided) return this.replay(decided, read.terminal.id);
+
     await this.recorder.recordDenied({
       metodo: 'NFC',
       motivo: reason,
