@@ -1,7 +1,9 @@
 import type { AccessEvent } from '../../entities/AccessEvent';
 import { Prisma } from '../../generated/prisma/client';
 import type {
+  AccessEventDetails,
   AccessEventListFilter,
+  AccessEventListResult,
   IAccessEventRepository,
   RecentNfcQuery,
 } from '../../repositories/IAccessEventRepository';
@@ -25,6 +27,42 @@ const toEntity = (row: AccessEventRow): AccessEvent => ({
   clientEventId: row.clientEventId,
   // The application only ever writes an object (or nothing) into this column.
   detalhes: row.detalhes as Record<string, unknown> | null,
+});
+
+// Only what the history shows: `detalhes` and `clientEventId` are never read for a list.
+const listSelect = {
+  id: true,
+  ocorridoEm: true,
+  metodo: true,
+  resultado: true,
+  motivo: true,
+  distanciaM: true,
+  authorizationId: true,
+  usuario: { select: { id: true, nome: true, perfil: true } },
+  accessPoint: {
+    select: { id: true, nome: true, tipo: true, building: { select: { id: true, nome: true } } },
+  },
+  terminal: { select: { id: true, nome: true } },
+} satisfies Prisma.AccessEventSelect;
+
+type ListRow = Prisma.AccessEventGetPayload<{ select: typeof listSelect }>;
+
+const toDetails = (row: ListRow): AccessEventDetails => ({
+  id: row.id,
+  ocorridoEm: row.ocorridoEm,
+  metodo: row.metodo,
+  resultado: row.resultado,
+  motivo: row.motivo,
+  distanciaM: row.distanciaM,
+  authorizationId: row.authorizationId,
+  usuario: row.usuario,
+  local: row.accessPoint && {
+    id: row.accessPoint.id,
+    nome: row.accessPoint.nome,
+    tipo: row.accessPoint.tipo,
+    edificio: row.accessPoint.building,
+  },
+  terminal: row.terminal,
 });
 
 export class PrismaAccessEventRepository implements IAccessEventRepository {
@@ -51,8 +89,19 @@ export class PrismaAccessEventRepository implements IAccessEventRepository {
     });
   }
 
-  async list(_filter: AccessEventListFilter): Promise<never> {
-    throw new Error('não implementado');
+  async list(filter: AccessEventListFilter): Promise<AccessEventListResult> {
+    const where: Prisma.AccessEventWhereInput = {};
+    // Two queries, not `$transaction`: the repository also runs on a transaction client.
+    const rows = await this.prisma.accessEvent.findMany({
+      where,
+      select: listSelect,
+      // `id` breaks ties, so a page never repeats or skips an event that shares an instant.
+      orderBy: [{ ocorridoEm: 'desc' }, { id: 'desc' }],
+      skip: (filter.page - 1) * filter.pageSize,
+      take: filter.pageSize,
+    });
+    const total = await this.prisma.accessEvent.count({ where });
+    return { items: rows.map(toDetails), total };
   }
 
   async findByClientEventId(clientEventId: string) {
