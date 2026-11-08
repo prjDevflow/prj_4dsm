@@ -72,6 +72,7 @@ describe('tratamento de erros', () => {
     expect(res.body.error.code).toBe('VALIDATION_ERROR');
     expect(res.body.error.details).toEqual([{ field: 'nome', message: expect.any(String) }]);
   });
+
   describe('corpo grande demais', () => {
     const LIMIT = 100 * 1024;
     /** A JSON body of exactly `bytes` bytes (ASCII). */

@@ -251,7 +251,7 @@ Create a port only when a step needs it. Do not create empty folders or speculat
 
 ## 9. HTTP wiring
 
-`main/app.ts` builds the app in this order: request id, request logging, `helmet`, `cors` (origins from env), `express.json({ limit: '100kb' })`, routers under `/api/v1`, 404 handler, error handler. `main/server.ts` only calls `listen`, so supertest imports `app` without opening a port.
+`main/app.ts` builds the app in this order: request id, request logging, `helmet`, `cors` (origins from env), `express.json({ limit: '100kb' })`, routers under `/api/v1`, 404 handler, error handler. The offline batch route has a tighter cap: `app.ts` mounts `express.json({ limit: '64kb' })` on it just before the general parser, which then skips a body already read. A body over a limit is a 413 `PAYLOAD_TOO_LARGE` (the error handler maps body-parser's `entity.too.large`). `main/server.ts` only calls `listen`, so supertest imports `app` without opening a port.
 
 Middlewares in `infra/http`: `authenticate({ allowInactive? })`, `authorize(...perfis)`, `authenticateTerminal`, rate limiters. Middlewares reload the user or terminal through ports; they hold no business rules.
 

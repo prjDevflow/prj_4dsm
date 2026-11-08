@@ -416,6 +416,7 @@ describe('POST /api/v1/terminal/events/batch', () => {
       expect(res.status).toBe(422);
     });
   });
+
   describe('tamanho do corpo (64 kb)', () => {
     const LIMIT = 64 * 1024;
     /** A JSON body of exactly `bytes` bytes (ASCII), padded with a field the route does not know. */
