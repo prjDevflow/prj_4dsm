@@ -90,7 +90,17 @@ export class PrismaAccessEventRepository implements IAccessEventRepository {
   }
 
   async list(filter: AccessEventListFilter): Promise<AccessEventListResult> {
-    const where: Prisma.AccessEventWhereInput = {};
+    // An `undefined` field is no condition at all, so each filter applies only when it was sent.
+    const where: Prisma.AccessEventWhereInput = {
+      usuarioId: filter.usuarioId,
+      accessPointId: filter.accessPointId,
+      terminalId: filter.terminalId,
+      metodo: filter.metodo,
+      resultado: filter.resultado,
+      motivo: filter.motivo,
+      // Both ends are inclusive.
+      ocorridoEm: { gte: filter.de, lte: filter.ate },
+    };
     // Two queries, not `$transaction`: the repository also runs on a transaction client.
     const rows = await this.prisma.accessEvent.findMany({
       where,
