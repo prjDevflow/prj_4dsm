@@ -27,6 +27,11 @@ export default defineConfig({
       ENROLL_MODE_SECONDS: '45',
       // Not the default (3): the debounce test then fails if the wiring of the variable breaks.
       NFC_DEBOUNCE_SECONDS: '5',
+      // Not the defaults (300, 20 and 120), and low enough for the rate-limit tests to run fast. The tests
+      // read them back from the env, so a limiter that ignores the variable fails them.
+      TERMINAL_MAX_PER_MINUTE: '100',
+      TERMINAL_AUTH_FAIL_MAX_PER_MINUTE: '12',
+      PUBLIC_MAX_PER_MINUTE: '60',
     },
   },
 });

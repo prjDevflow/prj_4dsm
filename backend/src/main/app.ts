@@ -23,6 +23,8 @@ export interface AppOptions {
   extraRoutes?: (router: Router) => void;
   /** Test-only hook: reads the request log from a logger the test controls. */
   logger?: Logger;
+  /** How many reverse proxies stand in front of the API; defaults to TRUST_PROXY. */
+  trustProxy?: number;
 }
 
 export function createApp({
