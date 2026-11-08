@@ -114,6 +114,14 @@ const EnvSchema = z.object({
   ENROLL_MODE_SECONDS: positiveInt(60),
   // NFC validation (B17): a tag read again on the same terminal within this many seconds gets the previous decision.
   NFC_DEBOUNCE_SECONDS: positiveInt(3),
+  // Request limits (B20), counted per minute. A terminal is limited after it authenticates; failed
+  // terminal authentications are limited per IP; /health and /ready are limited per IP.
+  TERMINAL_MAX_PER_MINUTE: positiveInt(300),
+  TERMINAL_AUTH_FAIL_MAX_PER_MINUTE: positiveInt(20),
+  PUBLIC_MAX_PER_MINUTE: positiveInt(120),
+  // How many reverse proxies stand in front of the API (Express "trust proxy" as a hop count). 0 trusts
+  // none, so X-Forwarded-For is ignored; a number only, never `true`, which would trust any client's header.
+  TRUST_PROXY: nonNegativeInt(0),
 });
 
 export type Env = z.infer<typeof EnvSchema>;

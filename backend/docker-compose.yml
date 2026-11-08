@@ -103,6 +103,11 @@ services:
       ENROLL_MODE_SECONDS: ${ENROLL_MODE_SECONDS:-}
       # Validação por NFC (B17).
       NFC_DEBOUNCE_SECONDS: ${NFC_DEBOUNCE_SECONDS:-}
+      # Segurança e monitoramento (B20).
+      TERMINAL_MAX_PER_MINUTE: ${TERMINAL_MAX_PER_MINUTE:-}
+      TERMINAL_AUTH_FAIL_MAX_PER_MINUTE: ${TERMINAL_AUTH_FAIL_MAX_PER_MINUTE:-}
+      PUBLIC_MAX_PER_MINUTE: ${PUBLIC_MAX_PER_MINUTE:-}
+      TRUST_PROXY: ${TRUST_PROXY:-}
     ports:
       - '${PORT:-3000}:3000'
     depends_on:
