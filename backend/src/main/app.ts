@@ -11,6 +11,8 @@ import { container } from './container';
 import { loadOpenApiSpec } from './openapi';
 import { buildApiRouter } from './routes';
 
+const OFFLINE_BATCH_PATH = '/api/v1/terminal/events/batch';
+
 export interface AppOptions {
   isProduction?: boolean;
   /** Test-only hook to mount extra routes under /api/v1, before the 404 handler. */
@@ -30,6 +32,9 @@ export function createApp({
   app.use(makeRequestLogger(logger));
   app.use(helmet());
   app.use(cors({ origin: container.env.CORS_ORIGINS }));
+  // The offline batch has a tighter cap than the rest of the API (doc 07, B19). Mounted first, so the
+  // general parser below finds that body already read and leaves it alone.
+  app.use(OFFLINE_BATCH_PATH, express.json({ limit: '64kb' }));
   app.use(express.json({ limit: '100kb' }));
 
   // Swagger UI reads the same openapi.yaml the contract is kept in.
