@@ -1,6 +1,6 @@
 # Eventos de acesso: campo × quando é nulo
 
-Para o Pedro (F12) saber o que esperar de cada evento. Um evento é o registro imutável de **uma tentativa de acesso**, aprovada ou negada. A tabela é `access_events`; as consultas (`GET /access-events`, `GET /me/access-events`) chegam na B18, e o formato exato das respostas será definido lá. Os nomes abaixo são os das colunas.
+Para o Pedro (F12) saber o que esperar de cada evento. Um evento é o registro imutável de **uma tentativa de acesso**, aprovada ou negada. A tabela é `access_events`; as consultas (`GET /access-events`, `GET /me/access-events`) são da B18 e a seção "O que o histórico devolve", no fim, diz o que cada coluna vira na resposta. Os nomes abaixo são os das colunas.
 
 Vale para todas as tentativas:
 
@@ -39,3 +39,18 @@ No NFC, `clientEventId` é a `Idempotency-Key` da leitura (UUID em minúsculas) 
 ## Motivos (`motivo`)
 
 `CREDENCIAL_INVALIDA`, `CREDENCIAL_EXPIRADA`, `CREDENCIAL_REUTILIZADA`, `USUARIO_INATIVO`, `SEM_AUTORIZACAO`, `AUTORIZACAO_CANCELADA`, `FORA_DO_PERIODO`, `USOS_ESGOTADOS`, `DISTANTE_DO_TERMINAL`, `LOCALIZACAO_INVALIDA`, `TAG_DESCONHECIDA`, `TAG_INATIVA` e `TERMINAL_OFFLINE`. Os textos para o usuário estão na seção 4.4 do contrato. `TERMINAL_OFFLINE` só aparece em eventos que o terminal envia depois de ficar sem conexão (B19).
+
+## O que o histórico devolve (B18)
+
+`GET /access-events` (admin) e `GET /me/access-events` (os do token) devolvem a lista paginada, do mais recente para o mais antigo. Cada item tem **só** estes campos (o formato completo está no `openapi.yaml`, schema `EventoDeAcesso`):
+
+| Campo da resposta | Vem de | Quando é `null` |
+|---|---|---|
+| `id`, `ocorridoEm`, `metodo`, `resultado`, `motivo`, `distanciaM`, `authorizationId` | a coluna de mesmo nome | como na tabela acima |
+| `usuario` (`id`, `nome`, `perfil`) | `usuarioId`, já resolvido | quando `usuarioId` é nulo: NFC com `TAG_DESCONHECIDA` |
+| `local` (`id`, `nome`, `tipo`, `edificio` com `id` e `nome`) | `accessPointId`, já resolvido | quando `accessPointId` é nulo: QR com credencial inexistente |
+| `terminal` (`id`, `nome`) | `terminalId`, já resolvido | quando `terminalId` é nulo: QR com credencial inexistente |
+
+Ficam **fora** da resposta: `detalhes` (UID da tag, prefixo do hash, precisão do GPS) e `clientEventId` (a `Idempotency-Key`). Para o app, uma tag desconhecida aparece com `motivo: "TAG_DESCONHECIDA"` e `usuario: null`; o UID só se vê na serial do terminal.
+
+Os filtros são `usuarioId`, `accessPointId`, `terminalId`, `metodo`, `resultado`, `motivo`, `de` e `ate` (instantes, os dois inclusivos). Em `/me/access-events` o `usuarioId` não existe: o dono é o do token.

@@ -196,6 +196,25 @@ Só `ADMIN`. Formatos adotados na B16 (o `openapi.yaml` é a fonte final; pergun
 - Tags não se apagam: desativar é `ativa: false`. `uid` e `usuarioId` não mudam (422 no `PATCH`).
 - Modo de cadastro: grava `modoCadastroUsuarioId` e `modoCadastroAte = agora + ENROLL_MODE_SECONDS`. O prazo ainda vale no instante exato do `modoCadastroAte` (inclusivo, como o QR e os comandos). Ligar de novo substitui o anterior. Terminal inativo é aceito. `GET /terminals` não mostra o modo.
 
+### 4.7 Histórico de acessos (B18)
+
+`GET /access-events` (só `ADMIN`) e `GET /me/access-events` (qualquer perfil, só os do token). Formato adotado na B18 (o `openapi.yaml` é a fonte final; pergunta #15 no `STATUS.md`).
+
+```json
+// GET /access-events?usuarioId=&accessPointId=&terminalId=&metodo=&resultado=&motivo=&de=&ate=&page=&pageSize=
+{ "data": [ { "id": "uuid", "ocorridoEm": "2026-10-20T14:32:07.123Z", "metodo": "QR", "resultado": "AUTORIZADO",
+    "motivo": null, "distanciaM": 14.25, "authorizationId": "uuid",
+    "usuario": { "id": "uuid", "nome": "Maria Souza", "perfil": "VISITANTE" },
+    "local": { "id": "uuid", "nome": "Catraca Social", "tipo": "CATRACA", "edificio": { "id": "uuid", "nome": "Edifício Central" } },
+    "terminal": { "id": "uuid", "nome": "Terminal Social" } } ],
+  "page": 1, "pageSize": 20, "total": 134 }
+```
+
+- Do mais recente para o mais antigo (`ocorridoEm`, depois `id`). Formato paginado padrão. Os filtros se combinam; `/me/access-events` aceita os mesmos, menos `usuarioId` (ignorado: o dono é o do token).
+- `usuario`, `local` e `terminal` são `null` quando a tentativa não os identificou (tag NFC desconhecida: sem pessoa; QR inexistente: sem local e sem terminal). Não saem na resposta: `detalhes` (UID, prefixo do hash, precisão) e `clientEventId`.
+- `de` e `ate`: instantes ISO 8601 (`Z` ou fuso), os dois **inclusivos**. Data sem hora, `ate` anterior a `de` e instante antes do ano 1 dão 422 (o PostgreSQL não tem ano 0). `motivo` aceita só os 13 códigos da seção 4.4; método e resultado, os valores do contrato.
+- Eventos são somente leitura: nenhuma rota os altera ou apaga.
+
 ## 5. Regras de acesso
 
 ### 5.1 Ordem de avaliação do QR (`POST /access/qr/validate`)

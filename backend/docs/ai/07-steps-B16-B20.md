@@ -113,25 +113,25 @@ Legenda: **U** = unitário (doubles, sem banco) · **I** = integração (superte
 
 **Lista de testes**
 
-- [ ] U `ListMyAccessEvents`: usa sempre o id do token.
-- [ ] I cada filtro funciona isolado e combinado (um teste por filtro).
-- [ ] I eventos aprovados e negados aparecem; os negados trazem o `motivo`.
-- [ ] I usuário comum só enxerga os próprios em `/me/access-events` e recebe 403 em `/access-events`.
-- [ ] I evento sem usuário (credencial desconhecida) aparece com `usuario: null`.
-- [ ] I com 10 mil eventos (criados em lote no teste) uma página volta em menos de 300 ms.
-- [ ] I não existe rota que altere ou apague eventos.
+- [x] U `ListMyAccessEvents`: usa sempre o id do token.
+- [x] I cada filtro funciona isolado e combinado (um teste por filtro).
+- [x] I eventos aprovados e negados aparecem; os negados trazem o `motivo`.
+- [x] I usuário comum só enxerga os próprios em `/me/access-events` e recebe 403 em `/access-events`.
+- [x] I evento sem usuário (credencial desconhecida) aparece com `usuario: null`. _Na prática só a tag NFC desconhecida fica sem pessoa; o QR desconhecido traz o usuário logado (`docs/eventos-campos.md`). O teste cobre as duas formas, e o fluxo real do NFC._
+- [x] I com 10 mil eventos (criados em lote no teste) uma página volta em menos de 300 ms. _Medido: de 11 a 26 ms por requisição inteira._
+- [x] I não existe rota que altere ou apague eventos.
 
 **Critérios de aceitação**
 
-- [ ] Cada filtro funciona isolado e combinado.
-- [ ] Eventos aprovados e negados aparecem; os negados trazem o `motivo`.
-- [ ] Usuário comum só enxerga os próprios (`/me/access-events`) e recebe 403 em `/access-events`.
-- [ ] Com 10 mil eventos, uma página é devolvida em menos de 300 ms localmente.
-- [ ] Não existe rota que altere ou apague eventos.
+- [x] Cada filtro funciona isolado e combinado.
+- [x] Eventos aprovados e negados aparecem; os negados trazem o `motivo`.
+- [x] Usuário comum só enxerga os próprios (`/me/access-events`) e recebe 403 em `/access-events`.
+- [x] Com 10 mil eventos, uma página é devolvida em menos de 300 ms localmente.
+- [x] Não existe rota que altere ou apague eventos.
 
 **Definição de pronto**
 
-- [ ] Testes por filtro e de isolamento entre usuários; Swagger atualizado.
+- [x] Testes por filtro e de isolamento entre usuários; Swagger atualizado.
 
 ---
 
