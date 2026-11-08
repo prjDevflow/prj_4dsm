@@ -47,6 +47,23 @@ const listSelect = {
 
 type ListRow = Prisma.AccessEventGetPayload<{ select: typeof listSelect }>;
 
+// Explicit as well: only these columns are ever written.
+const toCreateData = (event: AccessEvent): Prisma.AccessEventUncheckedCreateInput => ({
+  id: event.id,
+  ocorridoEm: event.ocorridoEm,
+  terminalId: event.terminalId,
+  accessPointId: event.accessPointId,
+  usuarioId: event.usuarioId,
+  authorizationId: event.authorizationId,
+  metodo: event.metodo,
+  resultado: event.resultado,
+  motivo: event.motivo,
+  distanciaM: event.distanciaM,
+  clientEventId: event.clientEventId,
+  // Prisma needs the explicit marker for a SQL NULL in a Json column.
+  detalhes: (event.detalhes as Prisma.InputJsonObject | null) ?? Prisma.DbNull,
+});
+
 const toDetails = (row: ListRow): AccessEventDetails => ({
   id: row.id,
   ocorridoEm: row.ocorridoEm,
@@ -70,23 +87,7 @@ export class PrismaAccessEventRepository implements IAccessEventRepository {
   constructor(private prisma: Prisma.TransactionClient) {}
 
   async append(event: AccessEvent): Promise<void> {
-    await this.prisma.accessEvent.create({
-      data: {
-        id: event.id,
-        ocorridoEm: event.ocorridoEm,
-        terminalId: event.terminalId,
-        accessPointId: event.accessPointId,
-        usuarioId: event.usuarioId,
-        authorizationId: event.authorizationId,
-        metodo: event.metodo,
-        resultado: event.resultado,
-        motivo: event.motivo,
-        distanciaM: event.distanciaM,
-        clientEventId: event.clientEventId,
-        // Prisma needs the explicit marker for a SQL NULL in a Json column.
-        detalhes: (event.detalhes as Prisma.InputJsonObject | null) ?? Prisma.DbNull,
-      },
-    });
+    await this.prisma.accessEvent.create({ data: toCreateData(event) });
   }
 
   async list(filter: AccessEventListFilter): Promise<AccessEventListResult> {
@@ -114,8 +115,15 @@ export class PrismaAccessEventRepository implements IAccessEventRepository {
     return { items: rows.map(toDetails), total };
   }
 
-  async appendIfAbsent(_events: AccessEvent[]): Promise<number> {
-    throw new Error('appendIfAbsent ainda não foi implementado no Prisma');
+  async appendIfAbsent(events: AccessEvent[]): Promise<number> {
+    if (events.length === 0) return 0;
+    // `ON CONFLICT DO NOTHING` on the unique `clientEventId`: the database settles who stored a key first,
+    // even when the same batch arrives twice at once.
+    const { count } = await this.prisma.accessEvent.createMany({
+      data: events.map(toCreateData),
+      skipDuplicates: true,
+    });
+    return count;
   }
 
   async findByClientEventId(clientEventId: string) {
@@ -132,6 +140,9 @@ export class PrismaAccessEventRepository implements IAccessEventRepository {
         terminalId,
         ocorridoEm: { gt: since },
         detalhes: { path: ['uid'], equals: uid },
+        // Only live reads: a batch sent after an outage carries the terminal's clock. Approved reads have no
+        // `motivo` (NULL), and `<>` alone would drop them, so the NULL is asked for.
+        OR: [{ motivo: null }, { motivo: { not: 'TERMINAL_OFFLINE' } }],
       },
       orderBy: [{ ocorridoEm: 'desc' }, { id: 'desc' }],
     });
