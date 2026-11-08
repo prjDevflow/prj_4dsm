@@ -386,4 +386,48 @@ describe('POST /api/v1/terminal/events/batch', () => {
       expect(res.status).toBe(422);
     });
   });
+  describe('tamanho do corpo (64 kb)', () => {
+    const LIMIT = 64 * 1024;
+    /** A JSON body of exactly `bytes` bytes (ASCII), padded with a field the route does not know. */
+    const bodyOfSize = (bytes: number) => {
+      const base = JSON.stringify({ events: [], padding: '' }).length;
+      return JSON.stringify({ events: [], padding: 'x'.repeat(bytes - base) });
+    };
+    const post = (scene: Scene, body: string) =>
+      request(app)
+        .post(URL)
+        .set(credentials(scene.terminal.id))
+        .set('Content-Type', 'application/json')
+        .send(body);
+
+    it('413 PAYLOAD_TOO_LARGE com 1 byte acima de 64 kb, no formato padrão de erro', async () => {
+      const scene = await seedScene();
+
+      const res = await post(scene, bodyOfSize(LIMIT + 1));
+
+      expect(res.status).toBe(413);
+      expect(res.body).toEqual({
+        error: { code: 'PAYLOAD_TOO_LARGE', message: expect.any(String) },
+      });
+      expect(await stored()).toHaveLength(0);
+    });
+
+    it('413 também para um corpo entre 64 kb e o limite geral de 100 kb', async () => {
+      const scene = await seedScene();
+
+      const res = await post(scene, bodyOfSize(90 * 1024));
+
+      expect(res.status).toBe(413);
+      expect(res.body.error.code).toBe('PAYLOAD_TOO_LARGE');
+    });
+
+    it('com exatamente 64 kb o corpo passa do limite e chega à validação (422 do lote vazio)', async () => {
+      const scene = await seedScene();
+
+      const res = await post(scene, bodyOfSize(LIMIT));
+
+      expect(res.status).toBe(422);
+      expect(res.body.error.code).toBe('VALIDATION_ERROR');
+    });
+  });
 });
