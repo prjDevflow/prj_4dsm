@@ -188,3 +188,35 @@ describe('PrismaNfcTagRepository.list', () => {
     );
   });
 });
+
+describe('PrismaNfcTagRepository.findByUid', () => {
+  beforeEach(resetDatabase);
+
+  it('deve devolver a tag com todos os campos, ativa ou não', async () => {
+    const user = await insertUser();
+    const active = await insertNfcTag({ usuarioId: user.id, uid: '04A1B2C3D4', descricao: 'Azul' });
+    const inactive = await insertNfcTag({ usuarioId: user.id, uid: '04FFEEDD', ativa: false });
+
+    expect(await tags.findByUid('04A1B2C3D4')).toEqual({
+      id: active.id,
+      usuarioId: user.id,
+      uid: '04A1B2C3D4',
+      descricao: 'Azul',
+      ativa: true,
+      criadaEm: active.criadaEm,
+    });
+    expect(await tags.findByUid('04FFEEDD')).toMatchObject({ id: inactive.id, ativa: false });
+  });
+
+  it('deve devolver null para um UID que nenhuma tag tem', async () => {
+    expect(await tags.findByUid('04A1B2C3D4')).toBeNull();
+  });
+
+  it('deve casar o UID inteiro, não um prefixo nem outra grafia', async () => {
+    const user = await insertUser();
+    await insertNfcTag({ usuarioId: user.id, uid: '04A1B2C3D4' });
+
+    expect(await tags.findByUid('04A1B2C3')).toBeNull();
+    expect(await tags.findByUid('04a1b2c3d4')).toBeNull();
+  });
+});

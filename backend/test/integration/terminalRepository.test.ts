@@ -179,3 +179,97 @@ describe('PrismaTerminalRepository.updateEnrollMode', () => {
     ).toBe(false);
   });
 });
+
+describe('PrismaTerminalRepository.consumeEnrollMode', () => {
+  beforeEach(resetDatabase);
+
+  const until = new Date('2026-10-20T14:01:00.000Z');
+  const NOW = new Date('2026-10-20T14:00:00.000Z');
+
+  async function enrolling() {
+    const user = await insertUser();
+    const terminal = await insertTerminal({
+      apiKeyHash: sha256Hex('a'),
+      modoCadastroUsuarioId: user.id,
+      modoCadastroAte: until,
+    });
+    return { user, terminal };
+  }
+
+  const modeOf = async (id: string) => {
+    const row = await prisma.terminal.findUniqueOrThrow({ where: { id } });
+    return {
+      modoCadastroUsuarioId: row.modoCadastroUsuarioId,
+      modoCadastroAte: row.modoCadastroAte,
+    };
+  };
+
+  it('deve limpar o modo e devolver true quando ele vale, sem tocar na chave nem no contato', async () => {
+    const { user, terminal } = await enrolling();
+    const contact = new Date('2026-10-20T13:59:00Z');
+    await prisma.terminal.update({
+      where: { id: terminal.id },
+      data: { ultimoContatoEm: contact },
+    });
+
+    expect(await terminals.consumeEnrollMode(terminal.id, user.id, NOW)).toBe(true);
+
+    expect(await modeOf(terminal.id)).toEqual({
+      modoCadastroUsuarioId: null,
+      modoCadastroAte: null,
+    });
+    const row = await prisma.terminal.findUniqueOrThrow({ where: { id: terminal.id } });
+    expect(row).toMatchObject({ apiKeyHash: sha256Hex('a'), ultimoContatoEm: contact });
+  });
+
+  it('deve ainda valer no instante exato do prazo', async () => {
+    const { user, terminal } = await enrolling();
+
+    expect(await terminals.consumeEnrollMode(terminal.id, user.id, until)).toBe(true);
+  });
+
+  it('deve devolver false 1 ms depois do prazo e deixar o modo como estava', async () => {
+    const { user, terminal } = await enrolling();
+
+    const late = new Date(until.getTime() + 1);
+    expect(await terminals.consumeEnrollMode(terminal.id, user.id, late)).toBe(false);
+
+    expect(await modeOf(terminal.id)).toEqual({
+      modoCadastroUsuarioId: user.id,
+      modoCadastroAte: until,
+    });
+  });
+
+  it('deve devolver false para o usuário de um modo que foi substituído, sem apagar o novo', async () => {
+    const { user, terminal } = await enrolling();
+    const other = await insertUser();
+    await prisma.terminal.update({
+      where: { id: terminal.id },
+      data: { modoCadastroUsuarioId: other.id },
+    });
+
+    expect(await terminals.consumeEnrollMode(terminal.id, user.id, NOW)).toBe(false);
+
+    expect((await modeOf(terminal.id)).modoCadastroUsuarioId).toBe(other.id);
+  });
+
+  it('deve devolver false sem modo ligado e para um terminal que não existe', async () => {
+    const user = await insertUser();
+    const terminal = await insertTerminal();
+
+    expect(await terminals.consumeEnrollMode(terminal.id, user.id, NOW)).toBe(false);
+    expect(
+      await terminals.consumeEnrollMode('5eed0000-0000-4000-8000-0000000000ff', user.id, NOW),
+    ).toBe(false);
+  });
+
+  it('deve deixar só uma de oito chamadas simultâneas gastar o modo', async () => {
+    const { user, terminal } = await enrolling();
+
+    const results = await Promise.all(
+      Array.from({ length: 8 }, () => terminals.consumeEnrollMode(terminal.id, user.id, NOW)),
+    );
+
+    expect(results.filter(Boolean)).toHaveLength(1);
+  });
+});

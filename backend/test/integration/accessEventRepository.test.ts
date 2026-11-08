@@ -151,3 +151,119 @@ describe('PrismaAccessEventRepository', () => {
     });
   });
 });
+
+describe('PrismaAccessEventRepository: consultas do NFC', () => {
+  beforeEach(resetDatabase);
+
+  const UID = '04A1B2C3D4';
+  const KEY = '3f1c9a52-8e0b-4f55-9d57-2a6f0c1d7e44';
+
+  async function seedTerminal() {
+    const accessPoint = await insertAccessPoint();
+    const terminal = await insertTerminal({ accessPointId: accessPoint.id });
+    return { accessPoint, terminal };
+  }
+
+  /** An NFC read denied at `at`, as the use case stores it. */
+  const nfcEvent = (
+    scene: Awaited<ReturnType<typeof seedTerminal>>,
+    at: Date,
+    overrides: Partial<Parameters<typeof AccessEvent.denied>[0]> = {},
+  ) =>
+    AccessEvent.denied({
+      id: newId(),
+      ocorridoEm: at,
+      metodo: 'NFC',
+      terminalId: scene.terminal.id,
+      accessPointId: scene.accessPoint.id,
+      motivo: 'TAG_DESCONHECIDA',
+      uid: UID,
+      ...overrides,
+    });
+
+  describe('findByClientEventId', () => {
+    it('devolve o evento gravado com a chave, com todos os campos', async () => {
+      const scene = await seedTerminal();
+      const event = nfcEvent(scene, T0, { clientEventId: KEY });
+      await events.append(event);
+
+      expect(await events.findByClientEventId(KEY)).toEqual(event);
+    });
+
+    it('devolve null para uma chave que nenhum evento tem', async () => {
+      expect(await events.findByClientEventId(KEY)).toBeNull();
+    });
+
+    it('recusa um segundo evento com a mesma chave, pelo índice único', async () => {
+      const scene = await seedTerminal();
+      await events.append(nfcEvent(scene, T0, { clientEventId: KEY }));
+
+      await expectViolation(
+        events.append(nfcEvent(scene, T0, { clientEventId: KEY })),
+        'access_events_clientEventId_key',
+      );
+      expect(await prisma.accessEvent.count()).toBe(1);
+    });
+  });
+
+  describe('findRecentNfc', () => {
+    const since = new Date(T0.getTime() - 3000);
+
+    it('devolve a leitura mais recente da mesma tag no mesmo terminal depois de since', async () => {
+      const scene = await seedTerminal();
+      await events.append(nfcEvent(scene, new Date(T0.getTime() - 2500)));
+      const newest = nfcEvent(scene, new Date(T0.getTime() - 500));
+      await events.append(newest);
+      await events.append(nfcEvent(scene, new Date(T0.getTime() - 1500)));
+
+      const found = await events.findRecentNfc({ terminalId: scene.terminal.id, uid: UID, since });
+
+      expect(found).toEqual(newest);
+    });
+
+    it('trata since como exclusivo: o evento exatamente em since não é recente, 1 ms depois é', async () => {
+      const scene = await seedTerminal();
+      await events.append(nfcEvent(scene, since));
+
+      expect(
+        await events.findRecentNfc({ terminalId: scene.terminal.id, uid: UID, since }),
+      ).toBeNull();
+
+      const justAfter = nfcEvent(scene, new Date(since.getTime() + 1));
+      await events.append(justAfter);
+      expect(
+        await events.findRecentNfc({ terminalId: scene.terminal.id, uid: UID, since }),
+      ).toEqual(justAfter);
+    });
+
+    it('compara o UID inteiro: nem um prefixo nem outra tag contam', async () => {
+      const scene = await seedTerminal();
+      await events.append(nfcEvent(scene, new Date(T0.getTime() - 500), { uid: '04A1B2C3' }));
+      await events.append(nfcEvent(scene, new Date(T0.getTime() - 400), { uid: '04A1B2C3D4E5' }));
+
+      expect(
+        await events.findRecentNfc({ terminalId: scene.terminal.id, uid: UID, since }),
+      ).toBeNull();
+    });
+
+    it('ignora o evento de outro terminal', async () => {
+      const scene = await seedTerminal();
+      const other = await seedTerminal();
+      await events.append(nfcEvent(other, new Date(T0.getTime() - 500)));
+
+      expect(
+        await events.findRecentNfc({ terminalId: scene.terminal.id, uid: UID, since }),
+      ).toBeNull();
+    });
+
+    it('ignora o evento de QR, mesmo com um uid em detalhes, e o evento sem detalhes', async () => {
+      const scene = await seedTerminal();
+      await events.append(nfcEvent(scene, new Date(T0.getTime() - 500), { metodo: 'QR' }));
+      await events.append(nfcEvent(scene, new Date(T0.getTime() - 400), { uid: null }));
+
+      expect(
+        await events.findRecentNfc({ terminalId: scene.terminal.id, uid: UID, since }),
+      ).toBeNull();
+    });
+  });
+});
