@@ -4,6 +4,7 @@ import { beforeEach, describe, expect, it } from 'vitest';
 import { createApp } from '../../src/main/app';
 import { container } from '../../src/main/container';
 import { insertTerminal, resetDatabase } from './helpers';
+import { listRegisteredRoutes } from './routeInventory';
 
 const { TERMINAL_MAX_PER_MINUTE, TERMINAL_AUTH_FAIL_MAX_PER_MINUTE, PUBLIC_MAX_PER_MINUTE } =
   container.env;
@@ -15,21 +16,17 @@ const credentials = (terminal: { id: string }) => ({
   'X-Terminal-Key': KEY,
 });
 
-// Every route the terminal calls. The ack route gets an id that does not exist: any answer but 429 means
-// the limiter did not stop it.
-const TERMINAL_ROUTES = [
-  ['post', '/api/v1/terminal/heartbeat'],
-  ['post', '/api/v1/terminal/qr'],
-  ['post', '/api/v1/terminal/nfc'],
-  ['post', '/api/v1/terminal/events/batch'],
-  ['get', '/api/v1/terminal/commands'],
-  ['post', '/api/v1/terminal/commands/1/ack'],
-] as const;
+// Every route the terminal calls, read from the router: a new terminal route is tested by itself. The ack
+// route gets an id that does not exist: any answer but 429 means the limiter did not stop it.
+const TERMINAL_ROUTES = listRegisteredRoutes()
+  .filter((route) => route.path.startsWith('/terminal/'))
+  .map((route) => [route.method, `/api/v1${route.path.replace(':id', '1')}`] as const);
 
 describe('limite de requisições do terminal autenticado', () => {
   beforeEach(resetDatabase);
 
   it('dá 429 RATE_LIMITED, em todas as rotas do terminal, depois de TERMINAL_MAX_PER_MINUTE requisições somadas', async () => {
+    expect(TERMINAL_ROUTES.length).toBeGreaterThanOrEqual(6);
     const app = createApp();
     const terminal = await insertTerminal({ apiKeyHash: sha256(KEY) });
     for (let i = 0; i < TERMINAL_MAX_PER_MINUTE; i++) {
