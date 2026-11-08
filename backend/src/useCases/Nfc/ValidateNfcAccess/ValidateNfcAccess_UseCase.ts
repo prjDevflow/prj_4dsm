@@ -75,7 +75,9 @@ export class ValidateNfcAccessUseCase {
       authorizations,
       now,
     });
-    if (!evaluation.granted) throw new Error('B17: ainda não implementado');
+    if (!evaluation.granted) {
+      return this.deny(evaluation.reason, { terminal, uid, input, userId: user.id });
+    }
 
     const result = await this.accessGrants.commitNfcApproval({
       authorizationId: evaluation.authorization.id,
