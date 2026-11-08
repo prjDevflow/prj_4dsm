@@ -1,8 +1,10 @@
 import request from 'supertest';
-import { describe, it, expect } from 'vitest';
+import { afterEach, describe, it, expect, vi } from 'vitest';
 import { z } from 'zod';
 import { createApp } from '../../src/main/app';
+import { container } from '../../src/main/container';
 import { AppError } from '../../src/shared/errors/AppError';
+import { bearer, insertUser, resetDatabase } from './helpers';
 
 const makeApp = ({ isProduction = false } = {}) =>
   createApp({
@@ -106,5 +108,31 @@ describe('tratamento de erros', () => {
 
       expect(res.status).toBe(200);
     });
+  });
+});
+
+describe('erro 500 numa rota real, em produção', () => {
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  it('não mostra stack, mensagem interna nem o que estava dentro do erro', async () => {
+    await resetDatabase();
+    const admin = await insertUser({ perfil: 'ADMIN' });
+    // The database driver failed in the middle of an authenticated request.
+    vi.spyOn(container.users, 'findById').mockRejectedValue(
+      new Error('connect ECONNREFUSED postgresql://access:senha-do-banco@db:5432/access'),
+    );
+
+    const res = await request(createApp({ isProduction: true }))
+      .get('/api/v1/auth/me')
+      .set('Authorization', bearer(admin));
+
+    expect(res.status).toBe(500);
+    expect(res.body).toEqual({
+      error: { code: 'INTERNAL_ERROR', message: 'Erro interno do servidor' },
+    });
+    expect(JSON.stringify([res.body, res.headers, res.text])).not.toContain('senha-do-banco');
+    expect(res.headers).not.toHaveProperty('x-powered-by');
   });
 });
