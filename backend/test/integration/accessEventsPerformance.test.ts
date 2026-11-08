@@ -21,8 +21,11 @@ const START = Date.UTC(2026, 9, 1);
 
 const REASONS = ['FORA_DO_PERIODO', 'USOS_ESGOTADOS', 'TAG_INATIVA', 'SEM_AUTORIZACAO'] as const;
 
-// 10 thousand events, as the step asks: enough that a missing index or a query that reads every row
-// is visible in the time of one page, and few enough to build in a second.
+// 10 thousand events, as the step asks. This proves the acceptance criterion and nothing more: a page
+// of the whole request answers within 300 ms. It does NOT guard the indexes: with this volume
+// PostgreSQL still answers in tens of milliseconds without them (checked by dropping the three
+// indexes of `access_events`, and all of these tests still passed). The index check is the
+// `EXPLAIN ANALYZE` recorded in STATUS.md, not this file.
 describe('GET /access-events com 10 mil eventos', () => {
   let admin: Awaited<ReturnType<typeof insertUser>>;
   let someone: Awaited<ReturnType<typeof insertUser>>;
@@ -96,7 +99,7 @@ describe('GET /access-events com 10 mil eventos', () => {
     expect(ms, `levou ${ms.toFixed(0)} ms`).toBeLessThan(LIMIT_MS);
   });
 
-  // The filters that have an index, and the ones that do not: all of them must stay under the limit.
+  // Filters with an index and filters without one: each page must stay under the limit at this volume.
   it.each([
     ['usuarioId', () => `?usuarioId=${someone.id}`],
     ['accessPointId', () => `?accessPointId=${accessPointId}`],
