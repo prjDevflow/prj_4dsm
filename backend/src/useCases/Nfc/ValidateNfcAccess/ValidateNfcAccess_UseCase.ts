@@ -1,5 +1,5 @@
 import { AccessEvent } from '../../../entities/AccessEvent';
-import type { NfcDenialReason } from '../../../entities/DenialReason';
+import { isNfcDenialReason, type NfcDenialReason } from '../../../entities/DenialReason';
 import type { Terminal } from '../../../entities/Terminal';
 import { AccessEvaluator } from '../../../entities/rules/AccessEvaluator';
 import { normalizeUid } from '../../../entities/rules/normalizeUid';
@@ -11,6 +11,7 @@ import type { IAuthorizationRepository } from '../../../repositories/IAuthorizat
 import type { INfcTagRepository } from '../../../repositories/INfcTagRepository';
 import type { ITerminalRepository } from '../../../repositories/ITerminalRepository';
 import type { IUserRepository } from '../../../repositories/IUserRepository';
+import { ConflictError } from '../../../shared/errors/AppError';
 import type { AccessEventRecorder } from '../../Events/AccessEventRecorder';
 
 export interface ValidateNfcAccessInput {
@@ -54,6 +55,10 @@ export class ValidateNfcAccessUseCase {
     const terminal = await this.terminals.findById(input.terminalId);
     const uid = normalizeUid(input.uid);
     if (!terminal || !uid) throw new Error('B17: ainda não implementado');
+
+    // A retry of a read already decided gets the same answer, whatever changed since.
+    const decided = await this.events.findByClientEventId(input.idempotencyKey);
+    if (decided) return this.replay(decided, terminal.id);
 
     // Who is it, in the order of doc 03, section 5.2: the tag, then the person.
     const tag = await this.tags.findByUid(uid);
@@ -112,5 +117,18 @@ export class ValidateNfcAccessUseCase {
       uid: attempt.uid,
     });
     return { resultado: 'NEGADO', motivo: reason };
+  }
+  /**
+   * The answer an earlier read of this terminal got, read back from its event. A key that belongs to
+   * another terminal, or to an event that was not an NFC read (a QR, a batch sent later), is a conflict.
+   */
+  private replay(event: AccessEvent, terminalId: string): NfcAccessDecision {
+    if (event.terminalId === terminalId && event.metodo === 'NFC') {
+      if (event.resultado === 'AUTORIZADO') {
+        return { resultado: 'AUTORIZADO', aberturaMs: this.config.aberturaMs };
+      }
+      if (isNfcDenialReason(event.motivo)) return { resultado: 'NEGADO', motivo: event.motivo };
+    }
+    throw new ConflictError('CONFLICT', 'Esta Idempotency-Key já foi usada por outro evento');
   }
 }
