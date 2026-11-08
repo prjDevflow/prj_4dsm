@@ -1,12 +1,18 @@
 import { AccessEvent, type AccessMethod, type AccessResult } from '../../../entities/AccessEvent';
 import type { DenialReason } from '../../../entities/DenialReason';
+import { isWithinOfflineWindow } from '../../../entities/rules/isWithinOfflineWindow';
 import { normalizeUid } from '../../../entities/rules/normalizeUid';
 import type { IClock } from '../../../providers/IClock';
 import type { IIdGenerator } from '../../../providers/IIdGenerator';
 import type { IAccessEventRepository } from '../../../repositories/IAccessEventRepository';
 import type { INfcTagRepository } from '../../../repositories/INfcTagRepository';
 import type { ITerminalRepository } from '../../../repositories/ITerminalRepository';
-import { UnauthorizedError, ValidationError } from '../../../shared/errors/AppError';
+import {
+  UnauthorizedError,
+  ValidationError,
+  type ErrorDetails,
+} from '../../../shared/errors/AppError';
+import { UID_MESSAGE } from '../../Nfc/uidField';
 
 /** One attempt the terminal kept while it had no connection, as it sends it. */
 export interface OfflineEventInput {
@@ -46,15 +52,13 @@ export class IngestOfflineEventsUseCase {
     const terminal = await this.terminals.findById(input.terminalId);
     if (!terminal) throw new UnauthorizedError();
 
-    const uids = input.events.map((event, index) => {
-      const uid = normalizeUid(event.uid);
-      if (!uid) {
-        throw new ValidationError('Dados inválidos', [
-          { field: `events.${index}.uid`, message: 'UID inválido' },
-        ]);
-      }
-      return uid;
-    });
+    // The whole batch is checked before anything is stored: one bad event rejects all of them.
+    const now = this.clock.now();
+    const problems = input.events.flatMap((event, index) => this.check(event, index, now));
+    if (problems.length > 0) throw new ValidationError('Dados inválidos', problems);
+
+    // `check` already refused any UID that does not normalize.
+    const uids = input.events.map((event) => normalizeUid(event.uid) as string);
     const owners = await this.findOwners(uids);
 
     const events = input.events.map((event, index) =>
@@ -65,7 +69,7 @@ export class IngestOfflineEventsUseCase {
         terminalId: terminal.id,
         accessPointId: terminal.accessPointId,
         // The tag tells who tried, active or not; an unknown tag leaves the person out.
-        usuarioId: owners.get(uids[index]!) ?? null,
+        usuarioId: owners.get(uids[index] as string) ?? null,
         clientEventId: event.clientEventId,
         uid: uids[index],
         motivo: event.motivo,
@@ -74,6 +78,36 @@ export class IngestOfflineEventsUseCase {
 
     const stored = await this.events.appendIfAbsent(events);
     return { aceitos: stored, duplicados: events.length - stored };
+  }
+
+  /**
+   * What is wrong with one event, one entry per field, in the order of the contract. A terminal that is
+   * offline can only deny, so an approval, another method or another reason is not something it may send.
+   */
+  private check(event: OfflineEventInput, index: number, now: Date): ErrorDetails {
+    const problems: ErrorDetails = [];
+    const at = (field: string) => `events.${index}.${field}`;
+    if (event.metodo !== 'NFC') {
+      problems.push({ field: at('metodo'), message: 'só NFC pode ser enviado em lote' });
+    }
+    if (!normalizeUid(event.uid)) problems.push({ field: at('uid'), message: UID_MESSAGE });
+    if (!isWithinOfflineWindow(event.ocorridoEm, now)) {
+      problems.push({
+        field: at('ocorridoEm'),
+        message: 'deve estar entre 7 dias antes e 5 minutos depois do horário do servidor',
+      });
+    }
+    if (event.resultado !== 'NEGADO') {
+      problems.push({
+        field: at('resultado'),
+        message:
+          'o terminal sem conexão só envia NEGADO; uma aprovação não pode ser enviada em lote',
+      });
+    }
+    if (event.motivo !== 'TERMINAL_OFFLINE') {
+      problems.push({ field: at('motivo'), message: 'deve ser TERMINAL_OFFLINE' });
+    }
+    return problems;
   }
 
   /** The user each distinct UID belongs to, looked up once per UID however often the batch repeats it. */
