@@ -448,6 +448,24 @@ describe('GET /me/access-events', () => {
     },
   );
 
+  it('não expõe o UID, a precisão nem a chave de idempotência dos próprios eventos', async () => {
+    const { maria, add } = await scenario();
+    await add({
+      usuarioId: maria.id,
+      metodo: 'NFC',
+      clientEventId: '8d0f3f2e-6a5b-4c7e-9c1d-2b3a4f5e6d7c',
+      detalhes: { uid: '04A1B2C3', precisaoMetros: 12, credencialHashPrefixo: 'abcd1234' },
+    });
+
+    const res = await mine(maria);
+
+    expect(res.body.data).toHaveLength(1);
+    const text = JSON.stringify(res.body);
+    for (const secret of ['04A1B2C3', '8d0f3f2e', 'abcd1234', 'precisaoMetros', 'detalhes']) {
+      expect(text, secret).not.toContain(secret);
+    }
+  });
+
   it('ignora um usuarioId da query: o dono é sempre o do token', async () => {
     const { maria, joao, add } = await scenario();
     const hers = await add({ usuarioId: maria.id });
