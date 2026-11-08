@@ -519,3 +519,38 @@ describe('openapi.yaml: GET /ready', () => {
     expect(example('503')).not.toHaveProperty('error');
   });
 });
+
+describe('openapi.yaml: limites de requisição', () => {
+  interface PathsSpec {
+    info: { description: string };
+    paths: Record<string, Record<string, { responses?: Record<string, unknown> } | undefined>>;
+  }
+  const spec = () => loadOpenApiSpec() as unknown as PathsSpec;
+  const METHODS = ['get', 'post', 'patch'];
+
+  const withoutRateLimit = (paths: string[]) =>
+    paths.flatMap((path) =>
+      METHODS.filter((method) => spec().paths[path]?.[method]) // only the operations that exist
+        .filter((method) => !spec().paths[path]?.[method]?.responses?.['429'])
+        .map((method) => `${method.toUpperCase()} ${path}`),
+    );
+
+  it('deve documentar o 429 em toda rota do terminal', () => {
+    const terminalPaths = Object.keys(spec().paths).filter((path) => path.startsWith('/terminal/'));
+
+    expect(terminalPaths.length).toBeGreaterThanOrEqual(6);
+    expect(withoutRateLimit(terminalPaths)).toEqual([]);
+  });
+
+  it('deve documentar o 429 nas rotas públicas: /health, /ready e o login', () => {
+    expect(withoutRateLimit(['/health', '/ready', '/auth/login'])).toEqual([]);
+  });
+
+  it('deve explicar nas informações gerais o 429, o código RATE_LIMITED e o Retry-After', () => {
+    const { description } = spec().info;
+
+    expect(description).toContain('429');
+    expect(description).toContain('RATE_LIMITED');
+    expect(description).toContain('Retry-After');
+  });
+});
