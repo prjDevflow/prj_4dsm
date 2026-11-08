@@ -9,9 +9,10 @@ export class GetReadinessUseCase {
   ) {}
 
   async execute(): Promise<IGetReadinessResponseDTO> {
+    const up = await this.database.ping();
     return {
-      status: 'ready',
-      db: 'up',
+      status: up ? 'ready' : 'unavailable',
+      db: up ? 'up' : 'down',
       time: this.clock.now().toISOString(),
     };
   }
