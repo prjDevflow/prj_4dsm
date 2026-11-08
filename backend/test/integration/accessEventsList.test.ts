@@ -224,3 +224,171 @@ describe('GET /access-events', () => {
     expect(idsOf(second.body)).toEqual([oldest.id]);
   });
 });
+
+describe('GET /access-events: filtros', () => {
+  beforeEach(resetDatabase);
+
+  it('usuarioId devolve só os eventos daquela pessoa', async () => {
+    const { admin, maria, joao, add } = await scenario();
+    const hers = await add({ usuarioId: maria.id });
+    await add({ usuarioId: joao.id });
+
+    const res = await list(admin, `?usuarioId=${maria.id}`);
+
+    expect(idsOf(res.body)).toEqual([hers.id]);
+    expect(res.body.total).toBe(1);
+  });
+
+  it('accessPointId devolve só os eventos daquele ponto', async () => {
+    const { admin, gate, door, doorTerminal, add } = await scenario();
+    const atGate = await add({ accessPointId: gate.id });
+    await add({ accessPointId: door.id, terminalId: doorTerminal.id });
+
+    const res = await list(admin, `?accessPointId=${gate.id}`);
+
+    expect(idsOf(res.body)).toEqual([atGate.id]);
+  });
+
+  it('terminalId devolve só os eventos daquele terminal', async () => {
+    const { admin, gateTerminal, door, doorTerminal, add } = await scenario();
+    const onGate = await add({ terminalId: gateTerminal.id });
+    await add({ accessPointId: door.id, terminalId: doorTerminal.id });
+
+    const res = await list(admin, `?terminalId=${gateTerminal.id}`);
+
+    expect(idsOf(res.body)).toEqual([onGate.id]);
+  });
+
+  it('metodo devolve só QR ou só NFC', async () => {
+    const { admin, add } = await scenario();
+    const qr = await add({ metodo: 'QR' });
+    const nfc = await add({ metodo: 'NFC' });
+
+    const onlyQr = await list(admin, '?metodo=QR');
+    const onlyNfc = await list(admin, '?metodo=NFC');
+
+    expect(idsOf(onlyQr.body)).toEqual([qr.id]);
+    expect(idsOf(onlyNfc.body)).toEqual([nfc.id]);
+  });
+
+  it('resultado devolve só aprovados ou só negados', async () => {
+    const { admin, add } = await scenario();
+    const approved = await add({ resultado: 'AUTORIZADO' });
+    const denied = await add({ resultado: 'NEGADO', motivo: 'USOS_ESGOTADOS' });
+
+    const onlyApproved = await list(admin, '?resultado=AUTORIZADO');
+    const onlyDenied = await list(admin, '?resultado=NEGADO');
+
+    expect(idsOf(onlyApproved.body)).toEqual([approved.id]);
+    expect(idsOf(onlyDenied.body)).toEqual([denied.id]);
+  });
+
+  it('motivo devolve só as negações com aquele código', async () => {
+    const { admin, add } = await scenario();
+    const inactiveTag = await add({ resultado: 'NEGADO', motivo: 'TAG_INATIVA', metodo: 'NFC' });
+    await add({ resultado: 'NEGADO', motivo: 'TAG_DESCONHECIDA', metodo: 'NFC' });
+    await add({ resultado: 'AUTORIZADO' });
+
+    const res = await list(admin, '?motivo=TAG_INATIVA');
+
+    expect(idsOf(res.body)).toEqual([inactiveTag.id]);
+  });
+
+  it('de inclui o instante exato e tudo depois dele', async () => {
+    const { admin, add } = await scenario();
+    await add({ ocorridoEm: new Date(T.getTime() - 1) });
+    const exact = await add({ ocorridoEm: T });
+    const after = await add({ ocorridoEm: new Date(T.getTime() + 1) });
+
+    const res = await list(admin, `?de=${T.toISOString()}`);
+
+    expect(idsOf(res.body)).toEqual([after.id, exact.id]);
+  });
+
+  it('ate inclui o instante exato e tudo antes dele', async () => {
+    const { admin, add } = await scenario();
+    const before = await add({ ocorridoEm: new Date(T.getTime() - 1) });
+    const exact = await add({ ocorridoEm: T });
+    await add({ ocorridoEm: new Date(T.getTime() + 1) });
+
+    const res = await list(admin, `?ate=${T.toISOString()}`);
+
+    expect(idsOf(res.body)).toEqual([exact.id, before.id]);
+  });
+
+  it('de e ate aceitam um deslocamento de fuso no lugar do Z', async () => {
+    const { admin, add } = await scenario();
+    const inside = await add({ ocorridoEm: T });
+    await add({ ocorridoEm: new Date(T.getTime() - 60_000) });
+    await add({ ocorridoEm: new Date(T.getTime() + 60_000) });
+
+    // 11:00 in São Paulo (-03:00) is 14:00Z.
+    const res = await list(admin, '?de=2026-10-20T11:00:00-03:00&ate=2026-10-20T11:00:00-03:00');
+
+    expect(idsOf(res.body)).toEqual([inside.id]);
+  });
+
+  it('combinados, valem só os eventos que atendem a todos os filtros', async () => {
+    const { admin, maria, joao, add } = await scenario();
+    const hit = await add({
+      usuarioId: maria.id,
+      metodo: 'NFC',
+      resultado: 'NEGADO',
+      motivo: 'TAG_INATIVA',
+      ocorridoEm: T,
+    });
+    await add({ usuarioId: joao.id, metodo: 'NFC', resultado: 'NEGADO', motivo: 'TAG_INATIVA' });
+    await add({ usuarioId: maria.id, metodo: 'QR', resultado: 'NEGADO', motivo: 'TAG_INATIVA' });
+    await add({ usuarioId: maria.id, metodo: 'NFC', resultado: 'AUTORIZADO' });
+    await add({
+      usuarioId: maria.id,
+      metodo: 'NFC',
+      resultado: 'NEGADO',
+      motivo: 'TAG_INATIVA',
+      ocorridoEm: new Date(T.getTime() + 1),
+    });
+
+    const query =
+      `?usuarioId=${maria.id}&metodo=NFC&resultado=NEGADO&motivo=TAG_INATIVA` +
+      `&de=${T.toISOString()}&ate=${T.toISOString()}`;
+    const res = await list(admin, query);
+
+    expect(idsOf(res.body)).toEqual([hit.id]);
+    expect(res.body.total).toBe(1);
+  });
+
+  it.each([
+    ['usuarioId=nao-e-id', 'usuarioId'],
+    ['accessPointId=nao-e-id', 'accessPointId'],
+    ['terminalId=nao-e-id', 'terminalId'],
+    ['metodo=TELEFONE', 'metodo'],
+    ['resultado=TALVEZ', 'resultado'],
+    ['motivo=INVENTADO', 'motivo'],
+    ['de=ontem', 'de'],
+    ['ate=20/10/2026', 'ate'],
+    // A date alone is not an instant: the history takes instants only.
+    ['de=2026-10-20', 'de'],
+    // PostgreSQL has no year 0, so it must be refused here instead of failing in the database.
+    ['de=0000-01-01T00:00:00Z', 'de'],
+    ['ate=0001-01-01T00:00:00%2B05:00', 'ate'],
+    ['page=0', 'page'],
+    ['pageSize=101', 'pageSize'],
+    ['de=2026-10-20T14:00:00.001Z&ate=2026-10-20T14:00:00.000Z', 'ate'],
+  ])('422 com %s e a mensagem no campo %s', async (query, field) => {
+    const { admin } = await scenario();
+
+    const res = await list(admin, `?${query}`);
+
+    expect(res.status).toBe(422);
+    expect(res.body.error.code).toBe('VALIDATION_ERROR');
+    expect(res.body.error.details).toEqual([{ field, message: expect.any(String) }]);
+  });
+
+  it('aceita de igual a ate', async () => {
+    const { admin } = await scenario();
+
+    const res = await list(admin, `?de=${T.toISOString()}&ate=${T.toISOString()}`);
+
+    expect(res.status).toBe(200);
+  });
+});
