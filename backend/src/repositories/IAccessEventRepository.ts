@@ -64,7 +64,11 @@ export interface IAccessEventRepository {
   list(filter: AccessEventListFilter): Promise<AccessEventListResult>;
   /** The event stored under this `clientEventId` (the `Idempotency-Key` of an NFC read), or null. */
   findByClientEventId(clientEventId: string): Promise<AccessEvent | null>;
-  /** The newest `NFC` event of this terminal for exactly this UID after `since`, or null (the debounce). */
+  /**
+   * The newest `NFC` event of this terminal for exactly this UID after `since`, or null (the debounce).
+   * Only live reads count: an event with `motivo = TERMINAL_OFFLINE` came in a batch with the terminal's own
+   * clock, which may be days old or ahead of the server, and is never the answer to a read happening now.
+   */
   findRecentNfc(query: RecentNfcQuery): Promise<AccessEvent | null>;
   /**
    * Stores the events whose `clientEventId` is not stored yet and skips the others, all in one write.

@@ -133,6 +133,8 @@ export class InMemoryAccessEventRepository implements IAccessEventRepository {
       .filter(
         (item) =>
           item.metodo === 'NFC' &&
+          // A batch sent after the terminal was offline carries the terminal's clock, not a live read.
+          item.motivo !== 'TERMINAL_OFFLINE' &&
           item.terminalId === terminalId &&
           item.detalhes?.uid === uid &&
           item.ocorridoEm.getTime() > since.getTime(),
