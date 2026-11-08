@@ -768,6 +768,39 @@ describe('ValidateNfcAccess', () => {
       expect(authorizations.all()[0]?.usosRealizados).toBe(1);
     });
 
+    it('deve devolver a decisão do original, e não USOS_ESGOTADOS, quando o original gravou a chave depois da conferência inicial', async () => {
+      const { read, seed, authorizations, accessGrants, events, logger } = makeSut();
+      await seed({ authorization: { usosPermitidos: 1 } });
+      const find = authorizations.findByUserAndAccessPoint.bind(authorizations);
+      vi.spyOn(authorizations, 'findByUserAndAccessPoint').mockImplementation(
+        async (userId, accessPointId) => {
+          // The first request with this key commits right here: after the retry checked the key and
+          // before it reads the authorizations, which now show the last use as spent.
+          await accessGrants.commitNfcApproval({
+            authorizationId: AUTHORIZATION_ID,
+            event: AccessEvent.approved({
+              id: 'evento-do-original',
+              ocorridoEm: new Date('2026-10-20T14:00:00Z'),
+              metodo: 'NFC',
+              terminalId: TERMINAL_ID,
+              accessPointId: POINT_ID,
+              usuarioId: USER_ID,
+              authorizationId: AUTHORIZATION_ID,
+              clientEventId: KEY,
+              uid: UID,
+            }),
+          });
+          return find(userId, accessPointId);
+        },
+      );
+
+      const decision = await read();
+
+      expect(decision).toEqual({ resultado: 'AUTORIZADO', aberturaMs: 5000 });
+      expect(events.all().map((e) => e.id)).toEqual(['evento-do-original']);
+      expect(logger.of('error')).toHaveLength(0);
+    });
+
     it('deve responder 401 quando o terminal não existe mais', async () => {
       const { read, seed, events } = makeSut();
       await seed();
