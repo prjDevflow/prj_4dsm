@@ -268,7 +268,7 @@ curl -X POST http://localhost:3000/api/v1/access/qr/validate \
 
 ## Tags NFC
 
-Só `ADMIN` (contrato no Swagger). O administrador vincula a tag a um usuário digitando o UID, ou liga o modo de cadastro no terminal e encosta a tag (a leitura em si, `POST /terminal/nfc`, chega na B17).
+Só `ADMIN` (contrato no Swagger). O administrador vincula a tag a um usuário digitando o UID, ou liga o modo de cadastro no terminal e encosta a tag A leitura em si é `POST /terminal/nfc`, chamada pelo terminal (última subseção).
 
 | Rota                                                     | O que faz                                                                       |
 | -------------------------------------------------------- | ------------------------------------------------------------------------------- |
@@ -286,8 +286,26 @@ curl -X POST http://localhost:3000/api/v1/nfc-tags \
 
 - O UID é normalizado: `:`, `-` e espaços saem e as letras ficam maiúsculas, então `04:a1:b2:c3` e `04A1B2C3` são a mesma tag. Só hexadecimal, de 8 a 20 caracteres (`422` no campo `uid`).
 - O UID é único no sistema, de qualquer usuário: repetir dá `409 TAG_JA_CADASTRADA`, também com pedidos simultâneos (quem decide é o índice único do banco). O usuário precisa existir (`404`) e estar ativo (`422` em `usuarioId`).
-- Desativar a tag (`ativa: false`) é o que a impede de abrir a catraca (a conferência é da B17). O `PATCH` só muda `ativa`: enviar `uid`, `usuarioId` ou outro campo dá `422`.
-- O modo de cadastro grava só o usuário e o prazo no terminal. A próxima tag lida por ele nesse prazo é vinculada ao usuário, sem abrir a catraca e sem gastar uso (B17). O prazo ainda vale no instante exato do `expiraEm`; depois dele o modo acaba sozinho, sem job. Ligar de novo substitui o anterior.
+- Desativar a tag (`ativa: false`) é o que a impede de abrir a catraca: a próxima leitura dela dá `NEGADO` com `TAG_INATIVA` (pode levar até `NFC_DEBOUNCE_SECONDS` para valer se a mesma tag acabou de ser lida no mesmo terminal). O `PATCH` só muda `ativa`: enviar `uid`, `usuarioId` ou outro campo dá `422`.
+- O modo de cadastro grava só o usuário e o prazo no terminal. A próxima tag lida por ele nesse prazo é vinculada ao usuário, sem abrir a catraca e sem gastar uso (a leitura responde `CADASTRADA`). O prazo ainda vale no instante exato do `expiraEm`; depois dele o modo acaba sozinho, sem job. Ligar de novo substitui o anterior.
+
+### Leitura da tag no terminal
+
+O terminal chama `POST /api/v1/terminal/nfc` com `X-Terminal-Id`, `X-Terminal-Key` e um `Idempotency-Key` novo (UUID) a cada leitura. A decisão vem na resposta, sempre `200` (contrato e exemplos no Swagger):
+
+```bash
+curl -s -X POST http://localhost:3000/api/v1/terminal/nfc \
+  -H 'X-Terminal-Id: 5eed0000-0000-4000-8000-000000000006' \
+  -H 'X-Terminal-Key: terminal-dev-key-1234567890abcdef1234567890' \
+  -H "Idempotency-Key: $(cat /proc/sys/kernel/random/uuid)" -H 'content-type: application/json' \
+  -d '{"uid":"04:a1:b2:c3","lidoEm":"2026-10-20T14:32:07Z"}'
+# {"resultado":"AUTORIZADO","aberturaMs":5000}  |  {"resultado":"NEGADO","motivo":"TAG_INATIVA"}  |  {"resultado":"CADASTRADA"}
+```
+
+- Ordem: chave já vista, modo de cadastro, repetição rápida, tag, tag ativa, usuário ativo e as verificações de autorização do QR, **sem a distância**. Aprovar grava o evento `NFC` e consome um uso na mesma transação; toda tentativa, aprovada ou negada, gera exatamente um evento. Não cria comando: o terminal abre ou nega pela resposta.
+- Repetir a mesma `Idempotency-Key` devolve a decisão anterior, sem novo uso nem novo evento. A chave de outro terminal dá `409 CONFLICT`; chave ausente ou fora do formato de UUID dá `422`.
+- A mesma tag lida de novo no mesmo terminal em menos de `NFC_DEBOUNCE_SECONDS` (3 s) recebe a decisão anterior; em 3 s exatos é uma nova tentativa.
+- Com o modo de cadastro ligado e vigente, a leitura vincula a tag ao usuário combinado e responde `CADASTRADA`: não consome uso e não grava evento. UID que já existe dá `409 TAG_JA_CADASTRADA`.
 
 ## Autorizações
 

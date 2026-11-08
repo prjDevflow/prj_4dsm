@@ -175,13 +175,13 @@ curl -s -X POST $B/nfc-tags -H "Authorization: Bearer $TOKEN" -H 'content-type: 
 
 curl -s "$B/nfc-tags?usuarioId=5eed0000-0000-4000-8000-000000000003&ativa=true" -H "Authorization: Bearer $TOKEN"
 
-# desativa (a tag deixa de abrir a catraca quando a B17 existir); {"ativa":true} reativa
+# desativa (a próxima leitura dá NEGADO TAG_INATIVA); {"ativa":true} reativa
 curl -s -X PATCH $B/nfc-tags/<id> -H "Authorization: Bearer $TOKEN" -H 'content-type: application/json' \
   -d '{"ativa":false}'
 ```
 
-Modo de cadastro (I11): em vez de digitar o UID, o administrador liga o modo no terminal e encosta a tag nele. Esta
-etapa só grava o modo; quem vincula a tag na leitura é o `POST /terminal/nfc` da B17.
+Modo de cadastro (I11): em vez de digitar o UID, o administrador liga o modo no terminal e encosta a tag nele. Ligar o
+modo só grava o usuário e o prazo; quem vincula a tag é a primeira leitura (`POST /terminal/nfc`, próxima seção).
 
 ```bash
 curl -s -X POST $B/terminals/5eed0000-0000-4000-8000-000000000006/enroll-mode \
@@ -194,6 +194,32 @@ curl -s -X POST $B/terminals/5eed0000-0000-4000-8000-000000000006/enroll-mode \
   `GET /terminals` não mostra o modo.
 - UID que não é hexadecimal de 8 a 20 caracteres dá `422` no campo `uid`; usuário inexistente dá `404`; usuário
   inativo dá `422` no campo `usuarioId`.
+
+## Leitura de tag NFC (B17)
+
+O terminal envia o UID e recebe a decisão na resposta (I11). Com a tag `04A1B2C3` do visitante criada acima e uma
+autorização do visitante para o local do terminal (veja a seção abaixo), o roteiro com `curl` simula o ESP32. Cada
+leitura leva um `Idempotency-Key` novo:
+
+```bash
+T=(-H 'X-Terminal-Id: 5eed0000-0000-4000-8000-000000000006'
+   -H 'X-Terminal-Key: terminal-dev-key-1234567890abcdef1234567890' -H 'content-type: application/json')
+KEY=$(cat /proc/sys/kernel/random/uuid)
+
+curl -s -X POST $B/terminal/nfc "${T[@]}" -H "Idempotency-Key: $KEY" -d '{"uid":"04:a1:b2:c3"}'
+# 200 {"resultado":"AUTORIZADO","aberturaMs":5000}   (um uso e um evento NFC)
+
+curl -s -X POST $B/terminal/nfc "${T[@]}" -H "Idempotency-Key: $KEY" -d '{"uid":"04:a1:b2:c3"}'
+# a mesma chave: a mesma resposta, sem outro uso e sem outro evento
+
+curl -s -X POST $B/terminal/nfc "${T[@]}" -H "Idempotency-Key: $(cat /proc/sys/kernel/random/uuid)" -d '{"uid":"04FFEEDD"}'
+# 200 {"resultado":"NEGADO","motivo":"TAG_DESCONHECIDA"}   (um evento NFC negado, sem usuário)
+```
+
+- Uma segunda leitura da mesma tag em menos de `NFC_DEBOUNCE_SECONDS` (3 s), com chave nova, repete a decisão anterior.
+- Para cadastrar pelo terminal: ligue o modo (seção anterior) e leia uma tag nova. A resposta é
+  `{"resultado":"CADASTRADA"}`, a tag aparece em `GET /nfc-tags` e nenhum evento de acesso é gravado.
+- Chave ausente ou fora do formato de UUID dá `422` no campo `Idempotency-Key`; a chave de outro terminal dá `409`.
 
 ## Local e autorização de teste
 

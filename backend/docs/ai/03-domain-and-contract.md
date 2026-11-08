@@ -166,6 +166,14 @@ Sucesso do QR: `"Acesso autorizado. Pode passar."`
 
 UID da tag: hexadecimal, maiúsculo, sem separadores, 8 a 20 caracteres.
 
+Regras da leitura (B17; o `openapi.yaml` é a fonte final):
+
+- `Idempotency-Key` é **obrigatório** (UUID, guardado em minúsculas; sem ele ou fora do formato: 422 no campo `Idempotency-Key`). `uid` é obrigatório e vale em qualquer grafia (`04:a1:b2:c3`); `lidoEm` é opcional e só é conferido: o relógio do servidor decide.
+- Repetir a chave devolve a decisão anterior, sem novo uso nem novo evento. Chave de outro terminal, ou de um evento que não foi leitura NFC: 409 `CONFLICT`.
+- A mesma tag no mesmo terminal em menos de `NFC_DEBOUNCE_SECONDS` devolve a decisão anterior (3 s exatos já é nova tentativa).
+- No modo de cadastro, UID já cadastrado: 409 `TAG_JA_CADASTRADA` (o modo já foi gasto); usuário do modo inativo: 422 em `usuarioId`; inexistente: 404.
+- Não cria comando `ABRIR` nem `NEGAR`: o terminal age pela resposta. O evento guarda o `Idempotency-Key` em `clientEventId` e o UID inteiro em `detalhes.uid` (`docs/eventos-campos.md`).
+
 ### 4.6 Tags NFC e modo de cadastro (B16)
 
 Só `ADMIN`. Formatos adotados na B16 (o `openapi.yaml` é a fonte final; pergunta #13 no `STATUS.md`).
@@ -214,10 +222,12 @@ Coordenadas que o app **não envia** (ausentes ou `null`) dentro de um QR bem fo
 
 ### 5.2 Ordem do NFC (`POST /terminal/nfc`)
 
-1. Terminal em modo de cadastro e prazo vigente: vincula a tag, responde `CADASTRADA`, não consome uso.
+0. `Idempotency-Key` já vista: devolve a decisão do evento anterior.
+1. Terminal em modo de cadastro e prazo vigente (o instante exato ainda vale): gasta o modo, vincula a tag, responde `CADASTRADA`, não consome uso nem grava evento.
+1b. Mesma tag no mesmo terminal em menos de `NFC_DEBOUNCE_SECONDS`: devolve a decisão anterior.
 2. Tag existe (`TAG_DESCONHECIDA`), tag ativa (`TAG_INATIVA`), usuário ativo (`USUARIO_INATIVO`).
 3. `AccessEvaluator` (verificações 6 a 9 acima, sem distância).
-4. Consumo do uso e evento na mesma transação. Sempre HTTP 200 com a decisão.
+4. Evento e consumo do uso na mesma transação (o evento primeiro: o `clientEventId` é único, e a repetição que corre contra o original nunca vira falso `USOS_ESGOTADOS`). Sempre HTTP 200 com a decisão.
 
 ### 5.3 Efeitos de uma decisão
 

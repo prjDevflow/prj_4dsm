@@ -32,8 +32,9 @@ As linhas de `authorizationId` e `distanciaM` são as que a B15 grava e que os t
 |---|---|
 | `precisaoMetros` | QR, quando o celular informou a precisão do GPS. |
 | `credencialHashPrefixo` | QR com credencial desconhecida. São só os 8 primeiros caracteres do hash, o bastante para correlacionar tentativas e insuficiente para localizar a credencial. |
+| `uid` | NFC, em toda tentativa (aprovada ou negada, inclusive `TAG_DESCONHECIDA`). É o UID **inteiro** e já normalizado (maiúsculas, sem separadores). Fica inteiro porque a repetição rápida da mesma tag (`NFC_DEBOUNCE_SECONDS`) só pode comparar o UID exato: um trecho dele poderia casar duas tags diferentes. O UID já é visível a quem administra as tags (`GET /nfc-tags`). |
 
-O UID parcial da tag NFC entra na B17.
+No NFC, `clientEventId` é a `Idempotency-Key` da leitura (UUID em minúsculas) e nunca é nulo; no QR é nulo. O NFC não mede distância (`distanciaM` nulo) e uma negação não grava `authorizationId`. Leituras no modo de cadastro (`CADASTRADA`) e repetições dentro da janela do debounce não geram evento.
 
 ## Motivos (`motivo`)
 
