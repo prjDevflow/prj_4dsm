@@ -1,4 +1,5 @@
 import type { AccessEvent } from '../../src/entities/AccessEvent';
+import { OFFLINE_DENIAL_REASON } from '../../src/entities/DenialReason';
 import type {
   AccessEventDetails,
   AccessEventListFilter,
@@ -134,7 +135,7 @@ export class InMemoryAccessEventRepository implements IAccessEventRepository {
         (item) =>
           item.metodo === 'NFC' &&
           // A batch sent after the terminal was offline carries the terminal's clock, not a live read.
-          item.motivo !== 'TERMINAL_OFFLINE' &&
+          item.motivo !== OFFLINE_DENIAL_REASON &&
           item.terminalId === terminalId &&
           item.detalhes?.uid === uid &&
           item.ocorridoEm.getTime() > since.getTime(),

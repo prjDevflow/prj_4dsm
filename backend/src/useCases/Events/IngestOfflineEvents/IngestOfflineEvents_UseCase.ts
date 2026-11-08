@@ -1,5 +1,5 @@
 import { AccessEvent, type AccessMethod, type AccessResult } from '../../../entities/AccessEvent';
-import type { DenialReason } from '../../../entities/DenialReason';
+import { OFFLINE_DENIAL_REASON, type DenialReason } from '../../../entities/DenialReason';
 import { isWithinOfflineWindow } from '../../../entities/rules/isWithinOfflineWindow';
 import { normalizeUid } from '../../../entities/rules/normalizeUid';
 import type { IClock } from '../../../providers/IClock';
@@ -121,7 +121,7 @@ export class IngestOfflineEventsUseCase {
         message: OFFLINE_EVENT_MESSAGES.resultado,
       });
     }
-    if (event.motivo !== 'TERMINAL_OFFLINE') {
+    if (event.motivo !== OFFLINE_DENIAL_REASON) {
       problems.push({ field: at('motivo'), message: OFFLINE_EVENT_MESSAGES.motivo });
     }
     return problems;

@@ -1,4 +1,5 @@
 import type { AccessEvent } from '../../entities/AccessEvent';
+import { OFFLINE_DENIAL_REASON } from '../../entities/DenialReason';
 import { Prisma } from '../../generated/prisma/client';
 import type {
   AccessEventDetails,
@@ -152,7 +153,7 @@ export class PrismaAccessEventRepository implements IAccessEventRepository {
         detalhes: { path: ['uid'], equals: uid },
         // Only live reads: a batch sent after an outage carries the terminal's clock. Approved reads have no
         // `motivo` (NULL), and `<>` alone would drop them, so the NULL is asked for.
-        OR: [{ motivo: null }, { motivo: { not: 'TERMINAL_OFFLINE' } }],
+        OR: [{ motivo: null }, { motivo: { not: OFFLINE_DENIAL_REASON } }],
       },
       orderBy: [{ ocorridoEm: 'desc' }, { id: 'desc' }],
     });
