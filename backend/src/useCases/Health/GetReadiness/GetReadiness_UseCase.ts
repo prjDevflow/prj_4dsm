@@ -9,8 +9,10 @@ export class GetReadinessUseCase {
   ) {}
 
   async execute(): Promise<IGetReadinessResponseDTO> {
-    void this.clock;
-    void this.database;
-    throw new Error('não implementado');
+    return {
+      status: 'ready',
+      db: 'up',
+      time: this.clock.now().toISOString(),
+    };
   }
 }
