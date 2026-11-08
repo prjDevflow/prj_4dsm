@@ -485,3 +485,37 @@ describe('openapi.yaml: informações gerais', () => {
     expect(info().description).toContain('100 kb');
   });
 });
+
+describe('openapi.yaml: GET /ready', () => {
+  interface ReadySpec {
+    paths: Record<
+      string,
+      {
+        get?: {
+          operationId?: string;
+          security?: unknown[];
+          responses: Record<
+            string,
+            { content?: { 'application/json': { example?: Record<string, unknown> } } }
+          >;
+        };
+      }
+    >;
+  }
+  const ready = () => (loadOpenApiSpec() as unknown as ReadySpec).paths['/ready']?.get;
+  const example = (status: string) =>
+    ready()?.responses[status]?.content?.['application/json'].example;
+
+  it('deve ser pública: o monitor não tem token', () => {
+    expect(ready()?.security).toEqual([]);
+  });
+
+  it('deve trazer o exemplo de 200 com o banco no ar', () => {
+    expect(example('200')).toMatchObject({ status: 'ready', db: 'up' });
+  });
+
+  it('deve trazer o exemplo de 503 com o banco fora, que não é o formato de erro', () => {
+    expect(example('503')).toMatchObject({ status: 'unavailable', db: 'down' });
+    expect(example('503')).not.toHaveProperty('error');
+  });
+});
