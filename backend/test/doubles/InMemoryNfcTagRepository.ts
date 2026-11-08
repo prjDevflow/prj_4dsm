@@ -13,6 +13,11 @@ export class InMemoryNfcTagRepository implements INfcTagRepository {
     this.items.set(tag.id, { ...tag });
   }
 
+  async findByUid(uid: string) {
+    const tag = [...this.items.values()].find((item) => item.uid === uid);
+    return tag ? { ...tag } : null;
+  }
+
   async updateStatus(id: string, ativa: boolean) {
     const tag = this.items.get(id);
     if (!tag) return null;

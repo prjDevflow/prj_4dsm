@@ -51,6 +51,10 @@ export class PrismaNfcTagRepository implements INfcTagRepository {
     }
   }
 
+  async findByUid(): Promise<NfcTag | null> {
+    throw new Error('B17: ainda não implementado');
+  }
+
   async updateStatus(id: string, ativa: boolean) {
     try {
       return toEntity(await this.prisma.nfcTag.update({ where: { id }, data: { ativa } }));

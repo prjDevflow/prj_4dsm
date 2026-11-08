@@ -2,6 +2,7 @@ import type { PrismaClient } from '../../generated/prisma/client';
 import type {
   CommitApprovalInput,
   CommitApprovalResult,
+  CommitNfcApprovalResult,
   IAccessGrantRepository,
 } from '../../repositories/IAccessGrantRepository';
 import { PrismaAccessEventRepository } from './PrismaAccessEventRepository';
@@ -63,5 +64,8 @@ export class PrismaAccessGrantRepository implements IAccessGrantRepository {
       if (error instanceof LostRace) return { ok: false, reason: error.reason };
       throw error;
     }
+  }
+  async commitNfcApproval(): Promise<CommitNfcApprovalResult> {
+    throw new Error('B17: ainda não implementado');
   }
 }

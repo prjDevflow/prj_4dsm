@@ -24,6 +24,8 @@ export interface INfcTagRepository {
    * Turns a tag on or off and writes nothing else. The tag after the change, or null when it does not exist.
    */
   updateStatus(id: string, ativa: boolean): Promise<NfcTag | null>;
+  /** The tag with this UID, active or not, or null. The UID must already be normalized. */
+  findByUid(uid: string): Promise<NfcTag | null>;
   /** Newest first (`criadaEm`, then `id`, both descending, so a page never repeats or skips a tag). */
   list(filter: NfcTagListFilter): Promise<NfcTagListResult>;
 }

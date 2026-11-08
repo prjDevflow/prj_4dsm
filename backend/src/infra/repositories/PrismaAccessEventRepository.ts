@@ -25,4 +25,11 @@ export class PrismaAccessEventRepository implements IAccessEventRepository {
       },
     });
   }
+  async findByClientEventId(): Promise<AccessEvent | null> {
+    throw new Error('B17: ainda não implementado');
+  }
+
+  async findRecentNfc(): Promise<AccessEvent | null> {
+    throw new Error('B17: ainda não implementado');
+  }
 }

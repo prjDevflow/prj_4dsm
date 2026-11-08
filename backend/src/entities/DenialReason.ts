@@ -38,3 +38,22 @@ export const QR_DENIAL_REASONS = [
 ] as const satisfies readonly DenialReason[];
 
 export type QrDenialReason = (typeof QR_DENIAL_REASONS)[number];
+
+/**
+ * The seven reasons an NFC read can deny with: the three about the tag and the person, then the four of the
+ * `AccessEvaluator`. There is no distance, and the QR credential codes do not apply.
+ */
+export const NFC_DENIAL_REASONS = [
+  'TAG_DESCONHECIDA',
+  'TAG_INATIVA',
+  'USUARIO_INATIVO',
+  'SEM_AUTORIZACAO',
+  'AUTORIZACAO_CANCELADA',
+  'FORA_DO_PERIODO',
+  'USOS_ESGOTADOS',
+] as const satisfies readonly DenialReason[];
+
+export type NfcDenialReason = (typeof NFC_DENIAL_REASONS)[number];
+
+export const isNfcDenialReason = (value: unknown): value is NfcDenialReason =>
+  (NFC_DENIAL_REASONS as readonly unknown[]).includes(value);
