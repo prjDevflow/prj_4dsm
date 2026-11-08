@@ -501,7 +501,7 @@ describe('POST /api/v1/terminal/nfc', () => {
   });
 
   describe('modo de cadastro do terminal', () => {
-    const enable = (scene: Scene, admin: { id: string; perfil: 'ADMIN' }, usuarioId: string) =>
+    const enable = (scene: Scene, admin: Parameters<typeof bearer>[0], usuarioId: string) =>
       request(app)
         .post(`/api/v1/terminals/${scene.terminal.id}/enroll-mode`)
         .set('Authorization', bearer(admin))

@@ -104,8 +104,14 @@ export class PrismaTerminalRepository implements ITerminalRepository {
     return count > 0;
   }
 
-  async consumeEnrollMode(): Promise<boolean> {
-    throw new Error('B17: ainda não implementado');
+  async consumeEnrollMode(id: string, usuarioId: string, now: Date) {
+    // One conditional write: the row is locked while it runs, so of two reads at once the second finds
+    // the columns already cleared and gets false. The deadline itself still counts (`gte`).
+    const { count } = await this.prisma.terminal.updateMany({
+      where: { id, modoCadastroUsuarioId: usuarioId, modoCadastroAte: { gte: now } },
+      data: { modoCadastroUsuarioId: null, modoCadastroAte: null },
+    });
+    return count > 0;
   }
 
   async list(filter: TerminalListFilter): Promise<TerminalListResult> {
