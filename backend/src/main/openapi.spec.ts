@@ -312,11 +312,10 @@ describe('openapi.yaml: histórico de acessos', () => {
       }
     }
     expect(examples.tagDesconhecida?.value.data?.[0]).toMatchObject({ usuario: null });
-    expect(examples.credencialDesconhecida?.value.data?.[0]).toMatchObject({
-      usuario: null,
-      local: null,
-      terminal: null,
-    });
+    // The app is always logged in, so even a QR that does not exist has a person, but no terminal.
+    const unknownQr = examples.credencialDesconhecida?.value.data?.[0];
+    expect(unknownQr).toMatchObject({ local: null, terminal: null });
+    expect(unknownQr?.usuario).not.toBeNull();
   });
 
   it('deve documentar 401 e 422 nas duas rotas e o 403 só na do administrador', () => {

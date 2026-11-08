@@ -150,7 +150,7 @@ describe('GET /access-events', () => {
 
   it('evento sem pessoa, ponto ou terminal traz esses campos nulos', async () => {
     const { admin, add, gate, gateTerminal } = await scenario();
-    // An unknown QR credential: nobody was identified and no terminal was reached.
+    // A row with no person, point or terminal: the columns allow it, and the join must not drop it.
     const unknownQr = await add({
       ocorridoEm: T,
       usuarioId: null,
