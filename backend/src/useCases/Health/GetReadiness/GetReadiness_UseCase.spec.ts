@@ -26,5 +26,11 @@ describe('GetReadiness', () => {
     expect(result).toEqual({ status: 'unavailable', db: 'down', time: '2026-11-08T12:00:00.000Z' });
   });
 
-  it.todo('deve devolver indisponível, sem lançar exceção, quando o teste de conexão falha com erro');
+  it('deve devolver indisponível, sem lançar exceção, quando o teste de conexão falha com erro', async () => {
+    const { sut } = makeSut('throws');
+
+    const result = await sut.execute();
+
+    expect(result).toMatchObject({ status: 'unavailable', db: 'down' });
+  });
 });
