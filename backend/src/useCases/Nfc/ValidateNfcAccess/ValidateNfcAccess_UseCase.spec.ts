@@ -15,6 +15,7 @@ import { makeNfcTag } from '../../../../test/factories/makeNfcTag';
 import { makeTerminal } from '../../../../test/factories/makeTerminal';
 import { makeUser } from '../../../../test/factories/makeUser';
 import type { Authorization } from '../../../entities/Authorization';
+import type { NfcDenialReason } from '../../../entities/DenialReason';
 import type { NfcTag } from '../../../entities/NfcTag';
 import type { Terminal } from '../../../entities/Terminal';
 import type { User } from '../../../entities/User';
@@ -310,11 +311,75 @@ describe('ValidateNfcAccess', () => {
   });
 
   describe('negações da autorização', () => {
-    it.todo('deve negar com SEM_AUTORIZACAO quando a autorização é de outro local');
-    it.todo('deve negar com AUTORIZACAO_CANCELADA quando a autorização está cancelada');
-    it.todo('deve negar com FORA_DO_PERIODO fora das datas e fora do horário');
-    it.todo('deve negar com USOS_ESGOTADOS quando não há usos');
-    it.todo('deve gravar um evento NEGADO por tentativa e nenhum uso consumido nem comando criado');
+    // 2026-10-20T14:00:00Z is 11:00 on 2026-10-20 in São Paulo.
+    const cases: [string, Partial<Authorization>, NfcDenialReason][] = [
+      [
+        'a autorização é de outro local',
+        { accessPointId: '00000000-0000-4000-8000-0000000000c2' },
+        'SEM_AUTORIZACAO',
+      ],
+      ['a autorização está cancelada', { situacao: 'CANCELADA' }, 'AUTORIZACAO_CANCELADA'],
+      ['o período ainda não começou', { dataInicio: '2026-10-21' }, 'FORA_DO_PERIODO'],
+      ['o período terminou ontem', { dataFim: '2026-10-19' }, 'FORA_DO_PERIODO'],
+      [
+        'o horário só começa mais tarde',
+        { horaInicio: '11:01', horaFim: '18:00' },
+        'FORA_DO_PERIODO',
+      ],
+      [
+        'o horário terminou um minuto antes',
+        { horaInicio: '08:00', horaFim: '10:59' },
+        'FORA_DO_PERIODO',
+      ],
+      ['os usos acabaram', { usosRealizados: 3 }, 'USOS_ESGOTADOS'],
+    ];
+
+    it.each(cases)(
+      'deve negar com o motivo certo quando %s',
+      async (_name, authorization, reason) => {
+        const { read, seed } = makeSut();
+        await seed({ authorization });
+
+        expect(await read()).toEqual({ resultado: 'NEGADO', motivo: reason });
+      },
+    );
+
+    it.each(cases)(
+      'deve gravar um evento NEGADO sem autorização, sem consumir uso e sem criar comando quando %s',
+      async (_name, authorization, reason) => {
+        const { read, seed, events, authorizations, commands } = makeSut();
+        await seed({ authorization });
+        const spentBefore = authorization.usosRealizados ?? 0;
+
+        await read();
+
+        expect(events.all()).toHaveLength(1);
+        expect(events.all()[0]).toMatchObject({
+          metodo: 'NFC',
+          resultado: 'NEGADO',
+          motivo: reason,
+          usuarioId: USER_ID,
+          terminalId: TERMINAL_ID,
+          accessPointId: POINT_ID,
+          authorizationId: null,
+          distanciaM: null,
+          clientEventId: KEY,
+          detalhes: { uid: UID },
+        });
+        expect(authorizations.all()[0]?.usosRealizados).toBe(spentBefore);
+        expect(commands.all()).toHaveLength(0);
+      },
+    );
+
+    it('deve autorizar no minuto exato em que o horário começa e naquele em que termina', async () => {
+      const start = makeSut();
+      await start.seed({ authorization: { horaInicio: '11:00', horaFim: '18:00' } });
+      const end = makeSut();
+      await end.seed({ authorization: { horaInicio: '08:00', horaFim: '11:00' } });
+
+      expect(await start.read()).toMatchObject({ resultado: 'AUTORIZADO' });
+      expect(await end.read()).toMatchObject({ resultado: 'AUTORIZADO' });
+    });
   });
 
   describe('idempotência', () => {
