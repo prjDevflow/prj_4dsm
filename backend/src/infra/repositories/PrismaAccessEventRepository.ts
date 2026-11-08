@@ -114,6 +114,10 @@ export class PrismaAccessEventRepository implements IAccessEventRepository {
     return { items: rows.map(toDetails), total };
   }
 
+  async appendIfAbsent(_events: AccessEvent[]): Promise<number> {
+    throw new Error('appendIfAbsent ainda não foi implementado no Prisma');
+  }
+
   async findByClientEventId(clientEventId: string) {
     const row = await this.prisma.accessEvent.findUnique({ where: { clientEventId } });
     return row ? toEntity(row) : null;
