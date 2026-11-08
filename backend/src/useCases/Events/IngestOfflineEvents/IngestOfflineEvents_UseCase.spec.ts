@@ -144,10 +144,71 @@ describe('IngestOfflineEvents', () => {
     });
   });
 
-  it.todo('deve gravar cada evento uma única vez quando o mesmo lote é enviado duas vezes');
-  it.todo('deve contar 3 aceitos e 1 duplicado num lote com 3 novos e 1 já recebido');
-  it.todo('deve contar como duplicado o evento repetido dentro do mesmo lote');
-  it.todo('deve responder 0 aceitos e N duplicados quando o lote inteiro já foi recebido');
+  describe('duplicados', () => {
+    it('deve gravar cada evento uma única vez quando o mesmo lote é enviado duas vezes', async () => {
+      const { send, seed, events } = makeSut();
+      await seed();
+      const batch = [offlineEvent(1), offlineEvent(2), offlineEvent(3)];
+
+      await send(batch);
+      await send(batch);
+
+      expect(events.all().map((e) => e.clientEventId)).toEqual([key(1), key(2), key(3)]);
+    });
+
+    it('deve responder 0 aceitos e N duplicados quando o lote inteiro já foi recebido', async () => {
+      const { send, seed } = makeSut();
+      await seed();
+      const batch = [offlineEvent(1), offlineEvent(2), offlineEvent(3)];
+      await send(batch);
+
+      const again = await send(batch);
+
+      expect(again).toEqual({ aceitos: 0, duplicados: 3 });
+    });
+
+    it('deve contar 3 aceitos e 1 duplicado num lote com 3 novos e 1 já recebido', async () => {
+      const { send, seed, events } = makeSut();
+      await seed();
+      await send([offlineEvent(1)]);
+
+      const result = await send([
+        offlineEvent(1),
+        offlineEvent(2),
+        offlineEvent(3),
+        offlineEvent(4),
+      ]);
+
+      expect(result).toEqual({ aceitos: 3, duplicados: 1 });
+      expect(events.all()).toHaveLength(4);
+    });
+
+    it('deve contar como duplicado o evento repetido dentro do mesmo lote e ficar com o primeiro', async () => {
+      const { send, seed, events } = makeSut();
+      await seed();
+      const first = new Date('2026-10-20T13:00:00Z');
+      const second = new Date('2026-10-20T13:30:00Z');
+
+      const result = await send([
+        offlineEvent(1, { ocorridoEm: first }),
+        offlineEvent(1, { ocorridoEm: second }),
+      ]);
+
+      expect(result).toEqual({ aceitos: 1, duplicados: 1 });
+      expect(events.all().map((e) => e.ocorridoEm)).toEqual([first]);
+    });
+
+    it('deve gravar duas leituras da mesma tag com chaves diferentes (o terminal leu duas vezes)', async () => {
+      const { send, seed, events } = makeSut();
+      await seed();
+
+      const result = await send([offlineEvent(1), offlineEvent(2)]);
+
+      expect(result).toEqual({ aceitos: 2, duplicados: 0 });
+      expect(events.all()).toHaveLength(2);
+    });
+  });
+
   it.todo(
     'deve rejeitar AUTORIZADO com 422 no campo events.N.resultado sem gravar nenhum evento do lote',
   );
