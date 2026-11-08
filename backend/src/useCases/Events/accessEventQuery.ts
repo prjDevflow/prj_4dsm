@@ -2,7 +2,7 @@ import { z } from 'zod';
 import { DENIAL_REASONS } from '../../entities/DenialReason';
 import { paginationShape } from '../../shared/pagination';
 
-const idField = z.guid({ error: 'deve ser um id válido' });
+export const idField = z.guid({ error: 'deve ser um id válido' });
 
 // An instant with `Z` or an offset, kept as a Date for the repository.
 const instantField = z.iso
