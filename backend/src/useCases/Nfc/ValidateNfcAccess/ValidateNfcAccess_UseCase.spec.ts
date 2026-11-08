@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { FakeClock } from '../../../../test/doubles/FakeClock';
 import { InMemoryAccessEventRepository } from '../../../../test/doubles/InMemoryAccessEventRepository';
 import { InMemoryAccessGrantRepository } from '../../../../test/doubles/InMemoryAccessGrantRepository';
@@ -698,16 +698,87 @@ describe('ValidateNfcAccess', () => {
   });
 
   describe('falhas e corridas', () => {
-    it.todo(
-      'deve negar mesmo quando o evento da negação não pôde ser gravado, e registrar o erro no log',
-    );
-    it.todo('deve lançar e não consumir uso quando a aprovação não pôde ser gravada');
-    it.todo(
-      'deve negar com USOS_ESGOTADOS, com evento, quando o último uso foi tomado no meio do caminho',
-    );
-    it.todo(
-      'deve devolver a decisão do evento do concorrente quando a chave foi gravada no meio do caminho',
-    );
-    it.todo('deve responder 401 quando o terminal não existe mais');
+    it('deve negar mesmo quando o evento da negação não pôde ser gravado, e registrar o erro no log', async () => {
+      const { read, seed, events, logger } = makeSut();
+      await seed({ tag: { ativa: false } });
+      events.failWith(new Error('banco indisponível'));
+
+      const decision = await read();
+
+      expect(decision).toEqual({ resultado: 'NEGADO', motivo: 'TAG_INATIVA' });
+      expect(logger.of('error')).toHaveLength(1);
+    });
+
+    it('deve lançar e não consumir uso quando a aprovação não pôde ser gravada', async () => {
+      const { read, seed, events, authorizations } = makeSut();
+      await seed();
+      events.failWith(new Error('banco indisponível'));
+
+      await expect(read()).rejects.toThrow('banco indisponível');
+
+      expect(authorizations.all()[0]?.usosRealizados).toBe(0);
+      expect(events.all()).toHaveLength(0);
+    });
+
+    it('deve negar com USOS_ESGOTADOS, com evento, quando os usos foram tomados no meio do caminho', async () => {
+      const { read, seed, accessGrants, authorizations, events } = makeSut();
+      await seed();
+      const commit = accessGrants.commitNfcApproval.bind(accessGrants);
+      vi.spyOn(accessGrants, 'commitNfcApproval').mockImplementation((input) => {
+        // Other reads spend every use between the evaluation and the commit.
+        for (let i = 0; i < 3; i += 1) authorizations.consumeUseIfAvailable(AUTHORIZATION_ID);
+        return commit(input);
+      });
+
+      const decision = await read();
+
+      expect(decision).toEqual({ resultado: 'NEGADO', motivo: 'USOS_ESGOTADOS' });
+      expect(events.all()).toHaveLength(1);
+      expect(events.all()[0]).toMatchObject({
+        resultado: 'NEGADO',
+        motivo: 'USOS_ESGOTADOS',
+        authorizationId: null,
+        clientEventId: KEY,
+      });
+    });
+
+    it('deve devolver a decisão do evento do concorrente quando a chave foi gravada no meio do caminho', async () => {
+      const { read, seed, accessGrants, authorizations, events } = makeSut();
+      await seed();
+      const commit = accessGrants.commitNfcApproval.bind(accessGrants);
+      vi.spyOn(accessGrants, 'commitNfcApproval').mockImplementation(async (input) => {
+        // The same read, sent twice, wins the commit just before this one.
+        await commit({ ...input, event: { ...input.event, id: 'evento-do-concorrente' } });
+        return commit(input);
+      });
+
+      const decision = await read();
+
+      expect(decision).toEqual({ resultado: 'AUTORIZADO', aberturaMs: 5000 });
+      expect(events.all()).toHaveLength(1);
+      expect(events.all()[0]?.id).toBe('evento-do-concorrente');
+      expect(authorizations.all()[0]?.usosRealizados).toBe(1);
+    });
+
+    it('deve responder 401 quando o terminal não existe mais', async () => {
+      const { read, seed, events } = makeSut();
+      await seed();
+
+      await expect(
+        read({ terminalId: '00000000-0000-4000-8000-0000000000aa' }),
+      ).rejects.toMatchObject({ status: 401, code: 'UNAUTHORIZED' });
+      expect(events.all()).toHaveLength(0);
+    });
+
+    it('deve responder 422 em uid quando o UID não pode ser de uma tag, mesmo sem a validação da borda', async () => {
+      const { read, seed, events } = makeSut();
+      await seed();
+
+      await expect(read({ uid: 'não é hexadecimal' })).rejects.toMatchObject({
+        status: 422,
+        details: [{ field: 'uid', message: expect.any(String) }],
+      });
+      expect(events.all()).toHaveLength(0);
+    });
   });
 });
