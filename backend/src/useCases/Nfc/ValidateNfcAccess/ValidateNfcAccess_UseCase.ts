@@ -13,9 +13,10 @@ import type { IAuthorizationRepository } from '../../../repositories/IAuthorizat
 import type { INfcTagRepository } from '../../../repositories/INfcTagRepository';
 import type { ITerminalRepository } from '../../../repositories/ITerminalRepository';
 import type { IUserRepository } from '../../../repositories/IUserRepository';
-import { ConflictError } from '../../../shared/errors/AppError';
+import { ConflictError, UnauthorizedError, ValidationError } from '../../../shared/errors/AppError';
 import type { AccessEventRecorder } from '../../Events/AccessEventRecorder';
 import { requireActiveUser } from '../requireActiveUser';
+import { UID_MESSAGE } from '../uidField';
 
 export interface ValidateNfcAccessInput {
   /** From the key of the terminal. */
@@ -57,7 +58,12 @@ export class ValidateNfcAccessUseCase {
     const now = this.clock.now();
     const terminal = await this.terminals.findById(input.terminalId);
     const uid = normalizeUid(input.uid);
-    if (!terminal || !uid) throw new Error('B17: ainda não implementado');
+    // The key of the terminal was valid a moment ago; a terminal gone since has no one to answer.
+    if (!terminal) throw new UnauthorizedError();
+    // The edge already checks the UID; this keeps the rule even for a caller that skips it.
+    if (!uid) {
+      throw new ValidationError('Dados inválidos', [{ field: 'uid', message: UID_MESSAGE }]);
+    }
 
     // A retry of a read already decided gets the same answer, whatever changed since.
     const decided = await this.events.findByClientEventId(input.idempotencyKey);
@@ -117,7 +123,16 @@ export class ValidateNfcAccessUseCase {
         uid,
       }),
     });
-    if (!result.ok) throw new Error('B17: ainda não implementado');
+    if (!result.ok) {
+      if (result.reason === 'USOS_ESGOTADOS') {
+        // The last uses were taken between the evaluation and the commit: a denial like any other.
+        return this.deny('USOS_ESGOTADOS', { terminal, uid, input, userId: user.id });
+      }
+      // Another request holds this key and won the commit: its answer is the answer to this one too.
+      const winner = await this.events.findByClientEventId(input.idempotencyKey);
+      if (!winner) throw new Error('A Idempotency-Key foi recusada, mas o evento dela não existe');
+      return this.replay(winner, terminal.id);
+    }
 
     return { resultado: 'AUTORIZADO', aberturaMs: this.config.aberturaMs };
   }
