@@ -1,6 +1,8 @@
 import type { AccessEvent } from '../../src/entities/AccessEvent';
 import type {
+  AccessEventDetails,
   AccessEventListFilter,
+  AccessEventListResult,
   IAccessEventRepository,
   RecentNfcQuery,
 } from '../../src/repositories/IAccessEventRepository';
@@ -23,9 +25,64 @@ export class InMemoryAccessEventRepository implements IAccessEventRepository {
 
   constructor(private lookups?: EventLookups) {}
 
-  async list(_filter: AccessEventListFilter): Promise<never> {
-    void this.lookups;
-    throw new Error('não implementado');
+  async list(filter: AccessEventListFilter): Promise<AccessEventListResult> {
+    const matches = this.items
+      .filter((e) => filter.usuarioId === undefined || e.usuarioId === filter.usuarioId)
+      .sort((a, b) => b.ocorridoEm.getTime() - a.ocorridoEm.getTime() || b.id.localeCompare(a.id));
+    const start = (filter.page - 1) * filter.pageSize;
+    const page = matches.slice(start, start + filter.pageSize);
+    return {
+      items: await Promise.all(page.map((e) => this.toDetails(e))),
+      total: matches.length,
+    };
+  }
+
+  // The same read model the real repository builds with joins. A missing row is a mistake in the
+  // test's setup (the database would refuse the event), so it fails loudly instead of becoming null.
+  private async toDetails(event: AccessEvent): Promise<AccessEventDetails> {
+    const lookups = this.lookups;
+    if (!lookups)
+      throw new Error('InMemoryAccessEventRepository.list precisa dos fakes de consulta');
+    const found = <T>(row: T | null, what: string, id: string): T => {
+      if (!row) throw new Error(`${what} ${id} não está nos fakes de consulta`);
+      return row;
+    };
+    const usuario = event.usuarioId
+      ? found(await lookups.users.findById(event.usuarioId), 'usuário', event.usuarioId)
+      : null;
+    const point = event.accessPointId
+      ? found(
+          await lookups.accessPoints.findById(event.accessPointId),
+          'ponto',
+          event.accessPointId,
+        )
+      : null;
+    const building = point
+      ? found(await lookups.buildings.findById(point.buildingId), 'edifício', point.buildingId)
+      : null;
+    const terminal = event.terminalId
+      ? found(await lookups.terminals.findById(event.terminalId), 'terminal', event.terminalId)
+      : null;
+    return {
+      id: event.id,
+      ocorridoEm: event.ocorridoEm,
+      metodo: event.metodo,
+      resultado: event.resultado,
+      motivo: event.motivo,
+      distanciaM: event.distanciaM,
+      authorizationId: event.authorizationId,
+      usuario: usuario && { id: usuario.id, nome: usuario.nome, perfil: usuario.perfil },
+      local:
+        point && building
+          ? {
+              id: point.id,
+              nome: point.nome,
+              tipo: point.tipo,
+              edificio: { id: building.id, nome: building.nome },
+            }
+          : null,
+      terminal: terminal && { id: terminal.id, nome: terminal.nome },
+    };
   }
 
   async append(event: AccessEvent) {
