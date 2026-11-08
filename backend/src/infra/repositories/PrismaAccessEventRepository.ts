@@ -116,7 +116,6 @@ export class PrismaAccessEventRepository implements IAccessEventRepository {
   }
 
   async appendIfAbsent(events: AccessEvent[]): Promise<number> {
-    if (events.length === 0) return 0;
     // `ON CONFLICT DO NOTHING` on the unique `clientEventId`: the database settles who stored a key first,
     // even when the same batch arrives twice at once.
     const { count } = await this.prisma.accessEvent.createMany({
