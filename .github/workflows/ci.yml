@@ -1,4 +1,6 @@
 # Backend CI: lint, typecheck, build and tests (unit with coverage, integration with PostgreSQL).
+# The job "seguranca" audits the production dependencies and scans the history for secrets. It is NOT part
+# of the required check `backend-ci`: a new advisory must be visible without blocking every pull request.
 # The Expo app has its own workflow: mobile-ci.yml.
 #
 # The workflow always runs, so the check `backend-ci` never stays "pending" on pull requests that
@@ -161,3 +163,41 @@ jobs:
             skipped) echo "Backend sem mudanças; nada a validar." ;;
             *) echo "Backend: $BACKEND_RESULT."; exit 1 ;;
           esac
+
+  # Security checks (B20). Separate from `backend-ci` on purpose: a CVE published tomorrow should turn this
+  # job red and get noticed, not block the merge of unrelated pull requests. Runs on every push and pull
+  # request, whatever changed, because a secret can be committed anywhere in the repository.
+  seguranca:
+    name: Segurança (npm audit e segredos)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    env:
+      # The checksum comes from gitleaks_<version>_checksums.txt of the same release. Update both together.
+      GITLEAKS_VERSION: 8.30.1
+      GITLEAKS_SHA256: 551f6fc83ea457d62a0d98237cbad105af8d557003051f41f3e7ca7b3f2470eb
+    steps:
+      - name: Baixar o repositório com todo o histórico
+        uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+
+      - name: Preparar o Node
+        uses: actions/setup-node@v7
+        with:
+          node-version: 24
+
+      - name: Auditar as dependências de produção (falha em vulnerabilidade alta ou crítica)
+        working-directory: backend
+        run: npm audit --omit=dev --audit-level=high
+
+      - name: Baixar o gitleaks (versão e checksum fixos)
+        run: |
+          set -euo pipefail
+          archive="$RUNNER_TEMP/gitleaks.tar.gz"
+          curl -sSfL -o "$archive" "https://github.com/gitleaks/gitleaks/releases/download/v${GITLEAKS_VERSION}/gitleaks_${GITLEAKS_VERSION}_linux_x64.tar.gz"
+          echo "${GITLEAKS_SHA256}  ${archive}" | sha256sum -c -
+          mkdir -p "$RUNNER_TEMP/gitleaks"
+          tar -xzf "$archive" -C "$RUNNER_TEMP/gitleaks" gitleaks
+
+      - name: Procurar segredos em todo o histórico
+        run: '"$RUNNER_TEMP/gitleaks/gitleaks" git --no-banner --redact --config .gitleaks.toml .'
