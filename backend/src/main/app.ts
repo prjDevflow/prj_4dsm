@@ -13,6 +13,10 @@ import { buildApiRouter } from './routes';
 
 const OFFLINE_BATCH_PATH = '/api/v1/terminal/events/batch';
 
+// One year, written out so the value does not depend on a library default. Only sent in production:
+// HTTPS is the host's job (B10), and a browser must not remember "HTTPS only" for localhost.
+const HSTS_MAX_AGE_SECONDS = 365 * 24 * 60 * 60;
+
 export interface AppOptions {
   isProduction?: boolean;
   /** Test-only hook to mount extra routes under /api/v1, before the 404 handler. */
@@ -30,7 +34,13 @@ export function createApp({
 
   app.use(requestId);
   app.use(makeRequestLogger(logger));
-  app.use(helmet());
+  app.use(
+    helmet({
+      strictTransportSecurity: isProduction
+        ? { maxAge: HSTS_MAX_AGE_SECONDS, includeSubDomains: true }
+        : false,
+    }),
+  );
   app.use(cors({ origin: container.env.CORS_ORIGINS }));
   // The offline batch has a tighter cap than the rest of the API (doc 07, B19). Mounted first, so the
   // general parser below finds that body already read and leaves it alone.
