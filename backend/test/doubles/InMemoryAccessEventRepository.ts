@@ -28,6 +28,13 @@ export class InMemoryAccessEventRepository implements IAccessEventRepository {
   async list(filter: AccessEventListFilter): Promise<AccessEventListResult> {
     const matches = this.items
       .filter((e) => filter.usuarioId === undefined || e.usuarioId === filter.usuarioId)
+      .filter((e) => filter.accessPointId === undefined || e.accessPointId === filter.accessPointId)
+      .filter((e) => filter.terminalId === undefined || e.terminalId === filter.terminalId)
+      .filter((e) => filter.metodo === undefined || e.metodo === filter.metodo)
+      .filter((e) => filter.resultado === undefined || e.resultado === filter.resultado)
+      .filter((e) => filter.motivo === undefined || e.motivo === filter.motivo)
+      .filter((e) => filter.de === undefined || e.ocorridoEm.getTime() >= filter.de.getTime())
+      .filter((e) => filter.ate === undefined || e.ocorridoEm.getTime() <= filter.ate.getTime())
       .sort((a, b) => b.ocorridoEm.getTime() - a.ocorridoEm.getTime() || b.id.localeCompare(a.id));
     const start = (filter.page - 1) * filter.pageSize;
     const page = matches.slice(start, start + filter.pageSize);
