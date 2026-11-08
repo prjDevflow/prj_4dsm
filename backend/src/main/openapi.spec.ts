@@ -476,3 +476,12 @@ describe('openapi.yaml: POST /terminal/events/batch', () => {
     expect(description).toContain('relógio do terminal');
   });
 });
+
+describe('openapi.yaml: informações gerais', () => {
+  const info = () => (loadOpenApiSpec() as unknown as { info: { description: string } }).info;
+
+  it('deve avisar que um corpo acima de 100 kb dá 413 PAYLOAD_TOO_LARGE em qualquer rota', () => {
+    expect(info().description).toContain('PAYLOAD_TOO_LARGE');
+    expect(info().description).toContain('100 kb');
+  });
+});
