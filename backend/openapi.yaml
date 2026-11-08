@@ -1642,8 +1642,9 @@ paths:
         o prazo não venceu (o instante exato ainda vale), esta leitura vincula a tag ao usuário
         combinado, gasta o modo e responde `CADASTRADA`. Não consome uso, não grava evento e não
         cria comando. UID que já existe: 409 `TAG_JA_CADASTRADA` (e o modo já foi gasto); usuário do
-        modo inativo: 422. Como não há evento, repetir a mesma chave depois de `CADASTRADA` conta
-        como uma leitura de acesso.
+        modo inativo: 422; usuário do modo inexistente: 404 `NOT_FOUND`, que na prática não ocorre
+        porque a chave estrangeira impede apagar o usuário. Como não há evento, repetir a mesma
+        chave depois de `CADASTRADA` conta como uma leitura de acesso.
 
 
         `lidoEm` é opcional e só é conferido: quem decide é o relógio do servidor.

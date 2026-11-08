@@ -268,7 +268,7 @@ curl -X POST http://localhost:3000/api/v1/access/qr/validate \
 
 ## Tags NFC
 
-Só `ADMIN` (contrato no Swagger). O administrador vincula a tag a um usuário digitando o UID, ou liga o modo de cadastro no terminal e encosta a tag A leitura em si é `POST /terminal/nfc`, chamada pelo terminal (última subseção).
+Só `ADMIN` (contrato no Swagger). O administrador vincula a tag a um usuário digitando o UID, ou liga o modo de cadastro no terminal e encosta a tag. A leitura em si é `POST /terminal/nfc`, chamada pelo terminal (última subseção).
 
 | Rota                                                     | O que faz                                                                       |
 | -------------------------------------------------------- | ------------------------------------------------------------------------------- |

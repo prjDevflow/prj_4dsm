@@ -231,8 +231,9 @@ Coordenadas que o app **não envia** (ausentes ou `null`) dentro de um QR bem fo
 
 ### 5.3 Efeitos de uma decisão
 
-- **Aprovação (transação única):** consumir a credencial (`consumidoEm IS NULL`), consumir um uso (`usosRealizados < usosPermitidos AND situacao = 'ATIVA'`), inserir evento `AUTORIZADO`, inserir comando `ABRIR`. Se qualquer passo falhar, tudo é desfeito. Falha ao gravar o evento → 500 `INTERNAL_ERROR`, uso não consumido.
-- **Negação:** inserir evento `NEGADO` com motivo e, se o terminal foi identificado, comando `NEGAR`. O QR **não** é consumido numa negação. Se a gravação do evento falhar, registrar no log e **mesmo assim negar**.
+- **Aprovação do QR (transação única):** consumir a credencial (`consumidoEm IS NULL`), consumir um uso (`usosRealizados < usosPermitidos AND situacao = 'ATIVA'`), inserir evento `AUTORIZADO`, inserir comando `ABRIR`. Se qualquer passo falhar, tudo é desfeito. Falha ao gravar o evento → 500 `INTERNAL_ERROR`, uso não consumido.
+- **Negação do QR:** inserir evento `NEGADO` com motivo e, se o terminal foi identificado, comando `NEGAR`. O QR **não** é consumido numa negação. Se a gravação do evento falhar, registrar no log e **mesmo assim negar**.
+- **NFC (B17):** a aprovação é o evento `AUTORIZADO` (com o `Idempotency-Key` em `clientEventId`) e o consumo de um uso na mesma transação, **sem credencial e sem comando**: a resposta da rota é a decisão e o terminal abre ou nega por ela. A negação grava só o evento `NEGADO` (se a gravação falhar, registra no log e **mesmo assim nega**). Falha ao gravar o evento de uma aprovação → 500, uso não consumido.
 - Credencial desconhecida: evento com `terminalId` nulo e, em `detalhes`, só um prefixo do hash.
 
 ### 5.4 Regras puras reutilizáveis
