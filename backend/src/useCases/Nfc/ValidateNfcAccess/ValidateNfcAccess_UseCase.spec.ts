@@ -14,6 +14,10 @@ import { makeAuthorization } from '../../../../test/factories/makeAuthorization'
 import { makeNfcTag } from '../../../../test/factories/makeNfcTag';
 import { makeTerminal } from '../../../../test/factories/makeTerminal';
 import { makeUser } from '../../../../test/factories/makeUser';
+import type { Authorization } from '../../../entities/Authorization';
+import type { NfcTag } from '../../../entities/NfcTag';
+import type { Terminal } from '../../../entities/Terminal';
+import type { User } from '../../../entities/User';
 import { AccessEventRecorder } from '../../Events/AccessEventRecorder';
 import {
   ValidateNfcAccessUseCase,
@@ -29,6 +33,13 @@ const UID = '04A1B2C3';
 const KEY = '3f1c9a52-8e0b-4f55-9d57-2a6f0c1d7e44';
 
 const defaultConfig: ValidateNfcAccessConfig = { debounceSeconds: 3, aberturaMs: 5000 };
+
+interface Scene {
+  user?: Partial<User>;
+  terminal?: Partial<Terminal>;
+  tag?: Partial<NfcTag> | null;
+  authorization?: Partial<Authorization> | null;
+}
 
 const makeSut = (config: Partial<ValidateNfcAccessConfig> = {}) => {
   const { accessPoints, authorizations, users } = makeLocationDoubles();
@@ -60,22 +71,32 @@ const makeSut = (config: Partial<ValidateNfcAccessConfig> = {}) => {
     { ...defaultConfig, ...config },
   );
 
-  /** The default scene: an active tag of an active user with a valid authorization for this terminal's point. */
-  const seed = async () => {
-    await users.save(makeUser({ id: USER_ID }));
+  /**
+   * The default scene: an active tag of an active user with a valid authorization for this terminal's point.
+   * `null` leaves out the tag or the authorization.
+   */
+  const seed = async (scene: Scene = {}) => {
+    await users.save(makeUser({ id: USER_ID, ...scene.user }));
     await accessPoints.save(makeAccessPoint({ id: POINT_ID }));
-    await terminals.save(makeTerminal({ id: TERMINAL_ID, accessPointId: POINT_ID }));
-    await tags.save(makeNfcTag({ usuarioId: USER_ID, uid: UID }));
-    authorizations.add(
-      makeAuthorization({
-        id: AUTHORIZATION_ID,
-        usuarioId: USER_ID,
-        accessPointId: POINT_ID,
-        dataInicio: '2026-10-01',
-        dataFim: '2026-10-31',
-        usosPermitidos: 3,
-      }),
+    await terminals.save(
+      makeTerminal({ id: TERMINAL_ID, accessPointId: POINT_ID, ...scene.terminal }),
     );
+    if (scene.tag !== null) {
+      await tags.save(makeNfcTag({ usuarioId: USER_ID, uid: UID, ...scene.tag }));
+    }
+    if (scene.authorization !== null) {
+      authorizations.add(
+        makeAuthorization({
+          id: AUTHORIZATION_ID,
+          usuarioId: USER_ID,
+          accessPointId: POINT_ID,
+          dataInicio: '2026-10-01',
+          dataFim: '2026-10-31',
+          usosPermitidos: 3,
+          ...scene.authorization,
+        }),
+      );
+    }
   };
 
   const read = (overrides: Partial<ValidateNfcAccessInput> = {}) =>
@@ -109,17 +130,97 @@ describe('ValidateNfcAccess', () => {
       expect(decision).toEqual({ resultado: 'AUTORIZADO', aberturaMs: 5000 });
     });
 
-    it.todo('deve consumir exatamente um uso da autorização');
-    it.todo(
-      'deve gravar um único evento NFC AUTORIZADO com terminal, ponto, usuário, autorização, chave e UID',
-    );
-    it.todo('deve deixar distanciaM nulo no evento, porque o NFC não mede distância');
-    it.todo('deve aceitar o UID escrito com ":" e minúsculas como a mesma tag');
-    it.todo('deve autorizar sem criar comando para o terminal, porque a resposta já é a decisão');
-    it.todo(
-      'deve autorizar mesmo com o GPS do terminal longe do ponto, porque a distância não é avaliada',
-    );
-    it.todo('deve usar a autorização de dataFim mais próxima quando há mais de uma');
+    it('deve consumir exatamente um uso da autorização', async () => {
+      const { read, seed, authorizations } = makeSut();
+      await seed();
+
+      await read();
+
+      expect(authorizations.all()[0]?.usosRealizados).toBe(1);
+    });
+
+    it('deve gravar um único evento NFC AUTORIZADO com terminal, ponto, usuário, autorização, chave e UID', async () => {
+      const { read, seed, events, clock } = makeSut();
+      await seed();
+
+      await read();
+
+      expect(events.all()).toHaveLength(1);
+      expect(events.all()[0]).toMatchObject({
+        metodo: 'NFC',
+        resultado: 'AUTORIZADO',
+        motivo: null,
+        terminalId: TERMINAL_ID,
+        accessPointId: POINT_ID,
+        usuarioId: USER_ID,
+        authorizationId: AUTHORIZATION_ID,
+        clientEventId: KEY,
+        detalhes: { uid: UID },
+        ocorridoEm: clock.now(),
+      });
+    });
+
+    it('deve deixar distanciaM nulo no evento, porque o NFC não mede distância', async () => {
+      const { read, seed, events } = makeSut();
+      await seed();
+
+      await read();
+
+      expect(events.all()[0]?.distanciaM).toBeNull();
+    });
+
+    it('deve aceitar o UID escrito com ":" e minúsculas como a mesma tag', async () => {
+      const { read, seed, events } = makeSut();
+      await seed();
+
+      const decision = await read({ uid: '04:a1:b2:c3' });
+
+      expect(decision.resultado).toBe('AUTORIZADO');
+      expect(events.all()[0]?.detalhes).toEqual({ uid: UID });
+    });
+
+    it('deve autorizar sem criar comando para o terminal, porque a resposta já é a decisão', async () => {
+      const { read, seed, commands } = makeSut();
+      await seed();
+
+      await read();
+
+      expect(commands.all()).toHaveLength(0);
+    });
+
+    it('deve autorizar mesmo com o GPS do terminal longe do ponto, porque a distância não é avaliada', async () => {
+      const { read, seed, clock } = makeSut();
+      // About 5 km from the registered position of the access point.
+      await seed({
+        terminal: {
+          gpsFix: true,
+          ultimaLat: -23.26012,
+          ultimaLon: -45.96551,
+          ultimoContatoEm: clock.now(),
+        },
+      });
+
+      expect(await read()).toEqual({ resultado: 'AUTORIZADO', aberturaMs: 5000 });
+    });
+
+    it('deve usar a autorização de dataFim mais próxima quando há mais de uma', async () => {
+      const { read, seed, authorizations, events } = makeSut();
+      await seed();
+      const sooner = makeAuthorization({
+        id: '00000000-0000-4000-8000-0000000000a2',
+        usuarioId: USER_ID,
+        accessPointId: POINT_ID,
+        dataInicio: '2026-10-01',
+        dataFim: '2026-10-25',
+      });
+      authorizations.add(sooner);
+
+      await read();
+
+      expect(authorizations.all().find((a) => a.id === sooner.id)?.usosRealizados).toBe(1);
+      expect(authorizations.all().find((a) => a.id === AUTHORIZATION_ID)?.usosRealizados).toBe(0);
+      expect(events.all()[0]?.authorizationId).toBe(sooner.id);
+    });
   });
 
   describe('negações da tag e da pessoa', () => {
