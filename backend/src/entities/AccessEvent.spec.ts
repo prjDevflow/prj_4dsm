@@ -163,9 +163,9 @@ describe('clientEventId do evento', () => {
   it('deve guardar a chave de idempotência numa aprovação e numa negação', () => {
     const nfc = { ...base, metodo: 'NFC' as const, clientEventId: KEY };
 
-    expect(
-      AccessEvent.approved({ ...nfc, authorizationId: AUTHORIZATION_ID }).clientEventId,
-    ).toBe(KEY);
+    expect(AccessEvent.approved({ ...nfc, authorizationId: AUTHORIZATION_ID }).clientEventId).toBe(
+      KEY,
+    );
     expect(AccessEvent.denied({ ...nfc, motivo: 'TAG_INATIVA' }).clientEventId).toBe(KEY);
   });
 
