@@ -470,16 +470,104 @@ describe('ValidateNfcAccess', () => {
   });
 
   describe('debounce', () => {
-    it.todo(
-      'deve devolver a decisão anterior, sem novo evento, quando a mesma tag é lida de novo em menos de 3 s',
-    );
-    it.todo('deve tratar como nova tentativa a leitura feita exatamente 3 s depois');
-    it.todo('deve devolver também a negação anterior dentro da janela');
-    it.todo(
-      'deve tratar como nova tentativa a leitura de outra tag logo depois, sem herdar a decisão',
-    );
-    it.todo('deve tratar como nova tentativa a mesma tag lida em outro terminal');
-    it.todo('deve usar a janela de NFC_DEBOUNCE_SECONDS da configuração');
+    const SECOND_KEY = '7d2e4b10-1c3a-4e9f-8a66-0b5c9d1e2f33';
+
+    it('deve devolver a decisão anterior, sem novo evento nem novo uso, quando a mesma tag é lida de novo em menos de 3 s', async () => {
+      const { read, seed, clock, authorizations, events } = makeSut();
+      await seed();
+
+      const first = await read();
+      clock.advance(2999);
+      const again = await read({ idempotencyKey: SECOND_KEY });
+
+      expect(again).toEqual(first);
+      expect(authorizations.all()[0]?.usosRealizados).toBe(1);
+      expect(events.all()).toHaveLength(1);
+    });
+
+    it('deve tratar como nova tentativa a leitura feita exatamente 3 s depois', async () => {
+      const { read, seed, clock, authorizations, events } = makeSut();
+      await seed();
+
+      await read();
+      clock.advance(3000);
+      await read({ idempotencyKey: SECOND_KEY });
+
+      expect(authorizations.all()[0]?.usosRealizados).toBe(2);
+      expect(events.all()).toHaveLength(2);
+    });
+
+    it('deve devolver também a negação anterior dentro da janela', async () => {
+      const { read, seed, clock, events } = makeSut();
+      await seed({ tag: { ativa: false } });
+
+      await read();
+      clock.advance(1000);
+      const again = await read({ idempotencyKey: SECOND_KEY });
+
+      expect(again).toEqual({ resultado: 'NEGADO', motivo: 'TAG_INATIVA' });
+      expect(events.all()).toHaveLength(1);
+    });
+
+    it('deve tratar como nova tentativa a leitura de outra tag logo depois, sem herdar a decisão', async () => {
+      const { read, seed, clock, users, tags, events } = makeSut();
+      await seed();
+      const strangerId = '00000000-0000-4000-8000-0000000000e2';
+      await users.save(makeUser({ id: strangerId, email: 'outra@teste.local' }));
+      await tags.save(
+        makeNfcTag({
+          id: '00000000-0000-4000-8000-0000000000f2',
+          usuarioId: strangerId,
+          uid: '04FFEEDD',
+        }),
+      );
+
+      expect(await read()).toMatchObject({ resultado: 'AUTORIZADO' });
+      clock.advance(500);
+      const other = await read({ uid: '04FFEEDD', idempotencyKey: SECOND_KEY });
+
+      // The other person has no authorization: the open door of the first one is not theirs.
+      expect(other).toEqual({ resultado: 'NEGADO', motivo: 'SEM_AUTORIZACAO' });
+      expect(events.all()).toHaveLength(2);
+    });
+
+    it('deve tratar como nova tentativa a mesma tag lida em outro terminal', async () => {
+      const { read, seed, clock, accessPoints, terminals, authorizations, events } = makeSut();
+      await seed();
+      const otherPointId = '00000000-0000-4000-8000-0000000000c2';
+      const otherTerminalId = '00000000-0000-4000-8000-0000000000a8';
+      await accessPoints.save(makeAccessPoint({ id: otherPointId, identificacao: 'CAT-02' }));
+      await terminals.save(makeTerminal({ id: otherTerminalId, accessPointId: otherPointId }));
+      authorizations.add(
+        makeAuthorization({
+          id: '00000000-0000-4000-8000-0000000000a2',
+          usuarioId: USER_ID,
+          accessPointId: otherPointId,
+        }),
+      );
+
+      await read();
+      clock.advance(500);
+      const elsewhere = await read({ terminalId: otherTerminalId, idempotencyKey: SECOND_KEY });
+
+      expect(elsewhere).toEqual({ resultado: 'AUTORIZADO', aberturaMs: 5000 });
+      expect(events.all()).toHaveLength(2);
+      expect(events.all()[1]?.terminalId).toBe(otherTerminalId);
+    });
+
+    it('deve usar a janela de NFC_DEBOUNCE_SECONDS da configuração', async () => {
+      const { read, seed, clock, events } = makeSut({ debounceSeconds: 10 });
+      await seed();
+
+      await read();
+      clock.advance(9999);
+      await read({ idempotencyKey: SECOND_KEY });
+      expect(events.all()).toHaveLength(1);
+
+      clock.advance(1);
+      await read({ idempotencyKey: '0a9b8c7d-6e5f-4a3b-8c2d-1e0f9a8b7c6d' });
+      expect(events.all()).toHaveLength(2);
+    });
   });
 
   describe('modo de cadastro', () => {
