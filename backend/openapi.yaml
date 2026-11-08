@@ -6,6 +6,13 @@ info:
     Backend do sistema integrado de controle de acesso (ABP 2026-2).
 
 
+    **Limite de requisições:** cada grupo de rotas tem o seu limite por minuto, e acima dele a resposta é
+    `429` com o código `RATE_LIMITED` e o cabeçalho `Retry-After` (segundos até poder tentar de novo).
+    O login conta por IP e e-mail; a validação de QR, por usuário; as rotas do terminal, por terminal
+    (o excesso de um terminal não afeta o outro); `/health` e `/ready`, por IP. Errar a chave do terminal
+    muitas vezes seguidas bloqueia o IP por um minuto. Os valores ficam no ambiente do servidor.
+
+
     **Corpo grande demais:** em qualquer rota, um corpo acima de 100 kb dá `413` com o código
     `PAYLOAD_TOO_LARGE` (antes era um `500`); o lote offline (`POST /terminal/events/batch`) tem um limite
     próprio, de 64 kb. Nada é processado.
@@ -70,6 +77,8 @@ paths:
                 version: 0.1.0
                 time: '2026-10-16T12:00:00.000Z'
                 db: up
+        '429':
+          $ref: '#/components/responses/RateLimited'
         '500':
           $ref: '#/components/responses/InternalError'
   /ready:
@@ -100,6 +109,8 @@ paths:
                 status: ready
                 db: up
                 time: '2026-11-08T12:00:00.000Z'
+        '429':
+          $ref: '#/components/responses/RateLimited'
         '503':
           description: Banco fora do ar; a API não consegue trabalhar
           headers:
@@ -2101,6 +2112,8 @@ paths:
           $ref: '#/components/responses/NfcReadConflict'
         '422':
           $ref: '#/components/responses/NfcReadValidationError'
+        '429':
+          $ref: '#/components/responses/RateLimited'
         '500':
           $ref: '#/components/responses/InternalError'
   /terminal/events/batch:
@@ -2176,6 +2189,8 @@ paths:
           $ref: '#/components/responses/PayloadTooLarge'
         '422':
           $ref: '#/components/responses/OfflineBatchValidationError'
+        '429':
+          $ref: '#/components/responses/RateLimited'
         '500':
           $ref: '#/components/responses/InternalError'
   /terminal/commands:
@@ -2253,6 +2268,8 @@ paths:
           $ref: '#/components/responses/TerminalForbidden'
         '422':
           $ref: '#/components/responses/CommandsValidationError'
+        '429':
+          $ref: '#/components/responses/RateLimited'
         '500':
           $ref: '#/components/responses/InternalError'
   /terminal/commands/{id}/ack:
@@ -2291,6 +2308,8 @@ paths:
           $ref: '#/components/responses/TerminalForbidden'
         '404':
           $ref: '#/components/responses/CommandNotFound'
+        '429':
+          $ref: '#/components/responses/RateLimited'
         '500':
           $ref: '#/components/responses/InternalError'
 components:
@@ -3823,7 +3842,9 @@ components:
               code: RATE_LIMITED
               message: QR Code pedido com muita frequência. Aguarde alguns segundos
     RateLimited:
-      description: Limite de tentativas por minuto excedido
+      description: >-
+        Limite de requisições por minuto excedido. Espere o tempo do `Retry-After` antes de tentar de
+        novo.
       headers:
         Retry-After:
           description: Segundos até poder tentar de novo.
