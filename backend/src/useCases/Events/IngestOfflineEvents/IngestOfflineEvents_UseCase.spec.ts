@@ -4,11 +4,13 @@ import { InMemoryAccessEventRepository } from '../../../../test/doubles/InMemory
 import { InMemoryNfcTagRepository } from '../../../../test/doubles/InMemoryNfcTagRepository';
 import { InMemoryTerminalRepository } from '../../../../test/doubles/InMemoryTerminalRepository';
 import { SequentialIdGenerator } from '../../../../test/doubles/SequentialIdGenerator';
+import { makeNfcTag } from '../../../../test/factories/makeNfcTag';
 import { makeTerminal } from '../../../../test/factories/makeTerminal';
 import { IngestOfflineEventsUseCase, type OfflineEventInput } from './IngestOfflineEvents_UseCase';
 
 const TERMINAL_ID = '00000000-0000-4000-8000-0000000000a9';
 const POINT_ID = '00000000-0000-4000-8000-0000000000c1';
+const USER_ID = '00000000-0000-4000-8000-0000000000e1';
 const UID = '04A1B2C3';
 
 /** Distinct, valid, lowercase UUIDs for the events of a batch. */
@@ -85,8 +87,63 @@ describe('IngestOfflineEvents', () => {
     });
   });
 
-  it.todo('deve preencher usuarioId quando o UID é de uma tag conhecida, ativa ou não');
-  it.todo('deve deixar usuarioId nulo quando o UID é desconhecido');
+  describe('identificação da tag', () => {
+    it('deve preencher usuarioId quando o UID é de uma tag conhecida', async () => {
+      const { send, seed, tags, events } = makeSut();
+      await seed();
+      await tags.save(makeNfcTag({ usuarioId: USER_ID, uid: UID }));
+
+      await send([offlineEvent()]);
+
+      expect(events.all()[0]?.usuarioId).toBe(USER_ID);
+    });
+
+    it('deve preencher usuarioId também quando a tag está desativada', async () => {
+      const { send, seed, tags, events } = makeSut();
+      await seed();
+      await tags.save(makeNfcTag({ usuarioId: USER_ID, uid: UID, ativa: false }));
+
+      await send([offlineEvent()]);
+
+      expect(events.all()[0]?.usuarioId).toBe(USER_ID);
+    });
+
+    it('deve reconhecer a tag mesmo quando o terminal escreve o UID com separadores', async () => {
+      const { send, seed, tags, events } = makeSut();
+      await seed();
+      await tags.save(makeNfcTag({ usuarioId: USER_ID, uid: UID }));
+
+      await send([offlineEvent(1, { uid: '04-a1-b2-c3' })]);
+
+      expect(events.all()[0]?.usuarioId).toBe(USER_ID);
+    });
+
+    it('deve deixar usuarioId nulo quando o UID é desconhecido', async () => {
+      const { send, seed, events } = makeSut();
+      await seed();
+
+      await send([offlineEvent()]);
+
+      expect(events.all()[0]?.usuarioId).toBeNull();
+    });
+
+    it('deve identificar cada UID do lote pela própria tag', async () => {
+      const { send, seed, tags, events } = makeSut();
+      const OTHER_USER = '00000000-0000-4000-8000-0000000000e2';
+      await seed();
+      await tags.save(makeNfcTag({ id: 'f1', usuarioId: USER_ID, uid: UID }));
+      await tags.save(makeNfcTag({ id: 'f2', usuarioId: OTHER_USER, uid: 'AABBCCDD' }));
+
+      await send([
+        offlineEvent(1, { uid: UID }),
+        offlineEvent(2, { uid: 'AABBCCDD' }),
+        offlineEvent(3, { uid: '11223344' }),
+      ]);
+
+      expect(events.all().map((e) => e.usuarioId)).toEqual([USER_ID, OTHER_USER, null]);
+    });
+  });
+
   it.todo('deve gravar cada evento uma única vez quando o mesmo lote é enviado duas vezes');
   it.todo('deve contar 3 aceitos e 1 duplicado num lote com 3 novos e 1 já recebido');
   it.todo('deve contar como duplicado o evento repetido dentro do mesmo lote');
