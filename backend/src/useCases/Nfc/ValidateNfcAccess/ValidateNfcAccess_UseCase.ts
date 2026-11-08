@@ -1,4 +1,7 @@
+import { AccessEvent } from '../../../entities/AccessEvent';
 import type { NfcDenialReason } from '../../../entities/DenialReason';
+import { AccessEvaluator } from '../../../entities/rules/AccessEvaluator';
+import { normalizeUid } from '../../../entities/rules/normalizeUid';
 import type { IClock } from '../../../providers/IClock';
 import type { IIdGenerator } from '../../../providers/IIdGenerator';
 import type { IAccessEventRepository } from '../../../repositories/IAccessEventRepository';
@@ -46,7 +49,44 @@ export class ValidateNfcAccessUseCase {
   ) {}
 
   async execute(input: ValidateNfcAccessInput): Promise<NfcAccessDecision> {
-    void input;
-    throw new Error('B17: ainda não implementado');
+    const now = this.clock.now();
+    const terminal = await this.terminals.findById(input.terminalId);
+    const uid = normalizeUid(input.uid);
+    if (!terminal || !uid) throw new Error('B17: ainda não implementado');
+
+    const tag = await this.tags.findByUid(uid);
+    if (!tag) throw new Error('B17: ainda não implementado');
+    const user = await this.users.findById(tag.usuarioId);
+    if (!user) throw new Error('B17: ainda não implementado');
+
+    const authorizations = await this.authorizations.findByUserAndAccessPoint(
+      user.id,
+      terminal.accessPointId,
+    );
+    const evaluation = AccessEvaluator.evaluate({
+      user,
+      accessPointId: terminal.accessPointId,
+      authorizations,
+      now,
+    });
+    if (!evaluation.granted) throw new Error('B17: ainda não implementado');
+
+    const result = await this.accessGrants.commitNfcApproval({
+      authorizationId: evaluation.authorization.id,
+      event: AccessEvent.approved({
+        id: this.ids.next(),
+        ocorridoEm: now,
+        metodo: 'NFC',
+        terminalId: terminal.id,
+        accessPointId: terminal.accessPointId,
+        usuarioId: user.id,
+        authorizationId: evaluation.authorization.id,
+        clientEventId: input.idempotencyKey,
+        uid,
+      }),
+    });
+    if (!result.ok) throw new Error('B17: ainda não implementado');
+
+    return { resultado: 'AUTORIZADO', aberturaMs: this.config.aberturaMs };
   }
 }
