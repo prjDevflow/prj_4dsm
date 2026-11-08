@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
-import { NFC_DENIAL_REASONS, QR_DENIAL_REASONS } from '../entities/DenialReason';
+import { DENIAL_REASONS, NFC_DENIAL_REASONS, QR_DENIAL_REASONS } from '../entities/DenialReason';
 import { QR_DENIAL_MESSAGES, QR_GRANTED_MESSAGE } from '../useCases/Access/qrDenialMessages';
+import { PERIOD_ORDER_ISSUE } from '../useCases/Events/accessEventQuery';
 import { UID_MESSAGE } from '../useCases/Nfc/uidField';
 import { loadOpenApiSpec } from './openapi';
 
@@ -166,6 +167,175 @@ describe('openapi.yaml: POST /terminal/nfc', () => {
     ]);
     expect(examples.uidInvalido?.value.error.details).toEqual([
       { field: 'uid', message: UID_MESSAGE },
+    ]);
+  });
+});
+
+describe('openapi.yaml: histórico de acessos', () => {
+  interface Param {
+    name?: string;
+    $ref?: string;
+    schema?: { enum?: string[]; format?: string };
+    description?: string;
+  }
+  interface Response {
+    $ref?: string;
+    content?: {
+      'application/json': {
+        schema?: { $ref?: string };
+        examples?: Record<string, { value: { data?: Record<string, unknown>[] } }>;
+      };
+    };
+  }
+  interface HistoryOperation {
+    operationId?: string;
+    tags?: string[];
+    parameters?: Param[];
+    responses: Record<string, Response>;
+  }
+  interface HistorySpec {
+    paths: Record<string, Record<string, HistoryOperation>>;
+    components: {
+      schemas: Record<string, { required?: string[]; properties?: Record<string, unknown> }>;
+      responses: Record<
+        string,
+        {
+          content: {
+            'application/json': {
+              examples: Record<string, { value: { error: { details: unknown[] } } }>;
+            };
+          };
+        }
+      >;
+    };
+  }
+
+  const spec = () => loadOpenApiSpec() as unknown as HistorySpec;
+  const history = () => spec().paths['/access-events']?.get;
+  const mine = () => spec().paths['/me/access-events']?.get;
+  const names = (operation?: HistoryOperation) =>
+    (operation?.parameters ?? []).map((p) => p.name ?? p.$ref?.split('/').pop()).sort();
+  const param = (operation: HistoryOperation | undefined, name: string) =>
+    operation?.parameters?.find((p) => p.name === name);
+
+  const EVENT_FIELDS = [
+    'authorizationId',
+    'distanciaM',
+    'id',
+    'local',
+    'metodo',
+    'motivo',
+    'ocorridoEm',
+    'resultado',
+    'terminal',
+    'usuario',
+  ];
+
+  it('deve documentar as duas rotas só com leitura (GET), nunca escrita', () => {
+    expect(Object.keys(spec().paths['/access-events'] ?? {})).toEqual(['get']);
+    expect(Object.keys(spec().paths['/me/access-events'] ?? {})).toEqual(['get']);
+    expect(history()?.operationId).toBe('listAccessEvents');
+    expect(mine()?.operationId).toBe('listMyAccessEvents');
+  });
+
+  it('deve aceitar os oito filtros e a paginação na rota do administrador', () => {
+    expect(names(history())).toEqual(
+      [
+        'Page',
+        'PageSize',
+        'accessPointId',
+        'ate',
+        'de',
+        'metodo',
+        'motivo',
+        'resultado',
+        'terminalId',
+        'usuarioId',
+      ].sort(),
+    );
+  });
+
+  it('deve aceitar os mesmos filtros em /me, menos usuarioId: o dono é o do token', () => {
+    expect(names(mine())).toEqual(
+      [
+        'Page',
+        'PageSize',
+        'accessPointId',
+        'ate',
+        'de',
+        'metodo',
+        'motivo',
+        'resultado',
+        'terminalId',
+      ].sort(),
+    );
+  });
+
+  it.each([
+    ['administrador', history],
+    ['/me', mine],
+  ])('deve listar os mesmos códigos de motivo, método e resultado do código (%s)', (_who, op) => {
+    expect([...(param(op(), 'motivo')?.schema?.enum ?? [])].sort()).toEqual(
+      [...DENIAL_REASONS].sort(),
+    );
+    expect(param(op(), 'metodo')?.schema?.enum).toEqual(['QR', 'NFC']);
+    expect(param(op(), 'resultado')?.schema?.enum).toEqual(['AUTORIZADO', 'NEGADO']);
+  });
+
+  it('deve descrever de e ate como instantes inclusivos, avisando que o + do fuso vira %2B', () => {
+    for (const name of ['de', 'ate']) {
+      expect(param(history(), name)?.schema?.format, name).toBe('date-time');
+      expect(param(history(), name)?.description, name).toContain('inclusivo');
+    }
+    expect(param(history(), 'de')?.description).toContain('%2B');
+  });
+
+  it('deve descrever o evento só com os campos da resposta, sem detalhes nem chave de idempotência', () => {
+    const event = spec().components.schemas.EventoDeAcesso;
+
+    expect(Object.keys(event?.properties ?? {}).sort()).toEqual(EVENT_FIELDS);
+    expect([...(event?.required ?? [])].sort()).toEqual(EVENT_FIELDS);
+  });
+
+  it('deve trazer exemplos com exatamente esses campos, inclusive sem pessoa e sem ponto', () => {
+    const examples = history()?.responses['200']?.content?.['application/json'].examples ?? {};
+
+    expect(Object.keys(examples).sort()).toEqual([
+      'aprovadoPorQr',
+      'credencialDesconhecida',
+      'negadoPorNfc',
+      'tagDesconhecida',
+    ]);
+    for (const [name, example] of Object.entries(examples)) {
+      for (const item of example.value.data ?? []) {
+        expect(Object.keys(item).sort(), name).toEqual(EVENT_FIELDS);
+      }
+    }
+    expect(examples.tagDesconhecida?.value.data?.[0]).toMatchObject({ usuario: null });
+    expect(examples.credencialDesconhecida?.value.data?.[0]).toMatchObject({
+      usuario: null,
+      local: null,
+      terminal: null,
+    });
+  });
+
+  it('deve documentar 401 e 422 nas duas rotas e o 403 só na do administrador', () => {
+    expect(Object.keys(history()?.responses ?? {}).sort()).toEqual([
+      '200',
+      '401',
+      '403',
+      '422',
+      '500',
+    ]);
+    expect(Object.keys(mine()?.responses ?? {}).sort()).toEqual(['200', '401', '422', '500']);
+  });
+
+  it('deve trazer no exemplo de período invertido a mesma mensagem que a API devolve', () => {
+    const name = (history()?.responses['422']?.$ref ?? '').split('/').pop() ?? '';
+    const examples = spec().components.responses[name]?.content['application/json'].examples ?? {};
+
+    expect(examples.periodoInvertido?.value.error.details).toEqual([
+      { field: 'ate', message: PERIOD_ORDER_ISSUE.error },
     ]);
   });
 });
