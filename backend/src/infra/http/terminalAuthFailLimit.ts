@@ -1,5 +1,5 @@
-import { rateLimit, ipKeyGenerator } from 'express-rate-limit';
-import { RateLimitedError } from '../../shared/errors/AppError';
+import { ipKeyGenerator } from 'express-rate-limit';
+import { makeRateLimit } from './makeRateLimit';
 
 /**
  * Limits failed terminal authentications per IP. It runs before `authenticateTerminal` and only counts
@@ -10,14 +10,9 @@ import { RateLimitedError } from '../../shared/errors/AppError';
  * process's memory.
  */
 export function makeTerminalAuthFailLimit(maxPerMinute: number) {
-  return rateLimit({
-    windowMs: 60_000,
-    limit: maxPerMinute,
-    standardHeaders: 'draft-7',
-    legacyHeaders: false,
+  return makeRateLimit(maxPerMinute, {
     keyGenerator: (req) => ipKeyGenerator(req.ip ?? ''),
     skipSuccessfulRequests: true,
     requestWasSuccessful: (_req, res) => res.statusCode !== 401 && res.statusCode !== 403,
-    handler: (_req, _res, next) => next(new RateLimitedError()),
   });
 }

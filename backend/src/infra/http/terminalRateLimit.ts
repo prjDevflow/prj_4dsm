@@ -1,5 +1,5 @@
-import { rateLimit } from 'express-rate-limit';
-import { RateLimitedError, UnauthorizedError } from '../../shared/errors/AppError';
+import { UnauthorizedError } from '../../shared/errors/AppError';
+import { makeRateLimit } from './makeRateLimit';
 
 /**
  * Limits requests per minute for each authenticated terminal, summed over all its routes. It must run
@@ -7,15 +7,10 @@ import { RateLimitedError, UnauthorizedError } from '../../shared/errors/AppErro
  * address, and terminals behind one address do not share a quota. The counters live in this process's memory.
  */
 export function makeTerminalRateLimit(maxPerMinute: number) {
-  return rateLimit({
-    windowMs: 60_000,
-    limit: maxPerMinute,
-    standardHeaders: 'draft-7',
-    legacyHeaders: false,
+  return makeRateLimit(maxPerMinute, {
     keyGenerator: (req) => {
       if (!req.terminal) throw new UnauthorizedError();
       return req.terminal.terminalId;
     },
-    handler: (_req, _res, next) => next(new RateLimitedError()),
   });
 }
