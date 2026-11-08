@@ -392,3 +392,164 @@ describe('GET /access-events: filtros', () => {
     expect(res.status).toBe(200);
   });
 });
+
+const mine = (actor: Actor, query = '') =>
+  request(app).get(`/api/v1/me/access-events${query}`).set('Authorization', bearer(actor));
+
+describe('GET /me/access-events', () => {
+  beforeEach(resetDatabase);
+
+  it('401 sem token', async () => {
+    const res = await request(app).get('/api/v1/me/access-events');
+
+    expect(res.status).toBe(401);
+    expect(res.body.error.code).toBe('UNAUTHORIZED');
+  });
+
+  it('401 para um usuário desativado depois do login', async () => {
+    const user = await insertUser({ ativo: false });
+
+    const res = await mine(user);
+
+    expect(res.status).toBe(401);
+  });
+
+  it.each(['VISITANTE', 'CONDOMINO', 'ADMIN'] as const)(
+    'o perfil %s vê só os próprios eventos, no mesmo formato do admin',
+    async (perfil) => {
+      const { maria, joao, add } = await scenario();
+      const me = await insertUser({ nome: 'Eu Mesmo', perfil });
+      const own = await add({ usuarioId: me.id, ocorridoEm: T });
+      await add({ usuarioId: maria.id });
+      await add({ usuarioId: joao.id });
+      // An attempt nobody was identified for belongs to no one.
+      await add({ usuarioId: null, resultado: 'NEGADO', motivo: 'TAG_DESCONHECIDA' });
+
+      const res = await mine(me);
+
+      expect(res.status).toBe(200);
+      expect(res.body).toMatchObject({ page: 1, pageSize: 20, total: 1 });
+      expect(idsOf(res.body)).toEqual([own.id]);
+      expect(res.body.data[0].usuario).toEqual({ id: me.id, nome: 'Eu Mesmo', perfil });
+      expect(Object.keys(res.body.data[0]).sort()).toEqual(
+        [
+          'authorizationId',
+          'distanciaM',
+          'id',
+          'local',
+          'metodo',
+          'motivo',
+          'ocorridoEm',
+          'resultado',
+          'terminal',
+          'usuario',
+        ].sort(),
+      );
+    },
+  );
+
+  it('ignora um usuarioId da query: o dono é sempre o do token', async () => {
+    const { maria, joao, add } = await scenario();
+    const hers = await add({ usuarioId: maria.id });
+    await add({ usuarioId: joao.id });
+
+    const res = await mine(maria, `?usuarioId=${joao.id}`);
+
+    expect(idsOf(res.body)).toEqual([hers.id]);
+  });
+
+  it('traz os eventos aprovados e os negados, com o motivo, do mais recente para o mais antigo', async () => {
+    const { maria, add } = await scenario();
+    const approved = await add({ usuarioId: maria.id, ocorridoEm: T });
+    const denied = await add({
+      usuarioId: maria.id,
+      ocorridoEm: minutesAfter(1),
+      resultado: 'NEGADO',
+      motivo: 'USOS_ESGOTADOS',
+    });
+
+    const res = await mine(maria);
+
+    expect(res.body.data).toEqual([
+      expect.objectContaining({ id: denied.id, resultado: 'NEGADO', motivo: 'USOS_ESGOTADOS' }),
+      expect.objectContaining({ id: approved.id, resultado: 'AUTORIZADO', motivo: null }),
+    ]);
+  });
+
+  // Each row: the query and the fields of an event that matches it. The other events of the same
+  // person differ in that field only, and another person has a matching one that must not show.
+  it.each([
+    ['metodo', '?metodo=NFC', { metodo: 'NFC' as const }, { metodo: 'QR' as const }],
+    [
+      'resultado',
+      '?resultado=NEGADO',
+      { resultado: 'NEGADO' as const, motivo: 'FORA_DO_PERIODO' },
+      { resultado: 'AUTORIZADO' as const },
+    ],
+    [
+      'motivo',
+      '?motivo=TAG_INATIVA',
+      { resultado: 'NEGADO' as const, motivo: 'TAG_INATIVA' },
+      { resultado: 'NEGADO' as const, motivo: 'TAG_DESCONHECIDA' },
+    ],
+    ['de', `?de=${T.toISOString()}`, { ocorridoEm: T }, { ocorridoEm: new Date(T.getTime() - 1) }],
+    [
+      'ate',
+      `?ate=${T.toISOString()}`,
+      { ocorridoEm: T },
+      { ocorridoEm: new Date(T.getTime() + 1) },
+    ],
+  ])('filtra por %s só dentro dos próprios eventos', async (_name, query, matching, other) => {
+    const { maria, joao, add } = await scenario();
+    const hit = await add({ usuarioId: maria.id, ...matching });
+    await add({ usuarioId: maria.id, ...other });
+    await add({ usuarioId: joao.id, ...matching });
+
+    const res = await mine(maria, query);
+
+    expect(idsOf(res.body)).toEqual([hit.id]);
+    expect(res.body.total).toBe(1);
+  });
+
+  it('filtra por accessPointId e terminalId só dentro dos próprios eventos', async () => {
+    const { maria, joao, gate, gateTerminal, door, doorTerminal, add } = await scenario();
+    const atGate = await add({ usuarioId: maria.id });
+    await add({ usuarioId: maria.id, accessPointId: door.id, terminalId: doorTerminal.id });
+    await add({ usuarioId: joao.id });
+
+    const byPoint = await mine(maria, `?accessPointId=${gate.id}`);
+    const byTerminal = await mine(maria, `?terminalId=${gateTerminal.id}`);
+
+    expect(idsOf(byPoint.body)).toEqual([atGate.id]);
+    expect(idsOf(byTerminal.body)).toEqual([atGate.id]);
+  });
+
+  it('pagina e informa o total só dos próprios eventos', async () => {
+    const { maria, joao, add } = await scenario();
+    const oldest = await add({ usuarioId: maria.id, ocorridoEm: minutesAfter(1) });
+    await add({ usuarioId: maria.id, ocorridoEm: minutesAfter(2) });
+    await add({ usuarioId: joao.id, ocorridoEm: minutesAfter(3) });
+
+    const second = await mine(maria, '?page=2&pageSize=1');
+
+    expect(second.body).toMatchObject({ page: 2, pageSize: 1, total: 2 });
+    expect(idsOf(second.body)).toEqual([oldest.id]);
+  });
+
+  it.each([
+    ['metodo=TELEFONE', 'metodo'],
+    ['resultado=TALVEZ', 'resultado'],
+    ['motivo=INVENTADO', 'motivo'],
+    ['de=ontem', 'de'],
+    ['page=0', 'page'],
+    ['pageSize=101', 'pageSize'],
+    ['de=2026-10-20T14:00:00.001Z&ate=2026-10-20T14:00:00.000Z', 'ate'],
+  ])('422 com %s e a mensagem no campo %s', async (query, field) => {
+    const { maria } = await scenario();
+
+    const res = await mine(maria, `?${query}`);
+
+    expect(res.status).toBe(422);
+    expect(res.body.error.details).toEqual([{ field, message: expect.any(String) }]);
+  });
+});
