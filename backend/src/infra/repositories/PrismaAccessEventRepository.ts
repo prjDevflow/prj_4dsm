@@ -1,6 +1,7 @@
 import type { AccessEvent } from '../../entities/AccessEvent';
 import { Prisma } from '../../generated/prisma/client';
 import type {
+  AccessEventListFilter,
   IAccessEventRepository,
   RecentNfcQuery,
 } from '../../repositories/IAccessEventRepository';
@@ -48,6 +49,10 @@ export class PrismaAccessEventRepository implements IAccessEventRepository {
         detalhes: (event.detalhes as Prisma.InputJsonObject | null) ?? Prisma.DbNull,
       },
     });
+  }
+
+  async list(_filter: AccessEventListFilter): Promise<never> {
+    throw new Error('não implementado');
   }
 
   async findByClientEventId(clientEventId: string) {

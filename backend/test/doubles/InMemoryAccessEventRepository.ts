@@ -1,12 +1,32 @@
 import type { AccessEvent } from '../../src/entities/AccessEvent';
 import type {
+  AccessEventListFilter,
   IAccessEventRepository,
   RecentNfcQuery,
 } from '../../src/repositories/IAccessEventRepository';
+import type { InMemoryAccessPointRepository } from './InMemoryAccessPointRepository';
+import type { InMemoryBuildingRepository } from './InMemoryBuildingRepository';
+import type { InMemoryTerminalRepository } from './InMemoryTerminalRepository';
+import type { InMemoryUserRepository } from './InMemoryUserRepository';
+
+/** What `list` needs to resolve names, as the real repository does with joins. Only `list` uses it. */
+export interface EventLookups {
+  users: InMemoryUserRepository;
+  accessPoints: InMemoryAccessPointRepository;
+  buildings: InMemoryBuildingRepository;
+  terminals: InMemoryTerminalRepository;
+}
 
 export class InMemoryAccessEventRepository implements IAccessEventRepository {
   private items: AccessEvent[] = [];
   private failure: Error | null = null;
+
+  constructor(private lookups?: EventLookups) {}
+
+  async list(_filter: AccessEventListFilter): Promise<never> {
+    void this.lookups;
+    throw new Error('não implementado');
+  }
 
   async append(event: AccessEvent) {
     if (this.failure) throw this.failure;
