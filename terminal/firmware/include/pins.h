@@ -14,7 +14,7 @@ constexpr uint8_t PIN_RC522_MOSI = 23;
 constexpr uint8_t PIN_RC522_MISO = 19;
 constexpr uint8_t PIN_RC522_RST = 4;
 
-// OLED 128x64 on I2C, on the +3V3 rail: 0.96" SSD1306 or 1.3" SH1106 (guide, question 1).
+// OLED 128x64 on I2C, on the +3V3 rail. Driver SH1106 (checked on the bench, I01).
 constexpr uint8_t PIN_OLED_SDA = 21;
 constexpr uint8_t PIN_OLED_SCL = 22;
 constexpr uint8_t OLED_I2C_ADDRESS = 0x3C;  // 7-bit address; U8g2 expects it shifted left (0x78)
@@ -24,11 +24,11 @@ constexpr uint8_t PIN_GPS_RX = 16;  // the ESP32 receives here (GPS TX)
 constexpr uint8_t PIN_GPS_TX = 17;  // the ESP32 transmits here (GPS RX)
 constexpr uint32_t GPS_BAUD = 9600;
 
-// SG90 servo (turnstile), PWM 50 Hz. Only the signal comes from the ESP32: power from the +5V rail (VIN),
-// never 3V3. The 470 uF capacitor on the +5V rail holds the voltage when the servo starts.
+// SG90 or MG90S servo (turnstile; same wiring), PWM 50 Hz. Only the signal comes from the ESP32: power
+// from the +5V rail (VIN), never 3V3. The 470 uF capacitor on the +5V rail holds the voltage when it starts.
 constexpr uint8_t PIN_SERVO = 13;
 
-// Buzzer (+), with (-) on GND. Plain on/off if active; a PWM tone only if passive (guide, question 8).
+// Buzzer (+), with (-) on GND. Passive (checked on the bench, I01): it needs a PWM tone, on/off only clicks.
 constexpr uint8_t PIN_BUZZER = 27;
 
 // On-board blue LED of the DevKit: not a wire of the map, it only shows the loop is alive.

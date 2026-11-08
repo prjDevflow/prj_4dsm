@@ -1,8 +1,8 @@
 # Pinagem do terminal
 
-Ligações de cada peça com o ESP32 DevKit V1 (30 pinos). Fonte: o mapeamento do *Relatório de firmware —
-Terminal de Acesso (ESP32)* (06/11/2026, páginas 2 e 3). No código, os números de pino ficam só em
-[`firmware/include/pins.h`](../firmware/include/pins.h).
+Ligações de cada peça com o ESP32 DevKit V1 (30 pinos). Fonte: o mapeamento do
+[relatório de firmware](relatorio-firmware-terminal-esp32.pdf) (06/11/2026, páginas 2 e 3). No código, os
+números de pino ficam só em [`firmware/include/pins.h`](../firmware/include/pins.h).
 
 Siga o nome serigrafado na placa, não a posição do pino: a ordem muda entre fabricantes.
 
@@ -17,16 +17,16 @@ Siga o nome serigrafado na placa, não a posição do pino: a ordem muda entre f
 | | RST | GPIO 4 | `PIN_RC522_RST` | saída digital |
 | | IRQ | não ligar | — | — |
 | | 3.3V / GND | trilho +3V3 / GND | — | — |
-| Display OLED 128×64 | SDA | GPIO 21 | `PIN_OLED_SDA` | I2C, endereço `0x3C` |
+| Display OLED 128×64 (driver SH1106) | SDA | GPIO 21 | `PIN_OLED_SDA` | I2C, endereço `0x3C` |
 | | SCL | GPIO 22 | `PIN_OLED_SCL` | I2C |
 | | VCC / GND | trilho +3V3 / GND | — | — |
 | GPS NEO-6M | TX do GPS | GPIO 16 (RX2) | `PIN_GPS_RX` | UART2, 9600 bps |
 | | RX do GPS | GPIO 17 (TX2) | `PIN_GPS_TX` | UART2 |
 | | VCC / GND | trilho +3V3 / GND | — | — |
-| Servo SG90 (catraca) | laranja (sinal) | GPIO 13 | `PIN_SERVO` | PWM 50 Hz |
+| Servo SG90 ou MG90S (catraca) | laranja (sinal) | GPIO 13 | `PIN_SERVO` | PWM 50 Hz |
 | | vermelho | trilho +5V (VIN) | — | — |
 | | marrom | trilho GND | — | — |
-| Buzzer | (+) | GPIO 27 | `PIN_BUZZER` | saída digital (PWM só se o buzzer for passivo) |
+| Buzzer (passivo) | (+) | GPIO 27 | `PIN_BUZZER` | PWM: o buzzer passivo só soa com tom |
 | | (−) | GND | — | — |
 | Capacitor 470 µF | + / faixa (−) | trilho +5V / GND | — | — |
 | ESP32 | VIN (5 V do USB) | trilho +5V | — | — |

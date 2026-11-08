@@ -7,6 +7,6 @@ RC522, GPS NEO-6M, buzzer e servo. Fala com a API por HTTP, autenticado pela cha
 | Pasta | Conteúdo |
 |---|---|
 | [firmware/](firmware/) | projeto PlatformIO: firmware, ferramenta de bancada e testes |
-| [docs/](docs/) | documentação do hardware: [pinagem.md](docs/pinagem.md) (ligações de cada peça com o ESP32) |
+| [docs/](docs/) | [pinagem](docs/pinagem.md) (ligações de cada peça com o ESP32), [guia do firmware](docs/guia-firmware.md) (etapas I01 a I15) e [índice](docs/README.md) |
 
 Responsável: Matheus (hardware e firmware).
