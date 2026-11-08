@@ -571,13 +571,130 @@ describe('ValidateNfcAccess', () => {
   });
 
   describe('modo de cadastro', () => {
-    it.todo('deve vincular a tag ao usuário do modo e responder CADASTRADA, sem uso nem evento');
-    it.todo('deve encerrar o modo: a leitura seguinte segue o fluxo normal');
-    it.todo('deve ainda vincular no instante exato do prazo e deixar de vincular 1 ms depois');
-    it.todo('deve seguir o fluxo normal quando o modo venceu');
-    it.todo('deve recusar com 409 TAG_JA_CADASTRADA o UID que já existe, com o modo já gasto');
-    it.todo('deve recusar com 422 em usuarioId quando o usuário do modo ficou inativo');
-    it.todo('deve preferir o modo de cadastro à decisão anterior do debounce');
+    /** The terminal waits for a tag of USER_ID until one minute after the default instant of the clock. */
+    const ENROLL_UNTIL = new Date('2026-10-20T14:01:00Z');
+    const enrolling = { modoCadastroUsuarioId: USER_ID, modoCadastroAte: ENROLL_UNTIL };
+    const SECOND_KEY = '7d2e4b10-1c3a-4e9f-8a66-0b5c9d1e2f33';
+
+    it('deve vincular a tag ao usuário do modo e responder CADASTRADA', async () => {
+      const { read, seed, tags, clock } = makeSut();
+      await seed({ tag: null, terminal: enrolling });
+
+      const decision = await read({ uid: '04:a1:b2:c3' });
+
+      expect(decision).toEqual({ resultado: 'CADASTRADA' });
+      expect(tags.all()).toEqual([
+        {
+          id: expect.any(String),
+          usuarioId: USER_ID,
+          uid: UID,
+          descricao: null,
+          ativa: true,
+          criadaEm: clock.now(),
+        },
+      ]);
+    });
+
+    it('não deve consumir uso, gravar evento nem criar comando ao cadastrar', async () => {
+      const { read, seed, authorizations, events, commands } = makeSut();
+      await seed({ tag: null, terminal: enrolling });
+
+      await read();
+
+      expect(authorizations.all()[0]?.usosRealizados).toBe(0);
+      expect(events.all()).toHaveLength(0);
+      expect(commands.all()).toHaveLength(0);
+    });
+
+    it('deve encerrar o modo: a leitura seguinte já usa a tag e segue o fluxo normal', async () => {
+      const { read, seed, clock, terminals, authorizations, events } = makeSut();
+      await seed({ tag: null, terminal: enrolling });
+
+      await read();
+      clock.advance(5000);
+      const next = await read({ idempotencyKey: SECOND_KEY });
+
+      const terminal = await terminals.findById(TERMINAL_ID);
+      expect(terminal).toMatchObject({ modoCadastroUsuarioId: null, modoCadastroAte: null });
+      expect(next).toEqual({ resultado: 'AUTORIZADO', aberturaMs: 5000 });
+      expect(authorizations.all()[0]?.usosRealizados).toBe(1);
+      expect(events.all()).toHaveLength(1);
+    });
+
+    it('deve ainda vincular no instante exato do prazo', async () => {
+      const { read, seed, clock } = makeSut();
+      await seed({ tag: null, terminal: enrolling });
+      clock.set(ENROLL_UNTIL);
+
+      expect(await read()).toEqual({ resultado: 'CADASTRADA' });
+    });
+
+    it('deve seguir o fluxo normal 1 ms depois do prazo, sem vincular nada', async () => {
+      const { read, seed, clock, tags, events } = makeSut();
+      await seed({ tag: null, terminal: enrolling });
+      clock.set(new Date(ENROLL_UNTIL.getTime() + 1));
+
+      expect(await read()).toEqual({ resultado: 'NEGADO', motivo: 'TAG_DESCONHECIDA' });
+      expect(tags.all()).toHaveLength(0);
+      expect(events.all()).toHaveLength(1);
+    });
+
+    it('deve seguir o fluxo normal quando o terminal nunca esteve em modo de cadastro', async () => {
+      const { read, seed } = makeSut();
+      await seed({ tag: null });
+
+      expect(await read()).toEqual({ resultado: 'NEGADO', motivo: 'TAG_DESCONHECIDA' });
+    });
+
+    it('deve recusar com 409 TAG_JA_CADASTRADA o UID que já existe, com o modo já gasto', async () => {
+      const { read, seed, terminals, tags, events } = makeSut();
+      await seed({ terminal: enrolling });
+
+      await expect(read()).rejects.toMatchObject({ status: 409, code: 'TAG_JA_CADASTRADA' });
+
+      const terminal = await terminals.findById(TERMINAL_ID);
+      expect(terminal?.modoCadastroUsuarioId).toBeNull();
+      expect(tags.all()).toHaveLength(1);
+      expect(events.all()).toHaveLength(0);
+    });
+
+    it('deve recusar com 422 em usuarioId quando o usuário do modo ficou inativo', async () => {
+      const { read, seed, tags } = makeSut();
+      await seed({ tag: null, user: { ativo: false }, terminal: enrolling });
+
+      await expect(read()).rejects.toMatchObject({
+        status: 422,
+        details: [{ field: 'usuarioId', message: 'Usuário inativo' }],
+      });
+      expect(tags.all()).toHaveLength(0);
+    });
+
+    it('deve recusar com 404 quando o usuário do modo não existe mais', async () => {
+      const { read, seed } = makeSut();
+      await seed({
+        tag: null,
+        terminal: {
+          modoCadastroUsuarioId: '00000000-0000-4000-8000-0000000000e9',
+          modoCadastroAte: ENROLL_UNTIL,
+        },
+      });
+
+      await expect(read()).rejects.toMatchObject({ status: 404, code: 'NOT_FOUND' });
+    });
+
+    it('deve preferir o modo de cadastro à decisão anterior do debounce', async () => {
+      const { read, seed, clock, terminals, tags } = makeSut();
+      await seed({ tag: null });
+
+      // The tag is read before the mode is turned on, and denied as unknown.
+      expect(await read()).toMatchObject({ motivo: 'TAG_DESCONHECIDA' });
+      await terminals.updateEnrollMode(TERMINAL_ID, USER_ID, ENROLL_UNTIL);
+      clock.advance(1000);
+      const decision = await read({ idempotencyKey: SECOND_KEY });
+
+      expect(decision).toEqual({ resultado: 'CADASTRADA' });
+      expect(tags.all()).toHaveLength(1);
+    });
   });
 
   describe('falhas e corridas', () => {
