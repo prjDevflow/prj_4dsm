@@ -423,6 +423,37 @@ describe('PrismaAccessEventRepository: appendIfAbsent', () => {
     expect(await prisma.accessEvent.count()).toBe(10);
   });
 
+  it('não dá deadlock quando dois envios simultâneos trazem as mesmas chaves em ordens opostas', async () => {
+    const scene = await seedTerminal();
+    const rounds = 30;
+
+    for (let round = 0; round < rounds; round += 1) {
+      // New keys every round, 50 per batch (the most a request carries), the second batch reversed.
+      const ascending = Array.from({ length: 50 }, (_, i) =>
+        offlineEvent(scene, round * 100 + i + 1),
+      );
+      const descending = [...ascending].reverse().map((event) => ({ ...event, id: newId() }));
+
+      const results = await Promise.allSettled([
+        events.appendIfAbsent(ascending),
+        events.appendIfAbsent(descending),
+      ]);
+
+      // A rejection shows its reason in the failure message instead of a bare "rejected".
+      expect(
+        results.map((result) =>
+          result.status === 'fulfilled' ? 'fulfilled' : String(result.reason),
+        ),
+      ).toEqual(['fulfilled', 'fulfilled']);
+      const stored = results.reduce(
+        (sum, result) => sum + (result.status === 'fulfilled' ? result.value : 0),
+        0,
+      );
+      expect(stored).toBe(50);
+    }
+    expect(await prisma.accessEvent.count()).toBe(rounds * 50);
+  });
+
   it('não grava nada de um evento com a chave já usada por uma leitura ao vivo', async () => {
     const scene = await seedTerminal();
     const live = offlineEvent(scene, 1, { motivo: 'TAG_DESCONHECIDA' });
