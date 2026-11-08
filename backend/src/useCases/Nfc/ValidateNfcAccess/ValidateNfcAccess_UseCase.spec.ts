@@ -14,6 +14,7 @@ import { makeAuthorization } from '../../../../test/factories/makeAuthorization'
 import { makeNfcTag } from '../../../../test/factories/makeNfcTag';
 import { makeTerminal } from '../../../../test/factories/makeTerminal';
 import { makeUser } from '../../../../test/factories/makeUser';
+import { AccessEvent } from '../../../entities/AccessEvent';
 import type { Authorization } from '../../../entities/Authorization';
 import type { NfcDenialReason } from '../../../entities/DenialReason';
 import type { NfcTag } from '../../../entities/NfcTag';
@@ -383,12 +384,89 @@ describe('ValidateNfcAccess', () => {
   });
 
   describe('idempotência', () => {
-    it.todo(
-      'deve devolver a decisão anterior, sem novo uso nem novo evento, quando a chave se repete',
+    // The clock moves a minute between the reads, so the debounce can never explain what the key explains.
+    const MINUTE = 60_000;
+
+    it('deve devolver a decisão anterior, sem novo uso nem novo evento, quando a chave se repete', async () => {
+      const { read, seed, clock, authorizations, events } = makeSut();
+      await seed();
+
+      const first = await read();
+      clock.advance(MINUTE);
+      const again = await read();
+
+      expect(first).toEqual({ resultado: 'AUTORIZADO', aberturaMs: 5000 });
+      expect(again).toEqual(first);
+      expect(authorizations.all()[0]?.usosRealizados).toBe(1);
+      expect(events.all()).toHaveLength(1);
+    });
+
+    it('deve devolver também a negação anterior quando a chave se repete, sem tentar gravar de novo', async () => {
+      const { read, seed, clock, events, logger } = makeSut();
+      await seed({ tag: null });
+
+      await read();
+      clock.advance(MINUTE);
+      const again = await read();
+
+      expect(again).toEqual({ resultado: 'NEGADO', motivo: 'TAG_DESCONHECIDA' });
+      expect(events.all()).toHaveLength(1);
+      // A second write would be refused by the unique key and logged: the retry must not even try.
+      expect(logger.of('error')).toHaveLength(0);
+    });
+
+    it('deve devolver a decisão original mesmo que a tag tenha sido desativada depois', async () => {
+      const { read, seed, clock, tags } = makeSut();
+      await seed();
+      await read();
+      const tag = tags.all()[0];
+      await tags.updateStatus(tag!.id, false);
+      clock.advance(MINUTE);
+
+      expect(await read()).toEqual({ resultado: 'AUTORIZADO', aberturaMs: 5000 });
+    });
+
+    it('deve tratar uma chave nova como nova leitura, com outro uso e outro evento', async () => {
+      const { read, seed, clock, authorizations, events } = makeSut();
+      await seed();
+
+      await read();
+      clock.advance(MINUTE);
+      await read({ idempotencyKey: '7d2e4b10-1c3a-4e9f-8a66-0b5c9d1e2f33' });
+
+      expect(authorizations.all()[0]?.usosRealizados).toBe(2);
+      expect(events.all()).toHaveLength(2);
+    });
+
+    const foreignEvents: [string, Partial<Parameters<typeof AccessEvent.denied>[0]>][] = [
+      ['de outro terminal', { terminalId: '00000000-0000-4000-8000-0000000000a8' }],
+      ['de uma leitura de QR', { metodo: 'QR', motivo: 'CREDENCIAL_INVALIDA' }],
+      ['de um evento enviado depois pelo terminal', { motivo: 'TERMINAL_OFFLINE' }],
+    ];
+
+    it.each(foreignEvents)(
+      'deve recusar com 409 CONFLICT, sem tocar em nada, a chave que já é %s',
+      async (_name, overrides) => {
+        const { read, seed, events, authorizations } = makeSut();
+        await seed();
+        await events.append(
+          AccessEvent.denied({
+            id: '00000000-0000-4000-8000-0000000000f0',
+            ocorridoEm: new Date('2026-10-20T13:00:00Z'),
+            metodo: 'NFC',
+            terminalId: TERMINAL_ID,
+            motivo: 'TAG_INATIVA',
+            clientEventId: KEY,
+            ...overrides,
+          }),
+        );
+
+        await expect(read()).rejects.toMatchObject({ status: 409, code: 'CONFLICT' });
+
+        expect(events.all()).toHaveLength(1);
+        expect(authorizations.all()[0]?.usosRealizados).toBe(0);
+      },
     );
-    it.todo('deve devolver também a negação anterior quando a chave se repete');
-    it.todo('deve recusar com 409 CONFLICT a chave que já pertence a outro terminal');
-    it.todo('deve recusar com 409 CONFLICT a chave de um evento que não é uma leitura NFC');
   });
 
   describe('debounce', () => {
