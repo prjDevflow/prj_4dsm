@@ -72,6 +72,47 @@ paths:
                 db: up
         '500':
           $ref: '#/components/responses/InternalError'
+  /ready:
+    get:
+      tags: [Health]
+      summary: A API está pronta para atender?
+      description: >-
+        Para monitores de disponibilidade e balanceadores. Confere o banco: **200** quando ele
+        responde e **503** quando não responde (em até cerca de 2 s). Use esta rota para alertas;
+        o `/health` continua respondendo 200 com o banco fora, só mostrando `db: down`.
+
+
+        O corpo do 503 não é o formato de erro da API: o monitor lê o status, e o corpo só ajuda
+        quem olha. Nunca traz a mensagem do erro do banco.
+      operationId: getReadiness
+      security: []
+      responses:
+        '200':
+          description: API no ar e banco respondendo
+          headers:
+            X-Request-Id:
+              $ref: '#/components/headers/XRequestId'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Readiness'
+              example:
+                status: ready
+                db: up
+                time: '2026-11-08T12:00:00.000Z'
+        '503':
+          description: Banco fora do ar; a API não consegue trabalhar
+          headers:
+            X-Request-Id:
+              $ref: '#/components/headers/XRequestId'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Readiness'
+              example:
+                status: unavailable
+                db: down
+                time: '2026-11-08T12:00:00.000Z'
   /auth/login:
     post:
       tags: [Auth]
@@ -2320,6 +2361,20 @@ components:
           description: >-
             Estado do PostgreSQL. A API responde 200 mesmo com o banco fora do ar
             (nesse caso `down`, em até cerca de 2 s).
+    Readiness:
+      type: object
+      required: [status, db, time]
+      properties:
+        status:
+          type: string
+          enum: [ready, unavailable]
+          description: '`ready` com o banco respondendo; `unavailable` sem ele.'
+        db:
+          type: string
+          enum: [up, down]
+        time:
+          type: string
+          format: date-time
     LoginRequest:
       type: object
       required: [email, senha]
