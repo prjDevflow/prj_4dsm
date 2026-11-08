@@ -224,11 +224,89 @@ describe('ValidateNfcAccess', () => {
   });
 
   describe('negações da tag e da pessoa', () => {
-    it.todo('deve negar com TAG_DESCONHECIDA e gravar o evento sem usuário e com o UID');
-    it.todo('deve negar com TAG_INATIVA e gravar o evento com o usuário da tag');
-    it.todo('deve negar com USUARIO_INATIVO quando o dono da tag está inativo');
-    it.todo('deve conferir a tag antes do usuário: tag inativa de usuário inativo dá TAG_INATIVA');
-    it.todo('deve conferir a tag e o usuário antes das autorizações');
+    it('deve negar com TAG_DESCONHECIDA quando nenhuma tag tem o UID', async () => {
+      const { read, seed } = makeSut();
+      await seed({ tag: null });
+
+      expect(await read()).toEqual({ resultado: 'NEGADO', motivo: 'TAG_DESCONHECIDA' });
+    });
+
+    it('deve gravar o evento da tag desconhecida sem usuário e com o UID', async () => {
+      const { read, seed, events } = makeSut();
+      await seed({ tag: null });
+
+      await read();
+
+      expect(events.all()).toHaveLength(1);
+      expect(events.all()[0]).toMatchObject({
+        metodo: 'NFC',
+        resultado: 'NEGADO',
+        motivo: 'TAG_DESCONHECIDA',
+        usuarioId: null,
+        authorizationId: null,
+        terminalId: TERMINAL_ID,
+        accessPointId: POINT_ID,
+        distanciaM: null,
+        clientEventId: KEY,
+        detalhes: { uid: UID },
+      });
+    });
+
+    it('deve negar com TAG_INATIVA e gravar o evento com o usuário da tag', async () => {
+      const { read, seed, events } = makeSut();
+      await seed({ tag: { ativa: false } });
+
+      const decision = await read();
+
+      expect(decision).toEqual({ resultado: 'NEGADO', motivo: 'TAG_INATIVA' });
+      expect(events.all()).toHaveLength(1);
+      expect(events.all()[0]).toMatchObject({
+        resultado: 'NEGADO',
+        motivo: 'TAG_INATIVA',
+        usuarioId: USER_ID,
+        authorizationId: null,
+        clientEventId: KEY,
+        detalhes: { uid: UID },
+      });
+    });
+
+    it('deve negar com USUARIO_INATIVO quando o dono da tag está inativo', async () => {
+      const { read, seed, events } = makeSut();
+      await seed({ user: { ativo: false } });
+
+      const decision = await read();
+
+      expect(decision).toEqual({ resultado: 'NEGADO', motivo: 'USUARIO_INATIVO' });
+      expect(events.all()).toHaveLength(1);
+      expect(events.all()[0]).toMatchObject({ motivo: 'USUARIO_INATIVO', usuarioId: USER_ID });
+    });
+
+    it('deve conferir a tag antes do usuário: tag inativa de usuário inativo dá TAG_INATIVA', async () => {
+      const { read, seed } = makeSut();
+      await seed({ tag: { ativa: false }, user: { ativo: false } });
+
+      expect(await read()).toEqual({ resultado: 'NEGADO', motivo: 'TAG_INATIVA' });
+    });
+
+    it('deve conferir a tag e o usuário antes das autorizações', async () => {
+      const unknownTag = makeSut();
+      await unknownTag.seed({ tag: null, authorization: null });
+      const inactiveUser = makeSut();
+      await inactiveUser.seed({ user: { ativo: false }, authorization: null });
+
+      expect(await unknownTag.read()).toMatchObject({ motivo: 'TAG_DESCONHECIDA' });
+      expect(await inactiveUser.read()).toMatchObject({ motivo: 'USUARIO_INATIVO' });
+    });
+
+    it('não deve consumir uso nem criar comando ao negar a tag ou a pessoa', async () => {
+      const { read, seed, authorizations, commands } = makeSut();
+      await seed({ tag: { ativa: false } });
+
+      await read();
+
+      expect(authorizations.all()[0]?.usosRealizados).toBe(0);
+      expect(commands.all()).toHaveLength(0);
+    });
   });
 
   describe('negações da autorização', () => {
