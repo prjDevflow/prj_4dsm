@@ -2,6 +2,11 @@ import { describe, expect, it } from 'vitest';
 import { DENIAL_REASONS, NFC_DENIAL_REASONS, QR_DENIAL_REASONS } from '../entities/DenialReason';
 import { QR_DENIAL_MESSAGES, QR_GRANTED_MESSAGE } from '../useCases/Access/qrDenialMessages';
 import { PERIOD_ORDER_ISSUE } from '../useCases/Events/accessEventQuery';
+import {
+  MAX_OFFLINE_EVENTS,
+  OFFLINE_BATCH_SIZE_MESSAGES,
+} from '../useCases/Events/IngestOfflineEvents/IngestOfflineEvents_DTO';
+import { OFFLINE_EVENT_MESSAGES } from '../useCases/Events/IngestOfflineEvents/IngestOfflineEvents_UseCase';
 import { UID_MESSAGE } from '../useCases/Nfc/uidField';
 import { loadOpenApiSpec } from './openapi';
 
@@ -336,5 +341,138 @@ describe('openapi.yaml: histórico de acessos', () => {
     expect(examples.periodoInvertido?.value.error.details).toEqual([
       { field: 'ate', message: PERIOD_ORDER_ISSUE.error },
     ]);
+  });
+});
+
+describe('openapi.yaml: POST /terminal/events/batch', () => {
+  interface Schema {
+    type?: string;
+    enum?: string[];
+    required?: string[];
+    minItems?: number;
+    maxItems?: number;
+    items?: { $ref?: string };
+    properties?: Record<string, Schema>;
+    description?: string;
+  }
+  interface BatchSpec {
+    paths: Record<
+      string,
+      {
+        post?: {
+          operationId?: string;
+          security?: Record<string, unknown>[];
+          requestBody?: { content: { 'application/json': { schema: { $ref?: string } } } };
+          responses: Record<
+            string,
+            {
+              $ref?: string;
+              content?: {
+                'application/json': {
+                  example?: unknown;
+                  examples?: Record<string, { value: unknown }>;
+                };
+              };
+            }
+          >;
+        };
+      }
+    >;
+    components: {
+      schemas: Record<string, Schema>;
+      responses: Record<
+        string,
+        {
+          description?: string;
+          content: {
+            'application/json': {
+              example?: { error: { code: string } };
+              examples?: Record<string, { value: { error: { details: unknown[] } } }>;
+            };
+          };
+        }
+      >;
+    };
+  }
+
+  const spec = () => loadOpenApiSpec() as unknown as BatchSpec;
+  const batch = () => spec().paths['/terminal/events/batch']?.post;
+  const refName = (ref?: string) => (ref ?? '').split('/').pop() ?? '';
+  const schema = (name: string) => spec().components.schemas[name];
+  const eventSchema = () => {
+    const request = schema(refName(batch()?.requestBody?.content['application/json'].schema.$ref));
+    return schema(refName(request?.properties?.events?.items?.$ref));
+  };
+
+  it('deve ser autenticada pela chave do terminal, nunca pelo token de usuário', () => {
+    expect(batch()?.security).toEqual([{ terminalId: [], terminalKey: [] }]);
+  });
+
+  it.each(['200', '401', '403', '413', '422', '500'])('deve documentar a resposta %s', (status) => {
+    expect(batch()?.responses[status]).toBeDefined();
+  });
+
+  it('deve limitar o lote a de 1 a 50 eventos', () => {
+    const request = schema(refName(batch()?.requestBody?.content['application/json'].schema.$ref));
+
+    expect(request?.required).toEqual(['events']);
+    expect(request?.properties?.events).toMatchObject({
+      type: 'array',
+      minItems: 1,
+      maxItems: MAX_OFFLINE_EVENTS,
+    });
+  });
+
+  it('deve exigir os seis campos de cada evento', () => {
+    expect([...(eventSchema()?.required ?? [])].sort()).toEqual(
+      ['clientEventId', 'metodo', 'motivo', 'ocorridoEm', 'resultado', 'uid'].sort(),
+    );
+  });
+
+  it('deve aceitar de cada evento só o que um terminal sem conexão pode enviar: NFC, NEGADO e TERMINAL_OFFLINE', () => {
+    const fields = eventSchema()?.properties ?? {};
+
+    expect(fields.metodo?.enum).toEqual(['NFC']);
+    expect(fields.resultado?.enum).toEqual(['NEGADO']);
+    expect(fields.motivo?.enum).toEqual(['TERMINAL_OFFLINE']);
+  });
+
+  it('deve trazer o exemplo de 200 com os dois contadores', () => {
+    const example = batch()?.responses['200']?.content?.['application/json'].example;
+
+    expect(example).toEqual({ aceitos: 3, duplicados: 1 });
+  });
+
+  it('deve trazer nos exemplos de 422 as mesmas mensagens que a API devolve', () => {
+    const name = refName(batch()?.responses['422']?.$ref);
+    const examples = spec().components.responses[name]?.content['application/json'].examples ?? {};
+    const details = (example: string) => examples[example]?.value.error.details;
+
+    expect(details('aprovacaoNoLote')).toEqual([
+      { field: 'events.1.resultado', message: OFFLINE_EVENT_MESSAGES.resultado },
+    ]);
+    expect(details('instanteForaDaJanela')).toEqual([
+      { field: 'events.0.ocorridoEm', message: OFFLINE_EVENT_MESSAGES.ocorridoEm },
+    ]);
+    expect(details('loteGrande')).toEqual([
+      { field: 'events', message: OFFLINE_BATCH_SIZE_MESSAGES.max },
+    ]);
+    expect(details('uidInvalido')).toEqual([
+      { field: 'events.2.uid', message: OFFLINE_EVENT_MESSAGES.uid },
+    ]);
+  });
+
+  it('deve documentar o 413 PAYLOAD_TOO_LARGE e dizer o limite de 64 kb', () => {
+    const name = refName(batch()?.responses['413']?.$ref);
+    const response = spec().components.responses[name];
+
+    expect(response?.content['application/json'].example?.error.code).toBe('PAYLOAD_TOO_LARGE');
+    expect(response?.description).toContain('64 kb');
+  });
+
+  it('deve descrever o ocorridoEm do evento como o instante do relógio do terminal nos lotes offline', () => {
+    const description = schema('EventoDeAcesso')?.properties?.ocorridoEm?.description ?? '';
+
+    expect(description).toContain('relógio do terminal');
   });
 });
