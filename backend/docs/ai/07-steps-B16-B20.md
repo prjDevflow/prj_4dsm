@@ -189,38 +189,40 @@ O teste unitário "não consome uso" do plano ficou só na integração: o use c
 
 **Segurança (cada item com evidência: print ou comando)**
 
-- [ ] `helmet` e origens do CORS revisados; HTTPS obrigatório (HSTS em produção).
-- [ ] Limites de requisição revisados em todas as rotas públicas e de terminal.
-- [ ] Validação de entrada conferida em **todas** as rotas.
-- [ ] Varredura de segredos no repositório e `npm audit` no CI.
-- [ ] Logs sem dados sensíveis; erros sem stack trace em produção.
-- [ ] Procedimento de troca do `JWT_SECRET` e da chave do terminal documentado.
+- [x] `helmet` e origens do CORS revisados; HTTPS obrigatório (HSTS em produção). _`docs/seguranca.md` seção 1: `securityHeaders.test.ts` e o `curl` em produção. O TLS é do provedor (B10): a API só manda o HSTS._
+- [x] Limites de requisição revisados em todas as rotas públicas e de terminal. _Seção 2: `rateLimits.test.ts` e um spec por limitador._
+- [x] Validação de entrada conferida em **todas** as rotas. _Seção 3: `routeInventory.test.ts` (37 rotas); nenhuma estava sem validação._
+- [x] Varredura de segredos no repositório e `npm audit` no CI. _Seção 4: job "Segurança" do `ci.yml`. Rodado local (0 vulnerabilidades em produção; 31 falsos positivos revisados, 0 achados); a 1ª execução no GitHub acontece no PR._
+- [x] Logs sem dados sensíveis; erros sem stack trace em produção. _Seção 5: `requestLog.test.ts` e `errors.test.ts`._
+- [x] Procedimento de troca do `JWT_SECRET` e da chave do terminal documentado. _Seção 6._
 
 **Monitoramento:** logs estruturados; `/health` e `/ready`; aviso de queda (monitor de disponibilidade gratuito ou notificação do pipeline); selo do CI/CD no README.
 
 **Documentação (RP07):** OpenAPI completo, diagrama ER, diagramas de sequência (QR e NFC), seção "Backend" do documento de arquitetura, descrição da comunicação com terminal e app, plano de testes e relatório de execução, instruções de backup e restauração do banco.
 
+_Entregue em `backend/docs/`: `openapi.yaml` (testado contra as rotas), `modelo-de-dados.md`, `sequencias.md`, `arquitetura-backend.md` (não existe documento de arquitetura do projeto no repositório), `comunicacao.md`, `plano-de-testes.md`, `backup-e-restauracao.md` (testado no compose) e `seguranca.md`._
+
 **Lista de testes**
 
-- [ ] U `GetReadiness`: banco fora → não pronto; banco no ar → pronto.
-- [ ] I `GET /ready`: 200 com o banco no ar.
-- [ ] I cabeçalhos de segurança do `helmet` presentes; com `NODE_ENV=production`, `Strict-Transport-Security` presente.
-- [ ] I CORS recusa origem fora da lista.
-- [ ] I teste genérico: percorre todas as rotas registradas com corpo inválido e espera 422 (nenhuma rota sem validação).
-- [ ] I toda rota de terminal e pública tem limite de requisição (429 ao exceder).
-- [ ] I resposta de erro 500 em produção não contém stack nem mensagem interna.
-- [ ] Verificação manual: parar o banco e conferir o alerta em até 5 minutos.
+- [x] U `GetReadiness`: banco fora → não pronto; banco no ar → pronto. _E a sonda que lança erro também dá "não pronto"._
+- [x] I `GET /ready`: 200 com o banco no ar. _E 503 com ele fora, sem vazar o erro; a sonda real contra uma porta fechada rejeita._
+- [x] I cabeçalhos de segurança do `helmet` presentes; com `NODE_ENV=production`, `Strict-Transport-Security` presente. _E ausente fora de produção._
+- [x] I CORS recusa origem fora da lista. _"Recusa" = a origem não recebe `Access-Control-Allow-Origin`, e o navegador bloqueia._
+- [x] I teste genérico: percorre todas as rotas registradas com corpo inválido e espera 422 (nenhuma rota sem validação). _Corpo inválido → 422, filtro inválido → 422 e id malformado → 404 (decisão da B06); rota nova sem classificação derruba o teste._
+- [x] I toda rota de terminal e pública tem limite de requisição (429 ao exceder). _As rotas do terminal são lidas do router; o login e a validação de QR já tinham o limite delas._
+- [x] I resposta de erro 500 em produção não contém stack nem mensagem interna. _Também numa rota real, com o erro do driver do banco._
+- [ ] Verificação manual: parar o banco e conferir o alerta em até 5 minutos. _Feita a parte local (`/ready` dá 503, a API se recupera sozinha); o alerta depende da B10 e de um monitor externo._
 
 **Critérios de aceitação**
 
-- [ ] A lista de segurança está toda marcada, com evidência (print ou comando) para cada item.
+- [x] A lista de segurança está toda marcada, com evidência (print ou comando) para cada item. _`docs/seguranca.md`._
 - [ ] Parar o banco gera alerta visível em até 5 minutos.
 - [ ] Uma pessoa de fora consegue subir e testar o sistema só com o README.
 
 **Definição de pronto**
 
 - [ ] Documentos revisados por Pedro e Matheus.
-- [ ] Relatório de cobertura de testes anexado.
+- [x] Relatório de cobertura de testes anexado. _`docs/plano-de-testes.md`, seção 7; o CI também publica o artefato `backend-coverage`._
 
 ---
 
