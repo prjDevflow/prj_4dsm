@@ -76,8 +76,8 @@ Prefixo `/api/v1`. Ver arquivo `docs/contrato-api.md` e `openapi.yaml` no reposi
 | Auth do terminal | `X-Terminal-Id: <uuid>` e `X-Terminal-Key: <chave>` |
 | Paginação | `?page=1&pageSize=20` (máximo 100). Resposta `{ "data": [], "page": 1, "pageSize": 20, "total": 134 }` |
 | Erro | `{ "error": { "code": "CODIGO", "message": "Texto", "details": [ { "field": "email", "message": "..." } ] } }`; `details` só em validação |
-| Status | 200/201 sucesso; 401 sem login ou token inválido; 403 perfil sem permissão **ou acesso negado**; 404; 409 conflito; 422 validação; 429 limite; 500 erro interno |
-| Códigos genéricos | `VALIDATION_ERROR`, `CREDENCIAIS_INVALIDAS`, `UNAUTHORIZED`, `FORBIDDEN`, `NOT_FOUND`, `CONFLICT`, `RATE_LIMITED`, `INTERNAL_ERROR` |
+| Status | 200/201 sucesso; 401 sem login ou token inválido; 403 perfil sem permissão **ou acesso negado**; 404; 409 conflito; 413 corpo maior que o limite; 422 validação; 429 limite; 500 erro interno |
+| Códigos genéricos | `VALIDATION_ERROR`, `CREDENCIAIS_INVALIDAS`, `UNAUTHORIZED`, `FORBIDDEN`, `NOT_FOUND`, `CONFLICT`, `PAYLOAD_TOO_LARGE`, `RATE_LIMITED`, `INTERNAL_ERROR` |
 | Códigos específicos de conflito | `EMAIL_JA_CADASTRADO`, `ULTIMO_ADMIN`, `AUTO_DESATIVACAO`, `LOCAL_COM_AUTORIZACOES_ATIVAS`, `TAG_JA_CADASTRADA` |
 
 ### 4.2 Rotas
@@ -173,6 +173,21 @@ Regras da leitura (B17; o `openapi.yaml` é a fonte final):
 - A mesma tag no mesmo terminal em menos de `NFC_DEBOUNCE_SECONDS` devolve a decisão anterior (3 s exatos já é nova tentativa).
 - No modo de cadastro, UID já cadastrado: 409 `TAG_JA_CADASTRADA` (o modo já foi gasto); usuário do modo inativo: 422 em `usuarioId`; inexistente: 404.
 - Não cria comando `ABRIR` nem `NEGAR`: o terminal age pela resposta. O evento guarda o `Idempotency-Key` em `clientEventId` e o UID inteiro em `detalhes.uid` (`docs/eventos-campos.md`).
+
+Lote de eventos offline (B19; o `openapi.yaml` é a fonte final, pergunta #16 no `STATUS.md`):
+
+```json
+// POST /terminal/events/batch   (de 1 a 50 eventos; corpo de até 64 kb)
+{ "events": [ { "clientEventId": "uuid", "metodo": "NFC", "uid": "04A1B2C3",
+                "ocorridoEm": "2026-10-20T14:12:07Z", "resultado": "NEGADO", "motivo": "TERMINAL_OFFLINE" } ] }
+// resposta 200
+{ "aceitos": 3, "duplicados": 1 }
+```
+
+- Só negações: `resultado` `AUTORIZADO`, `metodo` que não seja `NFC` e `motivo` que não seja `TERMINAL_OFFLINE` são 422. `ocorridoEm` é o relógio do terminal e vale de 7 dias antes a 5 minutos depois do servidor (as pontas valem).
+- Um problema em qualquer evento rejeita o lote inteiro (422, nada gravado) e o `details` traz o índice: `events.1.resultado`. Lote vazio e mais de 50 eventos também são 422. Corpo acima de 64 kb: 413 `PAYLOAD_TOO_LARGE` (acima de 100 kb o mesmo vale em qualquer rota).
+- Idempotência pela `clientEventId` (UUID, guardado em minúsculas, única no sistema): chave já guardada não é gravada de novo nem é erro, e conta em `duplicados`. Vale para a repetida no mesmo lote e para a de outro terminal ou de uma leitura ao vivo. O terminal guarda os eventos até receber o 200.
+- O evento guarda o terminal e o ponto de quem enviou, o UID inteiro em `detalhes.uid` e, se a tag existe (ativa ou não), o `usuarioId` dela. Não consome uso, não cria comando e não entra na repetição rápida do NFC.
 
 ### 4.6 Tags NFC e modo de cadastro (B16)
 
@@ -354,4 +369,4 @@ Mais: dois QRs diferentes com um uso restante → só um aprovado (**I**); `hora
 - Só `ADMIN` cria, cancela e consulta autorizações (403 para os demais).
 - Cada filtro da consulta devolve o conjunto certo; usuário só vê as próprias (teste de vazamento: A lendo a de B → 404).
 - Cancelamento é imediato e aparece na validação seguinte.
-- Lote offline duplicado grava cada evento uma vez; evento `AUTORIZADO` no lote é rejeitado.
+- Lote offline duplicado grava cada evento uma vez; evento `AUTORIZADO` no lote é rejeitado (B19, `terminalEventsBatch.test.ts`).

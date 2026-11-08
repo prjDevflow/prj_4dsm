@@ -154,25 +154,28 @@ Legenda: **U** = unitário (doubles, sem banco) · **I** = integração (superte
 
 **Lista de testes**
 
-- [ ] U enviar o mesmo lote duas vezes grava cada evento uma única vez (`aceitos` e `duplicados` corretos).
-- [ ] U lote parcial: 3 novos e 1 já recebido → `aceitos: 3`, `duplicados: 1`.
-- [ ] U evento `AUTORIZADO` é rejeitado com erro de validação.
-- [ ] U `ocorridoEm` 6 minutos no futuro e 8 dias no passado são rejeitados; 5 minutos e 7 dias passam (`FakeClock`).
-- [ ] U UID conhecido preenche `usuarioId`; UID desconhecido deixa nulo.
-- [ ] I lote com 51 eventos → 422; corpo acima de 64 kb → 413.
-- [ ] I chave de terminal inválida → 401.
-- [ ] I o histórico (B18) mostra os eventos offline com `motivo = TERMINAL_OFFLINE`.
+O teste unitário "não consome uso" do plano ficou só na integração: o use case nem recebe o repositório de autorizações, então só o banco prova que o uso e a autorização não mudam.
+
+- [x] U enviar o mesmo lote duas vezes grava cada evento uma única vez (`aceitos` e `duplicados` corretos). _A chave em maiúsculas é a mesma em minúsculas: o DTO a normaliza, então esse caso está no teste de rota._
+- [x] U lote parcial: 3 novos e 1 já recebido → `aceitos: 3`, `duplicados: 1`.
+- [x] U evento `AUTORIZADO` é rejeitado com erro de validação.
+- [x] U `ocorridoEm` 6 minutos no futuro e 8 dias no passado são rejeitados; 5 minutos e 7 dias passam (`FakeClock`).
+- [x] U UID conhecido preenche `usuarioId`; UID desconhecido deixa nulo.
+- [x] I lote com 51 eventos → 422; corpo acima de 64 kb → 413. _Com 64 kb exatos o corpo passa; com 1 byte a mais, 413. Acima de 100 kb qualquer rota dá 413 (antes era 500)._
+- [x] I chave de terminal inválida → 401. _Terminal inativo dá 403._
+- [x] I o histórico (B18) mostra os eventos offline com `motivo = TERMINAL_OFFLINE`.
 
 **Critérios de aceitação**
 
-- [ ] Enviar o mesmo lote duas vezes grava cada evento uma única vez.
-- [ ] Evento com `resultado = AUTORIZADO` é rejeitado (422).
-- [ ] Data fora da janela é rejeitada.
-- [ ] O histórico (B18) mostra os eventos offline com o motivo `TERMINAL_OFFLINE`.
+- [x] Enviar o mesmo lote duas vezes grava cada evento uma única vez. _Também com quatro envios simultâneos do mesmo lote._
+- [x] Evento com `resultado = AUTORIZADO` é rejeitado (422).
+- [x] Data fora da janela é rejeitada.
+- [x] O histórico (B18) mostra os eventos offline com o motivo `TERMINAL_OFFLINE`.
 
 **Definição de pronto**
 
-- [ ] Testes de duplicidade, lote parcial e limites; Matheus avisado (★).
+- [x] Testes de duplicidade, lote parcial e limites.
+- [ ] Matheus avisado (★).
 
 ---
 

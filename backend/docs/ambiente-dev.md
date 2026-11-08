@@ -242,6 +242,34 @@ curl -s "$B/me/access-events" -H "Authorization: Bearer $TOKEN_VISITANTE"   # s�
 - Em `de` e `ate`, um fuso positivo precisa de `%2B` na URL (`…T17:00:00%2B03:00`); um `+` solto vira espaço e a resposta é `422`.
 - `GET /access-events` com o token de visitante dá `403`; sem token, `401`.
 
+## Eventos offline (B19)
+
+O terminal guarda as leituras que negou sem conexão e as envia em lote (I12). Com `$B`, o array `T` da seção de
+leitura NFC e a tag `04A1B2C3` do visitante:
+
+```bash
+K1=$(cat /proc/sys/kernel/random/uuid); K2=$(cat /proc/sys/kernel/random/uuid)
+AGO=$(date -u -d '10 minutes ago' +%Y-%m-%dT%H:%M:%SZ)
+EV() { echo "{\"clientEventId\":\"$1\",\"metodo\":\"NFC\",\"uid\":\"$2\",\"ocorridoEm\":\"$AGO\",\"resultado\":\"NEGADO\",\"motivo\":\"TERMINAL_OFFLINE\"}"; }
+
+curl -s -X POST $B/terminal/events/batch "${T[@]}" -d "{\"events\":[$(EV $K1 04A1B2C3),$(EV $K2 04FFEEDD)]}"
+# 200 {"aceitos":2,"duplicados":0}   (um evento por tentativa; a segunda tag é desconhecida e fica sem pessoa)
+
+curl -s -X POST $B/terminal/events/batch "${T[@]}" -d "{\"events\":[$(EV $K1 04A1B2C3)]}"
+# 200 {"aceitos":0,"duplicados":1}   (o mesmo lote de novo não grava nada)
+
+curl -s -X POST $B/terminal/events/batch "${T[@]}" \
+  -d "{\"events\":[$(EV $K1 04A1B2C3 | sed 's/NEGADO/AUTORIZADO/')]}"
+# 422 {"error":{"code":"VALIDATION_ERROR","details":[{"field":"events.0.resultado", …}]}}
+
+curl -s "$B/access-events?motivo=TERMINAL_OFFLINE" -H "Authorization: Bearer $TOKEN_ADMIN"
+# os dois eventos, com o ocorridoEm de 10 minutos atrás e "motivo":"TERMINAL_OFFLINE"
+```
+
+- A chave de terminal errada dá `401`, terminal inativo dá `403`, mais de 50 eventos dá `422` e um corpo acima de 64 kb dá `413 PAYLOAD_TOO_LARGE`.
+- O envio não consome uso da autorização do visitante nem cria comando para o terminal; confira em `GET /authorizations/<id>` (`usosRestantes` igual ao de antes).
+- Uma leitura ao vivo da mesma tag logo depois do lote funciona normalmente (os eventos do lote não entram na repetição rápida).
+
 ## Local e autorização de teste
 
 | Item           | Valor                                                                                           |

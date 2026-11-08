@@ -307,6 +307,23 @@ curl -s -X POST http://localhost:3000/api/v1/terminal/nfc \
 - A mesma tag lida de novo no mesmo terminal em menos de `NFC_DEBOUNCE_SECONDS` (3 s) recebe a decisão anterior; em 3 s exatos é uma nova tentativa.
 - Com o modo de cadastro ligado e vigente, a leitura vincula a tag ao usuário combinado e responde `CADASTRADA`: não consome uso e não grava evento. UID que já existe dá `409 TAG_JA_CADASTRADA`.
 
+### Eventos guardados sem conexão
+
+Sem rede, o terminal **nega** as leituras e as guarda. Ao reconectar, envia tudo de uma vez em `POST /api/v1/terminal/events/batch`, com os mesmos cabeçalhos do terminal (contrato no Swagger):
+
+```bash
+curl -s -X POST http://localhost:3000/api/v1/terminal/events/batch \
+  -H 'X-Terminal-Id: 5eed0000-0000-4000-8000-000000000006' \
+  -H 'X-Terminal-Key: terminal-dev-key-1234567890abcdef1234567890' -H 'content-type: application/json' \
+  -d '{"events":[{"clientEventId":"3f1c9a52-8e0b-4f55-9d57-2a6f0c1d7e44","metodo":"NFC","uid":"04:a1:b2:c3","ocorridoEm":"2026-10-20T14:12:07Z","resultado":"NEGADO","motivo":"TERMINAL_OFFLINE"}]}'
+# {"aceitos":1,"duplicados":0}
+```
+
+- **Só negações.** Um evento `AUTORIZADO`, um `metodo` que não seja `NFC` ou um `motivo` que não seja `TERMINAL_OFFLINE` rejeita o lote inteiro com `422`, e o `details` aponta o índice (`events.1.resultado`). Nada é gravado, nenhum uso é consumido e nenhum comando é criado.
+- **Idempotência.** Cada evento tem uma `clientEventId` (UUID do terminal). Uma chave que já está guardada não é gravada de novo e não é erro: entra em `duplicados`. O terminal pode reenviar o mesmo lote quantas vezes precisar e deve guardar os eventos até receber o `200`; um `500` significa que nada foi confirmado.
+- **Limites.** De 1 a 50 eventos e corpo de até 64 kb (acima disso, `413 PAYLOAD_TOO_LARGE`; o limite geral da API é 100 kb). `ocorridoEm` é o relógio do terminal e vale de 7 dias atrás até 5 minutos à frente do servidor, as pontas inclusive.
+- Cada evento vira uma linha do histórico com o `motivo` `TERMINAL_OFFLINE`, no instante em que ocorreu (não no do envio). Se a tag é conhecida, a linha traz a pessoa dela; senão, `usuario: null`. As leituras ao vivo da mesma tag não são afetadas: a repetição rápida só olha leituras ao vivo.
+
 ## Autorizações
 
 Criar, listar e cancelar: só `ADMIN`. Ler uma e listar "as minhas": cada usuário, as próprias (contrato no Swagger).
