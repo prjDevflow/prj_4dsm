@@ -133,4 +133,43 @@ describe('detalhes do evento', () => {
     ).toBeNull();
     expect(AccessEvent.denied({ ...base, motivo: 'SEM_AUTORIZACAO' }).detalhes).toBeNull();
   });
+
+  it('deve guardar o UID da tag em detalhes, inteiro, numa aprovação e numa negação', () => {
+    const nfc = { ...base, metodo: 'NFC' as const, uid: '04A1B2C3D4' };
+
+    expect(AccessEvent.approved({ ...nfc, authorizationId: AUTHORIZATION_ID }).detalhes).toEqual({
+      uid: '04A1B2C3D4',
+    });
+    expect(AccessEvent.denied({ ...nfc, motivo: 'TAG_INATIVA' }).detalhes).toEqual({
+      uid: '04A1B2C3D4',
+    });
+  });
+
+  it('deve guardar o UID junto da precisão do GPS sem perder nenhum dos dois', () => {
+    const event = AccessEvent.denied({
+      ...base,
+      motivo: 'TAG_DESCONHECIDA',
+      precisaoMetros: 3,
+      uid: '04A1B2C3',
+    });
+
+    expect(event.detalhes).toEqual({ precisaoMetros: 3, uid: '04A1B2C3' });
+  });
+});
+
+describe('clientEventId do evento', () => {
+  const KEY = '3f1c9a52-8e0b-4f55-9d57-2a6f0c1d7e44';
+
+  it('deve guardar a chave de idempotência numa aprovação e numa negação', () => {
+    const nfc = { ...base, metodo: 'NFC' as const, clientEventId: KEY };
+
+    expect(
+      AccessEvent.approved({ ...nfc, authorizationId: AUTHORIZATION_ID }).clientEventId,
+    ).toBe(KEY);
+    expect(AccessEvent.denied({ ...nfc, motivo: 'TAG_INATIVA' }).clientEventId).toBe(KEY);
+  });
+
+  it('deve deixar a chave nula quando o chamador não informa uma (o QR)', () => {
+    expect(AccessEvent.denied({ ...base, motivo: 'SEM_AUTORIZACAO' }).clientEventId).toBeNull();
+  });
 });
