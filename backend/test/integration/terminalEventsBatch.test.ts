@@ -1,4 +1,4 @@
-import { createHash } from 'node:crypto';
+import { createHash, randomUUID } from 'node:crypto';
 import request from 'supertest';
 import { beforeEach, describe, expect, it } from 'vitest';
 import { createApp } from '../../src/main/app';
@@ -149,6 +149,36 @@ describe('POST /api/v1/terminal/events/batch', () => {
 
       const rows = await stored();
       expect(rows.map((row) => row.usuarioId)).toEqual([scene.user.id, null]);
+    });
+
+    it('ignora os campos que o terminal não deveria mandar: quem, onde e o id vêm do servidor', async () => {
+      const scene = await seedScene();
+      const stranger = await insertUser();
+      const otherPoint = await insertAccessPoint();
+      const otherTerminal = await insertTerminal({ accessPointId: otherPoint.id });
+      const forgedId = randomUUID();
+
+      const res = await sendBatch(scene, [
+        offlineEvent(1, {
+          id: forgedId,
+          usuarioId: stranger.id,
+          terminalId: otherTerminal.id,
+          accessPointId: otherPoint.id,
+          authorizationId: randomUUID(),
+          distanciaM: 1,
+        }),
+      ]);
+
+      expect(res.status).toBe(200);
+      const [row] = await stored();
+      expect(row).toMatchObject({
+        usuarioId: scene.user.id,
+        terminalId: scene.terminal.id,
+        accessPointId: scene.accessPoint.id,
+        authorizationId: null,
+        distanciaM: null,
+      });
+      expect(row?.id).not.toBe(forgedId);
     });
 
     it('não consome uso, não altera a autorização e não cria comando para o terminal', async () => {
