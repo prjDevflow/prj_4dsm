@@ -389,7 +389,7 @@ Checklist completo, com a evidência de cada item e os procedimentos de troca de
 
 - **Prontidão.** `GET /api/v1/ready` (pública) dá `200` com o banco no ar e `503` com ele fora; o `/health` sempre dá `200`. Use o `/ready` num monitor de disponibilidade.
 - **Cabeçalhos.** `helmet` em todas as respostas e `Strict-Transport-Security` de um ano só em produção (`NODE_ENV=production`). O HTTPS em si é do provedor de hospedagem. CORS só para as origens de `CORS_ORIGINS`.
-- **Limites de requisição** (`429 RATE_LIMITED` com `Retry-After`): login, validação de QR, cada terminal, falhas de autenticação do terminal por IP e as rotas públicas. Atrás de um proxy, configure `TRUST_PROXY` (o número de proxies), senão todos os clientes parecem ter o mesmo IP.
+- **Limites de requisição** (`429 RATE_LIMITED`; os limites por minuto trazem `Retry-After`, o intervalo mínimo do heartbeat e do QR não): login, validação de QR, cada terminal, falhas de autenticação do terminal por IP e as rotas públicas. Atrás de um proxy, configure `TRUST_PROXY` (o número de proxies), senão todos os clientes parecem ter o mesmo IP.
 - **Validação.** Toda entrada passa pelo `zod`; um teste percorre as rotas registradas e falha se alguma não for classificada e validada.
 - **Erros e logs.** O `500` não mostra `stack` em produção. Os logs ocultam `authorization`, `cookie` e `x-terminal-key`, e nunca registram corpos de requisição.
 - **Segredos e dependências.** O job **Segurança** do CI roda `npm audit --omit=dev --audit-level=high` e uma varredura de segredos (gitleaks) em todo o histórico.

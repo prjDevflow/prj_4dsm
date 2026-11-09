@@ -21,7 +21,7 @@ flowchart LR
 | Status | `200`/`201` sucesso · `401` sem login, token ou chave válidos · `403` perfil sem permissão **ou acesso negado** · `404` · `409` conflito · `413` corpo grande demais · `422` validação · `429` limite de requisições · `500` erro interno |
 | Tamanho do corpo | até 100 kb em qualquer rota; `POST /terminal/events/batch` aceita até 64 kb |
 | Rastreio | toda resposta traz `X-Request-Id`. O mesmo id aparece nas linhas de log da requisição. Quem reclama de um erro pode informar esse id |
-| Limites | `429 RATE_LIMITED` com o cabeçalho `Retry-After`. Cada limite é descrito na seção [Limites de requisição](seguranca.md#limites-de-requisição) |
+| Limites | `429 RATE_LIMITED`. Os limites por minuto trazem o cabeçalho `Retry-After`; o intervalo mínimo do heartbeat e do QR não. Cada limite é descrito na seção [Limites de requisição](seguranca.md#limites-de-requisição) |
 
 ## App (usuários)
 

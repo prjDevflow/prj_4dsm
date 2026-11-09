@@ -76,7 +76,7 @@ Prefixo `/api/v1`. Ver arquivo `docs/contrato-api.md` e `openapi.yaml` no reposi
 | Auth do terminal | `X-Terminal-Id: <uuid>` e `X-Terminal-Key: <chave>` |
 | Paginação | `?page=1&pageSize=20` (máximo 100). Resposta `{ "data": [], "page": 1, "pageSize": 20, "total": 134 }` |
 | Erro | `{ "error": { "code": "CODIGO", "message": "Texto", "details": [ { "field": "email", "message": "..." } ] } }`; `details` só em validação |
-| Status | 200/201 sucesso; 401 sem login ou token inválido; 403 perfil sem permissão **ou acesso negado**; 404; 409 conflito; 413 corpo maior que o limite; 422 validação; 429 limite de requisições (`RATE_LIMITED` com `Retry-After`); 500 erro interno; 503 só em `GET /ready`, com o banco fora |
+| Status | 200/201 sucesso; 401 sem login ou token inválido; 403 perfil sem permissão **ou acesso negado**; 404; 409 conflito; 413 corpo maior que o limite; 422 validação; 429 limite de requisições (`RATE_LIMITED`; `Retry-After` nos limites por minuto, não no intervalo mínimo do heartbeat e do QR); 500 erro interno; 503 só em `GET /ready`, com o banco fora |
 | Códigos genéricos | `VALIDATION_ERROR`, `CREDENCIAIS_INVALIDAS`, `UNAUTHORIZED`, `FORBIDDEN`, `NOT_FOUND`, `CONFLICT`, `PAYLOAD_TOO_LARGE`, `RATE_LIMITED`, `INTERNAL_ERROR` |
 | Códigos específicos de conflito | `EMAIL_JA_CADASTRADO`, `ULTIMO_ADMIN`, `AUTO_DESATIVACAO`, `LOCAL_COM_AUTORIZACOES_ATIVAS`, `TAG_JA_CADASTRADA` |
 
@@ -241,7 +241,7 @@ Só `ADMIN`. Formatos adotados na B16 (o `openapi.yaml` é a fonte final; pergun
 { "status": "unavailable", "db": "down", "time": "2026-11-08T12:00:00.000Z" }
 ```
 
-Todo limite de requisições responde `429` com `{ "error": { "code": "RATE_LIMITED", "message": "..." } }` e o cabeçalho `Retry-After` (segundos). Quem é contado em cada grupo de rotas:
+Todo limite de requisições responde `429` com `{ "error": { "code": "RATE_LIMITED", "message": "..." } }`. Os limites por minuto trazem também o cabeçalho `Retry-After` (segundos). A exceção é o intervalo mínimo do heartbeat e do QR (última linha da tabela, das etapas B11 e B12): o `429` vem sem `Retry-After` e o terminal manda o próximo no ritmo normal. Quem é contado em cada grupo de rotas:
 
 | Rotas | Contado por | Variável |
 |---|---|---|

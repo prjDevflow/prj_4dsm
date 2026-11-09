@@ -45,7 +45,7 @@ X-Frame-Options: SAMEORIGIN
 
 ## 2. Limites de requisição
 
-Todo limite responde `429` com o código `RATE_LIMITED` no formato de erro da API e o cabeçalho `Retry-After`. Os contadores ficam **na memória do processo**: um reinício os zera, e com mais de uma instância da API cada uma conta à parte.
+Todo limite responde `429` com o código `RATE_LIMITED` no formato de erro da API. Os limites por minuto trazem também o cabeçalho `Retry-After`; o intervalo mínimo do heartbeat e do QR (etapas B11 e B12) não traz, e o terminal manda o próximo no ritmo normal. Os contadores ficam **na memória do processo**: um reinício os zera, e com mais de uma instância da API cada uma conta à parte.
 
 | Rota | Quem é contado | Limite (variável) | Padrão |
 |---|---|---|---|
