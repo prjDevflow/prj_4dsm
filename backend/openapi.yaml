@@ -8,6 +8,9 @@ info:
 
     **Limite de requisições:** cada grupo de rotas tem o seu limite por minuto, e acima dele a resposta é
     `429` com o código `RATE_LIMITED` e o cabeçalho `Retry-After` (segundos até poder tentar de novo).
+    A exceção é o intervalo mínimo do heartbeat e do QR (2 s e 5 s entre dois pedidos do mesmo
+    terminal): também dá `429 RATE_LIMITED`, mas sem `Retry-After`; o terminal manda o próximo no
+    ritmo normal.
     O login conta por IP e e-mail; a validação de QR, por usuário; as rotas do terminal, por terminal
     (o excesso de um terminal não afeta o outro); `/health` e `/ready`, por IP. Errar a chave do terminal
     muitas vezes seguidas bloqueia o IP por um minuto. Os valores ficam no ambiente do servidor.
@@ -3819,8 +3822,17 @@ components:
                   message: deve estar entre -90 e 90
     HeartbeatRateLimited:
       description: >-
-        Outro heartbeat do mesmo terminal em menos de `HEARTBEAT_MIN_INTERVAL_S` (2 s). Nada foi
-        gravado; basta mandar o próximo no ritmo normal.
+        Dois motivos. (1) Outro heartbeat do mesmo terminal em menos de `HEARTBEAT_MIN_INTERVAL_S`
+        (2 s), o intervalo mínimo: nada foi gravado, não vem `Retry-After` e basta mandar o próximo no
+        ritmo normal. (2) O limite por minuto do terminal ou das falhas de autenticação do IP
+        estourou: vem `Retry-After`.
+      headers:
+        Retry-After:
+          description: >-
+            Segundos até poder tentar de novo. Só vem no limite por minuto, nunca no intervalo
+            mínimo.
+          schema:
+            type: integer
       content:
         application/json:
           schema:
@@ -3831,8 +3843,17 @@ components:
               message: Heartbeat muito frequente. Aguarde alguns segundos
     QrRateLimited:
       description: >-
-        Outro QR do mesmo terminal em menos de `QR_ISSUE_MIN_INTERVAL_S` (5 s). Nada foi emitido; o
-        terminal segue mostrando o QR atual e pede o próximo no ritmo normal.
+        Dois motivos. (1) Outro QR do mesmo terminal em menos de `QR_ISSUE_MIN_INTERVAL_S` (5 s), o
+        intervalo mínimo: nada foi emitido, não vem `Retry-After`, e o terminal segue mostrando o QR
+        atual e pede o próximo no ritmo normal. (2) O limite por minuto do terminal ou das falhas de
+        autenticação do IP estourou: vem `Retry-After`.
+      headers:
+        Retry-After:
+          description: >-
+            Segundos até poder tentar de novo. Só vem no limite por minuto, nunca no intervalo
+            mínimo.
+          schema:
+            type: integer
       content:
         application/json:
           schema:
