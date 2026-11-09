@@ -528,18 +528,21 @@ describe('openapi.yaml: limites de requisição', () => {
   const spec = () => loadOpenApiSpec() as unknown as PathsSpec;
   const METHODS = ['get', 'post', 'patch'];
 
-  const withoutRateLimit = (paths: string[]) =>
+  // The spec is read once per call: loadOpenApiSpec() parses the whole YAML (140 kB) every time, and one
+  // call per path and method pushed this test past the 5 s limit when the machine was busy (coverage run).
+  const withoutRateLimit = (paths: string[], documented: PathsSpec['paths'] = spec().paths) =>
     paths.flatMap((path) =>
-      METHODS.filter((method) => spec().paths[path]?.[method]) // only the operations that exist
-        .filter((method) => !spec().paths[path]?.[method]?.responses?.['429'])
+      METHODS.filter((method) => documented[path]?.[method]) // only the operations that exist
+        .filter((method) => !documented[path]?.[method]?.responses?.['429'])
         .map((method) => `${method.toUpperCase()} ${path}`),
     );
 
   it('deve documentar o 429 em toda rota do terminal', () => {
-    const terminalPaths = Object.keys(spec().paths).filter((path) => path.startsWith('/terminal/'));
+    const { paths } = spec();
+    const terminalPaths = Object.keys(paths).filter((path) => path.startsWith('/terminal/'));
 
     expect(terminalPaths.length).toBeGreaterThanOrEqual(6);
-    expect(withoutRateLimit(terminalPaths)).toEqual([]);
+    expect(withoutRateLimit(terminalPaths, paths)).toEqual([]);
   });
 
   it('deve documentar o 429 nas rotas públicas: /health, /ready e o login', () => {
