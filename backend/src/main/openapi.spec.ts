@@ -556,4 +556,28 @@ describe('openapi.yaml: limites de requisição', () => {
     expect(description).toContain('RATE_LIMITED');
     expect(description).toContain('Retry-After');
   });
+
+  // The 429 of the minimum interval (B11, B12) is thrown by the use case and has no Retry-After; the
+  // per-minute limits of B20 (terminal quota, IP failures) do. Both come out of the same two routes.
+  it('deve dizer no heartbeat e no QR que o limite por minuto traz Retry-After e o intervalo mínimo não', () => {
+    const { components } = loadOpenApiSpec() as unknown as {
+      components: {
+        responses: Record<string, { description: string; headers?: Record<string, unknown> }>;
+      };
+    };
+
+    for (const name of ['HeartbeatRateLimited', 'QrRateLimited']) {
+      const response = components.responses[name];
+      expect(response?.headers, name).toHaveProperty('Retry-After');
+      expect(response?.description, name).toContain('limite por minuto');
+      expect(response?.description, name).toContain('intervalo mínimo');
+    }
+  });
+
+  it('deve avisar nas informações gerais que o intervalo mínimo do heartbeat e do QR não traz Retry-After', () => {
+    const { description } = spec().info;
+
+    expect(description).toContain('intervalo mínimo do heartbeat e do QR');
+    expect(description).toContain('sem `Retry-After`');
+  });
 });
