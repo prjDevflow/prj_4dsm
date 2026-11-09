@@ -63,7 +63,7 @@ A regra é verificada pelo ESLint (`npm run lint`) e o CI falha se alguém a que
 - **Regras puras compartilhadas.** O `AccessEvaluator` (autorização, período, usos) serve ao QR e ao NFC. A regra dos 100 m vale só para o QR.
 - **Fuso.** Instantes em UTC; datas e horas das autorizações são avaliadas em `America/Sao_Paulo`, com limites inclusivos.
 - **Idempotência.** O NFC usa o `Idempotency-Key` e o lote offline usa o `clientEventId`; repetir não consome uso nem duplica evento.
-- **Segredos só como hash.** Senhas (bcrypt), chaves de terminal e tokens de QR (SHA-256) nunca ficam em texto puro, nem no banco nem no log.
+- **Segredos só como hash.** Senhas (bcrypt), chaves de terminal e tokens de QR (SHA-256) nunca ficam em texto puro no banco, e a API não os grava no log de requisições (o log de erro não tratado grava a mensagem como veio: [seguranca.md](seguranca.md#5-logs-e-erros)).
 
 ## 4. Fluxos principais
 

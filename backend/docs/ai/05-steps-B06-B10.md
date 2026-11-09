@@ -249,6 +249,8 @@ Resposta 201 (reutilizada em B09 e consumida por F07, F08 e F09):
 - `cd.yml`: roda só se o CI passou → build da imagem Docker → publica no registry → deploy → `prisma migrate deploy` → chama `/health` e falha se não estiver `ok`.
 - Variáveis e segredos no serviço e nos *secrets* do repositório (`DATABASE_URL`, `JWT_SECRET`, ...).
 - HTTPS pelo certificado do serviço; informar o Matheus sobre a cadeia que o ESP32 precisa.
+- Definir `TRUST_PROXY` com o número de proxies do serviço (padrão 0). Sem isso os limites por IP valem para todos juntos: 20 chaves de terminal erradas, de qualquer lugar, travam todos os terminais por um minuto (B20, `docs/seguranca.md`).
+- Apontar um monitor de disponibilidade para `GET /ready` (com prazo de uns 10 s) e testar o alerta em até 5 minutos, que ficou pendente na B20.
 - Documentar rollback (voltar para a imagem anterior). Publicar a URL em `docs/ambiente-dev.md`.
 
 **Lista de verificação**

@@ -128,7 +128,7 @@ Todos contra o PostgreSQL real, porque só ele decide quem ganha a corrida:
 
 ## 7. Relatório de execução
 
-Última execução completa: **2026-11-08**, branch `feature/B20-security-monitoring-docs`, código no commit `4a0dee0` (depois dele só mudou documentação).
+Última execução completa: **2026-11-08**, branch `feature/B20-security-monitoring-docs`, ao fechar a etapa (`/close-step`), depois da revisão independente. Depois dessa execução só mudaram os números deste documento e do `STATUS.md`.
 
 Ambiente: Linux, Node.js v22.22.2 (o CI usa o 24), PostgreSQL 17 (`postgres:17-alpine` do compose).
 
@@ -137,13 +137,13 @@ Ambiente: Linux, Node.js v22.22.2 (o CI usa o 24), PostgreSQL 17 (`postgres:17-a
 | `npm run typecheck` | ✅ sem erros (código e testes) |
 | `npm run lint` | ✅ sem avisos (inclui a fronteira de camadas) |
 | `npm run build` | ✅ |
-| `npm test` | ✅ **845 testes** em 77 arquivos |
+| `npm test` | ✅ **847 testes** em 77 arquivos |
 | `npm run test:cov` | ✅ 99,54% das instruções · 98,44% dos ramos · 100% das funções · 100% das linhas (mínimo exigido: 80% das linhas e 75% dos ramos) |
-| `npm run test:int` | ✅ **804 testes** em 43 arquivos (6 min 17 s) |
+| `npm run test:int` | ✅ **804 testes** em 43 arquivos (6 min 24 s) |
 | `npm audit --omit=dev --audit-level=high` | ✅ 0 vulnerabilidades em produção |
 | gitleaks (histórico completo) | ✅ nenhum achado com o `.gitleaks.toml` (31 falsos positivos revisados) |
 
-Evolução da etapa: 811 unitários e 744 de integração ao começar a B20 (herdados da B19); +34 unitários e +60 de integração.
+Evolução da etapa: 811 unitários e 744 de integração ao começar a B20 (herdados da B19); +36 unitários e +60 de integração.
 
 Testes que passaram de primeira na B20 e foram provados por mutação: o corpo e o log do `/ready`, a sonda do banco, o helmet, o HSTS e o CORS, os limitadores (fiação e unidades), o inventário e a validação das rotas, a ocultação de segredos nos logs, o `500` em produção e a troca da chave do terminal. Nenhuma mutação sobreviveu.
 

@@ -58,7 +58,7 @@ Todo limite responde `429` com o código `RATE_LIMITED` no formato de erro da AP
 | `POST /terminal/qr` | terminal | `QR_ISSUE_MIN_INTERVAL_S` | 1 a cada 5 s |
 | Qualquer rota | tamanho do corpo | fixo | 100 kb (`413`); o lote offline, 64 kb |
 
-Como escolhi os 300 por minuto por terminal: o uso normal é cerca de 60 consultas de comandos (uma por segundo), até 30 heartbeats, 6 QR e algumas leituras NFC, ou seja, menos de 150. Se o `COMMAND_POLL_MS` for reduzido, o limite precisa subir junto.
+Como escolhi os 300 por minuto por terminal: o uso normal é cerca de 60 consultas de comandos (uma por segundo), até 30 heartbeats, 6 QR e algumas leituras NFC, ou seja, menos de 150. Se o `COMMAND_POLL_MS` for reduzido, o limite precisa subir junto: a conta é `60000 / COMMAND_POLL_MS + 60000 / QR_REFRESH_MS + 6` (heartbeat) mais os acks e as leituras NFC. Com 250 ms o total é cerca de 252 e o padrão de 300 ainda aguenta; com 200 ms são 312, a cota acaba perto dos 57 s e os últimos segundos de cada janela dão `429` para tudo (o `ABRIR` atrasa e uma leitura NFC nesse intervalo é recusada). **Nada confere isso na partida**: a decisão de a API recusar essa combinação está pendente (STATUS, pergunta 18).
 
 **Como a falha de autenticação funciona.** O contador por IP roda **antes** de conferir a chave e só conta respostas `401` e `403`: o terminal que acerta a chave não gasta nada, e erros como `422` ou `500` também não. Passando de `TERMINAL_AUTH_FAIL_MAX_PER_MINUTE`, o IP recebe `429` em **todas** as rotas do terminal até o minuto acabar, mesmo com a chave certa. É isso que impede a adivinhação de chaves. A consequência: um terminal que divide o endereço com quem está errando a chave fica sem acesso por até um minuto, e quem consegue manter o ataque mantém o bloqueio.
 
@@ -110,7 +110,7 @@ O CI baixa o gitleaks **8.30.1** com versão e SHA-256 fixos (`551f6fc83ea457d62
 gitleaks git --no-banner --redact --config .gitleaks.toml .
 ```
 
-Em 2026-11-08, no histórico completo (738 commits, 4,6 MB):
+Em 2026-11-08, no histórico completo (738 commits, 4,6 MB; repetida ao fechar a etapa, com 757 commits, também sem achados com a configuração):
 
 - Sem configuração: **31 achados**, todos revisados um a um e **todos falsos positivos**: UUIDs de chaves de idempotência e tokens de exemplo em testes (`q3F8k2Zr1pLw9XbTn0YhVA` é o exemplo do contrato), `apiKey` e `accessToken` de exemplo no `openapi.yaml`, senhas e segredos de teste (`Senha-Valida-123`, `segredo-de-teste-...`) e os `curl` do README com a chave do terminal de desenvolvimento, que é pública por construção.
 - Com o [.gitleaks.toml](../../.gitleaks.toml): **nenhum achado**. As dispensas valem para **uma regra** em certos caminhos (`generic-api-key` em `*.spec.ts`, `backend/test/` e `backend/openapi.yaml`; `curl-auth-header` no README e em `backend/docs/`). Todas as outras regras continuam valendo em qualquer arquivo.
@@ -122,7 +122,7 @@ Adicionar um novo falso positivo exige editar o `.gitleaks.toml` num PR, onde al
 
 - **Logs estruturados** (pino, JSON no stdout), uma linha por requisição com `X-Request-Id`. O corpo das requisições e das respostas **nunca** é registrado. Os cabeçalhos `authorization`, `cookie` e `x-terminal-key` saem como `[oculto]`.
 - **Testes:** [requestLog.test.ts](../test/integration/requestLog.test.ts) roda os fluxos reais (login, uso do token, `rotate-key`, chamadas do terminal com a chave antiga e com a nova) e prova que no log não aparecem a senha, o token, a chave do terminal (antiga e nova) nem os hashes. Mutações mortas: sem ocultar `authorization`, sem ocultar `x-terminal-key` e sem ocultar nada.
-- **Erro `500`** responde sempre `{ "error": { "code": "INTERNAL_ERROR", "message": "Erro interno do servidor" } }`. Em produção não há `stack` nem mensagem interna, mesmo quando o erro do driver do banco traz uma URL de conexão. O teste usa uma rota real (`GET /auth/me`) com o banco falhando ([errors.test.ts](../test/integration/errors.test.ts)); a mutação "stack exposta em produção" o derruba. A `stack` completa vai só para o log do servidor, com o `requestId`, para quem opera a API.
+- **Erro `500`** responde sempre `{ "error": { "code": "INTERNAL_ERROR", "message": "Erro interno do servidor" } }`. Em produção não há `stack` nem mensagem interna, mesmo quando o erro do driver do banco traz uma URL de conexão. O teste usa uma rota real (`GET /auth/me`) com o banco falhando ([errors.test.ts](../test/integration/errors.test.ts)); a mutação "stack exposta em produção" o derruba. A `stack` completa vai só para o log do servidor, com o `requestId`, para quem opera a API. **Limite desta garantia:** o log do erro não tratado grava a `stack` e a mensagem como o erro as trouxe, sem máscara. Se uma biblioteca colocar um segredo na mensagem (como a URL de conexão com senha do teste acima), ele vai para o log. O teste prova a resposta HTTP, não a saída do logger.
 - Fora de produção o `500` mostra a `stack` para facilitar a depuração; o compose roda a API com `NODE_ENV=production`.
 
 ## 6. Troca de segredos
@@ -190,5 +190,10 @@ Para validar: pare o banco do ambiente publicado, cronometre até o aviso chegar
 - **Contadores de limite na memória do processo** (seção 2).
 - **Bloqueio por IP afeta quem divide o endereço** (seção 2).
 - **Sem limite nas rotas de cadastro do app** (seção 2).
+- **O limite do login é por IP + e-mail**: quem troca o e-mail a cada tentativa tem uma cota nova a cada vez, e cada tentativa gasta uma comparação de bcrypt (cerca de 100 ms com custo 10), então um IP pode ocupar o processo da API, que atende também os terminais. Um limitador só por IP, antes do atual, fecha isso (decisão pendente, STATUS, pergunta 18).
+- **`/docs` (Swagger) é público e sem limite próprio.**
+- **`TRUST_PROXY=0` atrás de um proxy não avisa nada**: a biblioteca só valida o gerador de chave padrão, e os nossos são próprios. O limite de falhas de autenticação passaria a valer para todos juntos (20 chaves erradas de qualquer lugar travam todos os terminais por um minuto). Definir `TRUST_PROXY` é item da B10.
+- **O log de erro não tratado não mascara a mensagem** (seção 5).
+- **Requisições abortadas pelo cliente contam como falha** no limite de falhas de autenticação (o reembolso só acontece ao terminar a resposta), e 20 requisições simultâneas de um IP recebem `429` mesmo com a chave certa. Improvável com um terminal.
 - **Sem HTTPS real até a B10.**
 - **A consulta do `/ready` não tem prazo próprio** (seção 7).

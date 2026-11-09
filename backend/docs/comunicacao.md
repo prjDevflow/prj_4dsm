@@ -44,7 +44,7 @@ O app **não fala com o terminal**: lê o QR Code na tela dele, manda o texto li
 
 | O terminal faz | Rota | Cadência |
 |---|---|---|
-| Avisar que está vivo e onde está; receber a configuração | `POST /terminal/heartbeat` | a cada alguns segundos (mínimo `HEARTBEAT_MIN_INTERVAL_S`) |
+| Avisar que está vivo e onde está; receber a configuração | `POST /terminal/heartbeat` | a cada 10 s (mínimo `HEARTBEAT_MIN_INTERVAL_S`, 2 s) |
 | Pedir o QR Code a desenhar | `POST /terminal/qr` | a cada `renovarEmMs` (10 s) |
 | Buscar o que fazer com a catraca (QR) | `GET /terminal/commands` | a cada `commandPollMs` (1 s) |
 | Confirmar que executou um comando | `POST /terminal/commands/{id}/ack` | uma vez por comando |
