@@ -112,6 +112,8 @@ const EnvSchema = z.object({
   MAX_DISTANCE_M: positiveInt(100),
   // NFC tags (B16): how long a terminal stays in enroll mode, waiting to link the next tag read to a user.
   ENROLL_MODE_SECONDS: positiveInt(60),
+  // NFC validation (B17): a tag read again on the same terminal within this many seconds gets the previous decision.
+  NFC_DEBOUNCE_SECONDS: positiveInt(3),
 });
 
 export type Env = z.infer<typeof EnvSchema>;

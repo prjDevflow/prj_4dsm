@@ -71,6 +71,17 @@ export class InMemoryTerminalRepository implements ITerminalRepository {
     return true;
   }
 
+  async consumeEnrollMode(id: string, usuarioId: string, now: Date) {
+    const terminal = this.items.get(id);
+    if (!terminal || terminal.modoCadastroUsuarioId !== usuarioId) return false;
+    // Same condition as the real conditional write: the deadline itself still counts.
+    if (!terminal.modoCadastroAte || now.getTime() > terminal.modoCadastroAte.getTime()) {
+      return false;
+    }
+    this.items.set(id, { ...terminal, modoCadastroUsuarioId: null, modoCadastroAte: null });
+    return true;
+  }
+
   async list(filter: TerminalListFilter) {
     const all = [...this.items.values()].sort(
       (a, b) => a.nome.localeCompare(b.nome) || a.id.localeCompare(b.id),

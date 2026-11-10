@@ -54,6 +54,12 @@ export interface ITerminalRepository {
    * the first. False when the terminal does not exist.
    */
   updateEnrollMode(id: string, usuarioId: string, ate: Date): Promise<boolean>;
+  /**
+   * Ends the enroll mode, but only if it still belongs to `usuarioId` and has not run out at `now` (the
+   * deadline itself still counts). One conditional write: of two reads at once only one gets true, so only
+   * one tag is linked. False when the mode was already used, replaced or over.
+   */
+  consumeEnrollMode(id: string, usuarioId: string, now: Date): Promise<boolean>;
   /** Ordered by name. */
   list(filter: TerminalListFilter): Promise<TerminalListResult>;
 }

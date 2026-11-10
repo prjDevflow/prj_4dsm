@@ -38,7 +38,7 @@ Legenda: **U** = unitário (doubles, sem banco) · **I** = integração (superte
 - [x] `04:a1:b2:c3` e `04A1B2C3` resultam no mesmo UID salvo.
 - [x] UID com caracteres inválidos ou tamanho errado → 422.
 - [x] Tag duplicada → 409.
-- [ ] Desativar a tag impede o uso (verificado na B17). _O `PATCH` desativa e reativa (testes de integração); a recusa na leitura é da B17._
+- [x] Desativar a tag impede o uso (verificado na B17). _O `PATCH` desativa e reativa (testes de integração da B16); a recusa na leitura (`TAG_INATIVA`) está em `terminalNfc.test.ts` da B17._
 - [x] Só `ADMIN` acessa.
 - [x] (Opcional) o modo de cadastro expira sozinho em 60 s.
 
@@ -69,29 +69,29 @@ Legenda: **U** = unitário (doubles, sem banco) · **I** = integração (superte
 
 **Lista de testes**
 
-- [ ] U tag válida com autorização válida → `AUTORIZADO` com `aberturaMs`, um uso consumido, um evento `NFC`.
-- [ ] U tag desconhecida → `NEGADO` `TAG_DESCONHECIDA`; tag desativada → `TAG_INATIVA`; usuário inativo → `USUARIO_INATIVO` (um evento cada).
-- [ ] U autorização cancelada, fora do período, usos esgotados e de outro local → `NEGADO` com o motivo certo, um evento cada.
-- [ ] U a distância **não** é avaliada (nenhuma coordenada é exigida).
-- [ ] U mesma `Idempotency-Key` repetida → decisão anterior, sem novo consumo e sem novo evento.
-- [ ] U mesma tag no mesmo terminal em menos de 3 s → decisão anterior; a partir de 3 s é nova tentativa (`FakeClock`).
-- [ ] U modo de cadastro vigente → `CADASTRADA`, tag vinculada, nenhum uso consumido, nenhum evento de acesso.
-- [ ] U modo de cadastro vencido → segue o fluxo normal.
-- [ ] I `POST /terminal/nfc` sem cabeçalhos do terminal → 401; terminal inativo → 403; UID inválido → 422.
-- [ ] I duas leituras simultâneas com um uso restante → só uma `AUTORIZADO`.
-- [ ] I resposta em até 2 s.
+- [x] U tag válida com autorização válida → `AUTORIZADO` com `aberturaMs`, um uso consumido, um evento `NFC`.
+- [x] U tag desconhecida → `NEGADO` `TAG_DESCONHECIDA`; tag desativada → `TAG_INATIVA`; usuário inativo → `USUARIO_INATIVO` (um evento cada).
+- [x] U autorização cancelada, fora do período, usos esgotados e de outro local → `NEGADO` com o motivo certo, um evento cada.
+- [x] U a distância **não** é avaliada (nenhuma coordenada é exigida).
+- [x] U mesma `Idempotency-Key` repetida → decisão anterior, sem novo consumo e sem novo evento.
+- [x] U mesma tag no mesmo terminal em menos de 3 s → decisão anterior; a partir de 3 s é nova tentativa (`FakeClock`).
+- [x] U modo de cadastro vigente → `CADASTRADA`, tag vinculada, nenhum uso consumido, nenhum evento de acesso.
+- [x] U modo de cadastro vencido → segue o fluxo normal.
+- [x] I `POST /terminal/nfc` sem cabeçalhos do terminal → 401; terminal inativo → 403; UID inválido → 422.
+- [x] I duas leituras simultâneas com um uso restante → só uma `AUTORIZADO`.
+- [x] I resposta em até 2 s. _Medido localmente (menos de 2 s no teste de integração)._
 
 **Critérios de aceitação**
 
-- [ ] Tag válida com autorização válida → `AUTORIZADO` com `aberturaMs`, um uso consumido, um evento `NFC`.
-- [ ] Tag desconhecida, desativada, usuário inativo, autorização cancelada, fora do período e usos esgotados → `NEGADO` com o código certo e um evento cada.
-- [ ] Repetir a mesma `Idempotency-Key` não consome outro uso.
-- [ ] Resposta em até 2 s no ambiente de homologação.
-- [ ] Modo de cadastro vincula a tag, responde `CADASTRADA` e não registra acesso.
+- [x] Tag válida com autorização válida → `AUTORIZADO` com `aberturaMs`, um uso consumido, um evento `NFC`.
+- [x] Tag desconhecida, desativada, usuário inativo, autorização cancelada, fora do período e usos esgotados → `NEGADO` com o código certo e um evento cada.
+- [x] Repetir a mesma `Idempotency-Key` não consome outro uso.
+- [ ] Resposta em até 2 s no ambiente de homologação. _Medida só local (menos de 2 s nos testes); a homologação depende da B10._
+- [x] Modo de cadastro vincula a tag, responde `CADASTRADA` e não registra acesso.
 
 **Definição de pronto**
 
-- [ ] Os casos NFC da seção 9.2 do arquivo 03 estão automatizados, inclusive a idempotência.
+- [x] Os casos NFC da seção 9.2 do arquivo 03 estão automatizados, inclusive a idempotência.
 - [ ] Matheus avisado (★).
 
 ---

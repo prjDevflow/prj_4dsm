@@ -9,7 +9,7 @@ import { makeQrCredential } from '../../test/factories/makeQrCredential';
 import { AccessEvent } from '../entities/AccessEvent';
 import type { Authorization } from '../entities/Authorization';
 import { TerminalCommand } from '../entities/TerminalCommand';
-import type { CommitApprovalInput } from './IAccessGrantRepository';
+import type { CommitApprovalInput, CommitNfcApprovalInput } from './IAccessGrantRepository';
 
 const NOW = new Date('2026-10-20T14:00:05Z');
 const USER_ID = '00000000-0000-4000-8000-0000000000e1';
@@ -141,5 +141,140 @@ describe('InMemoryAccessGrantRepository.commitApproval', () => {
     expect(world.credentials.all()[0]?.consumidoEm).toBeNull();
     expect(world.authorizations.all()[0]?.usosRealizados).toBe(0);
     expect(world.events.all()).toHaveLength(0);
+  });
+});
+
+const KEY = '3f1c9a52-8e0b-4f55-9d57-2a6f0c1d7e44';
+
+const makeNfcInput = (
+  overrides: { eventId?: string; clientEventId?: string } = {},
+): CommitNfcApprovalInput => ({
+  authorizationId: makeAuthorization().id,
+  event: AccessEvent.approved({
+    id: overrides.eventId ?? '00000000-0000-4000-8000-000000000002',
+    ocorridoEm: NOW,
+    metodo: 'NFC',
+    terminalId: TERMINAL_ID,
+    accessPointId: makeAuthorization().accessPointId,
+    usuarioId: USER_ID,
+    authorizationId: makeAuthorization().id,
+    clientEventId: overrides.clientEventId ?? KEY,
+    uid: '04A1B2C3',
+  }),
+});
+
+const seedAuthorization = (
+  world: ReturnType<typeof makeSut>,
+  { spent = 0, situacao = 'ATIVA' as Authorization['situacao'] } = {},
+) => world.authorizations.add(makeAuthorization({ usosRealizados: spent, situacao }));
+
+describe('InMemoryAccessGrantRepository.commitNfcApproval', () => {
+  it('deve consumir um uso, gravar o evento com a chave e devolver os usos restantes, sem comando', async () => {
+    const world = makeSut();
+    seedAuthorization(world);
+
+    const result = await world.sut.commitNfcApproval(makeNfcInput());
+
+    expect(result).toEqual({ ok: true, usosRestantes: 2 });
+    expect(world.authorizations.all()[0]?.usosRealizados).toBe(1);
+    expect(world.events.all()).toHaveLength(1);
+    expect(world.events.all()[0]).toMatchObject({ metodo: 'NFC', clientEventId: KEY });
+    expect(world.commands.all()).toHaveLength(0);
+  });
+
+  it('deve devolver zero usos restantes ao consumir o último uso', async () => {
+    const world = makeSut();
+    seedAuthorization(world, { spent: 2 });
+
+    expect(await world.sut.commitNfcApproval(makeNfcInput())).toEqual({
+      ok: true,
+      usosRestantes: 0,
+    });
+  });
+
+  it('deve negar com USOS_ESGOTADOS e não deixar o evento quando os usos acabaram', async () => {
+    const world = makeSut();
+    seedAuthorization(world, { spent: 3 });
+
+    const result = await world.sut.commitNfcApproval(makeNfcInput());
+
+    expect(result).toEqual({ ok: false, reason: 'USOS_ESGOTADOS' });
+    expect(world.authorizations.all()[0]?.usosRealizados).toBe(3);
+    expect(world.events.all()).toHaveLength(0);
+  });
+
+  it('deve negar com USOS_ESGOTADOS quando a autorização foi cancelada antes do commit', async () => {
+    const world = makeSut();
+    seedAuthorization(world, { situacao: 'CANCELADA' });
+
+    const result = await world.sut.commitNfcApproval(makeNfcInput());
+
+    expect(result).toEqual({ ok: false, reason: 'USOS_ESGOTADOS' });
+    expect(world.events.all()).toHaveLength(0);
+  });
+
+  it('deve negar com CHAVE_REPETIDA sem consumir outro uso quando a chave já tem evento', async () => {
+    const world = makeSut();
+    seedAuthorization(world);
+    await world.sut.commitNfcApproval(makeNfcInput());
+
+    const again = await world.sut.commitNfcApproval(
+      makeNfcInput({ eventId: '00000000-0000-4000-8000-000000000003' }),
+    );
+
+    expect(again).toEqual({ ok: false, reason: 'CHAVE_REPETIDA' });
+    expect(world.authorizations.all()[0]?.usosRealizados).toBe(1);
+    expect(world.events.all()).toHaveLength(1);
+  });
+
+  it('deve preferir CHAVE_REPETIDA a USOS_ESGOTADOS: a chave é conferida antes de tocar nos usos', async () => {
+    const world = makeSut();
+    seedAuthorization(world, { spent: 3 });
+    await world.events.append(makeNfcInput().event);
+
+    const result = await world.sut.commitNfcApproval(
+      makeNfcInput({ eventId: '00000000-0000-4000-8000-000000000003' }),
+    );
+
+    expect(result).toEqual({ ok: false, reason: 'CHAVE_REPETIDA' });
+  });
+
+  it('deve desfazer o uso quando a gravação do evento falha (a aprovação nunca vale sem o evento)', async () => {
+    const world = makeSut();
+    seedAuthorization(world);
+    world.events.failWith(new Error('banco indisponível'));
+
+    await expect(world.sut.commitNfcApproval(makeNfcInput())).rejects.toThrow('banco indisponível');
+
+    expect(world.authorizations.all()[0]?.usosRealizados).toBe(0);
+    expect(world.events.all()).toHaveLength(0);
+  });
+
+  it('deve aceitar a mesma aprovação duas vezes com chaves diferentes, um uso cada', async () => {
+    const world = makeSut();
+    seedAuthorization(world);
+
+    await world.sut.commitNfcApproval(makeNfcInput());
+    const second = await world.sut.commitNfcApproval(
+      makeNfcInput({
+        eventId: '00000000-0000-4000-8000-000000000003',
+        clientEventId: '7d2e4b10-1c3a-4e9f-8a66-0b5c9d1e2f33',
+      }),
+    );
+
+    expect(second).toEqual({ ok: true, usosRestantes: 1 });
+    expect(world.events.all()).toHaveLength(2);
+  });
+});
+
+describe('InMemoryAccessEventRepository (o que os use cases do NFC esperam dele)', () => {
+  it('deve recusar um clientEventId repetido, como o índice único do banco', async () => {
+    const { events } = makeSut();
+    await events.append(makeNfcInput().event);
+
+    await expect(
+      events.append(makeNfcInput({ eventId: '00000000-0000-4000-8000-000000000003' }).event),
+    ).rejects.toThrow();
+    expect(events.all()).toHaveLength(1);
   });
 });

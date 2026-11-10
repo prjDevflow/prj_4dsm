@@ -101,6 +101,8 @@ services:
       MAX_DISTANCE_M: ${MAX_DISTANCE_M:-}
       # Tags NFC (B16).
       ENROLL_MODE_SECONDS: ${ENROLL_MODE_SECONDS:-}
+      # Validação por NFC (B17).
+      NFC_DEBOUNCE_SECONDS: ${NFC_DEBOUNCE_SECONDS:-}
     ports:
       - '${PORT:-3000}:3000'
     depends_on:

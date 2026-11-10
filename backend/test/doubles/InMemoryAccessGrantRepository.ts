@@ -1,6 +1,8 @@
 import type {
   CommitApprovalInput,
   CommitApprovalResult,
+  CommitNfcApprovalInput,
+  CommitNfcApprovalResult,
   IAccessGrantRepository,
 } from '../../src/repositories/IAccessGrantRepository';
 import type { InMemoryAccessEventRepository } from './InMemoryAccessEventRepository';
@@ -46,6 +48,37 @@ export class InMemoryAccessGrantRepository implements IAccessGrantRepository {
       }
       await this.events.append(input.event);
       await this.commands.create(input.command);
+      return { ok: true, usosRestantes };
+    } catch (error) {
+      rollback();
+      throw error;
+    }
+  }
+
+  async commitNfcApproval(input: CommitNfcApprovalInput): Promise<CommitNfcApprovalResult> {
+    // The key first, like the real one: nothing is touched when it is already taken.
+    const { clientEventId } = input.event;
+    if (clientEventId !== null && (await this.events.findByClientEventId(clientEventId))) {
+      return { ok: false, reason: 'CHAVE_REPETIDA' };
+    }
+
+    const before = {
+      authorizations: this.authorizations.snapshot(),
+      events: this.events.snapshot(),
+    };
+    const rollback = () => {
+      this.authorizations.restore(before.authorizations);
+      this.events.restore(before.events);
+    };
+
+    try {
+      await this.events.append(input.event);
+      const usosRestantes = this.authorizations.consumeUseIfAvailable(input.authorizationId);
+      if (usosRestantes === null) {
+        // The event was stored a moment ago: a denial leaves no approval behind.
+        rollback();
+        return { ok: false, reason: 'USOS_ESGOTADOS' };
+      }
       return { ok: true, usosRestantes };
     } catch (error) {
       rollback();

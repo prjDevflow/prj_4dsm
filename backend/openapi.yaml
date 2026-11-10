@@ -1602,6 +1602,136 @@ paths:
           $ref: '#/components/responses/QrRateLimited'
         '500':
           $ref: '#/components/responses/InternalError'
+  /terminal/nfc:
+    post:
+      tags: [Terminal]
+      summary: Validar a leitura de uma tag NFC
+      description: >-
+        O terminal envia o UID que leu e recebe a decisão **na própria resposta**. Autenticado pela
+        chave do terminal (cabeçalhos `X-Terminal-Id` e `X-Terminal-Key`), nunca pelo token de
+        usuário. O cabeçalho `Idempotency-Key` (um UUID novo a cada leitura) é obrigatório.
+
+
+        **Sempre 200 com a decisão**: `AUTORIZADO` (com `aberturaMs`), `NEGADO` (com o `motivo`) ou
+        `CADASTRADA`. Só problemas de HTTP têm outro status (401, 403, 409, 422, 500). Não cria
+        comando para o terminal: ele abre ou nega pela resposta. Meta de até 2 s.
+
+
+        **Ordem** (a primeira que falhar define o motivo): a `Idempotency-Key` já vista; o modo de
+        cadastro do terminal; a repetição em menos de `NFC_DEBOUNCE_SECONDS` (3 s); a tag existe
+        (`TAG_DESCONHECIDA`), está ativa (`TAG_INATIVA`) e o usuário está ativo (`USUARIO_INATIVO`);
+        e as verificações de autorização do QR, **sem a distância** (`SEM_AUTORIZACAO`,
+        `AUTORIZACAO_CANCELADA`, `FORA_DO_PERIODO`, `USOS_ESGOTADOS`). A aprovação grava o evento
+        `NFC` e consome um uso na mesma transação. Cada tentativa gera exatamente um evento, aprovada
+        ou negada.
+
+
+        **Idempotência:** repetir a mesma `Idempotency-Key` devolve a decisão anterior, sem novo uso
+        e sem novo evento, mesmo que a tag tenha sido desativada depois (a chave vale em minúsculas
+        ou maiúsculas). Uma chave que já pertence a outro terminal, ou a um evento que não foi uma
+        leitura NFC, dá 409 `CONFLICT`.
+
+
+        **Repetição rápida:** a mesma tag lida de novo neste terminal em menos de
+        `NFC_DEBOUNCE_SECONDS` (3 s) recebe a decisão anterior, sem novo uso e sem novo evento. Em
+        3 s exatos já é uma nova tentativa. Por isso desativar a tag, ou reativá-la, pode levar até
+        esse tempo para valer na mesma tag e no mesmo terminal.
+
+
+        **Modo de cadastro:** se o administrador ligou o modo (`POST /terminals/{id}/enroll-mode`) e
+        o prazo não venceu (o instante exato ainda vale), esta leitura vincula a tag ao usuário
+        combinado, gasta o modo e responde `CADASTRADA`. Não consome uso, não grava evento e não
+        cria comando. UID que já existe: 409 `TAG_JA_CADASTRADA` (e o modo já foi gasto); usuário do
+        modo inativo: 422; usuário do modo inexistente: 404 `NOT_FOUND`, que na prática não ocorre
+        porque a chave estrangeira impede apagar o usuário. Como não há evento, repetir a mesma
+        chave depois de `CADASTRADA` conta como uma leitura de acesso.
+
+
+        `lidoEm` é opcional e só é conferido: quem decide é o relógio do servidor.
+      operationId: validateNfcAccess
+      security:
+        - terminalId: []
+          terminalKey: []
+      parameters:
+        - name: Idempotency-Key
+          in: header
+          required: true
+          description: UUID gerado pelo terminal a cada leitura, guardado em minúsculas.
+          schema:
+            type: string
+            format: uuid
+          example: 3f1c9a52-8e0b-4f55-9d57-2a6f0c1d7e44
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/NfcLeitura'
+            example:
+              uid: 04:a1:b2:c3:d4
+              lidoEm: '2026-10-20T14:32:07Z'
+      responses:
+        '200':
+          description: A decisão, qualquer que seja
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/NfcResultado'
+              examples:
+                AUTORIZADO:
+                  summary: Tag válida com autorização válida
+                  value:
+                    resultado: AUTORIZADO
+                    aberturaMs: 5000
+                CADASTRADA:
+                  summary: Modo de cadastro ligado; a tag foi vinculada
+                  value:
+                    resultado: CADASTRADA
+                TAG_DESCONHECIDA:
+                  summary: Nenhuma tag tem este UID
+                  value:
+                    resultado: NEGADO
+                    motivo: TAG_DESCONHECIDA
+                TAG_INATIVA:
+                  summary: A tag foi desativada
+                  value:
+                    resultado: NEGADO
+                    motivo: TAG_INATIVA
+                USUARIO_INATIVO:
+                  summary: O dono da tag está inativo
+                  value:
+                    resultado: NEGADO
+                    motivo: USUARIO_INATIVO
+                SEM_AUTORIZACAO:
+                  summary: O usuário não tem autorização para este local
+                  value:
+                    resultado: NEGADO
+                    motivo: SEM_AUTORIZACAO
+                AUTORIZACAO_CANCELADA:
+                  summary: Todas as autorizações deste local foram canceladas
+                  value:
+                    resultado: NEGADO
+                    motivo: AUTORIZACAO_CANCELADA
+                FORA_DO_PERIODO:
+                  summary: Fora das datas ou do horário da autorização
+                  value:
+                    resultado: NEGADO
+                    motivo: FORA_DO_PERIODO
+                USOS_ESGOTADOS:
+                  summary: Os usos da autorização acabaram
+                  value:
+                    resultado: NEGADO
+                    motivo: USOS_ESGOTADOS
+        '401':
+          $ref: '#/components/responses/TerminalUnauthorized'
+        '403':
+          $ref: '#/components/responses/TerminalForbidden'
+        '409':
+          $ref: '#/components/responses/NfcReadConflict'
+        '422':
+          $ref: '#/components/responses/NfcReadValidationError'
+        '500':
+          $ref: '#/components/responses/InternalError'
   /terminal/commands:
     get:
       tags: [Terminal]
@@ -2638,6 +2768,41 @@ components:
                     type: string
                   message:
                     type: string
+    NfcLeitura:
+      type: object
+      required: [uid]
+      properties:
+        uid:
+          type: string
+          description: >-
+            UID da tag: hexadecimal, 8 a 20 caracteres depois de tirar `:`, `-` e espaços; maiúsculas
+            ou minúsculas.
+          example: 04:a1:b2:c3:d4
+        lidoEm:
+          type: string
+          format: date-time
+          description: Instante da leitura segundo o terminal. Opcional; é conferido e não é usado.
+    NfcResultado:
+      type: object
+      required: [resultado]
+      properties:
+        resultado:
+          type: string
+          enum: [AUTORIZADO, NEGADO, CADASTRADA]
+        aberturaMs:
+          type: integer
+          description: Só em `AUTORIZADO`. Por quanto tempo abrir (`OPEN_DURATION_MS`).
+        motivo:
+          type: string
+          enum:
+            - TAG_DESCONHECIDA
+            - TAG_INATIVA
+            - USUARIO_INATIVO
+            - SEM_AUTORIZACAO
+            - AUTORIZACAO_CANCELADA
+            - FORA_DO_PERIODO
+            - USOS_ESGOTADOS
+          description: Só em `NEGADO`.
   responses:
     ValidationError:
       description: Corpo inválido ou JSON malformado
@@ -3072,6 +3237,58 @@ components:
             error:
               code: NOT_FOUND
               message: Rota não encontrada
+    NfcReadConflict:
+      description: >-
+        `CONFLICT`: a `Idempotency-Key` já pertence a outro terminal ou a um evento que não foi uma
+        leitura NFC. `TAG_JA_CADASTRADA`: no modo de cadastro, já existe uma tag com este UID.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          examples:
+            chaveRepetida:
+              value:
+                error:
+                  code: CONFLICT
+                  message: Esta Idempotency-Key já foi usada por outro evento
+            tagJaCadastrada:
+              value:
+                error:
+                  code: TAG_JA_CADASTRADA
+                  message: Esta tag já está cadastrada
+    NfcReadValidationError:
+      description: >-
+        UID inválido, `lidoEm` que não é um instante, `Idempotency-Key` ausente ou fora do formato de
+        UUID, ou (no modo de cadastro) usuário inativo, com a mensagem de cada campo em `details`.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          examples:
+            uidInvalido:
+              value:
+                error:
+                  code: VALIDATION_ERROR
+                  message: Dados inválidos
+                  details:
+                    - field: uid
+                      message: deve ser hexadecimal, com 8 a 20 caracteres (":", "-" e espaços são ignorados)
+            chaveInvalida:
+              value:
+                error:
+                  code: VALIDATION_ERROR
+                  message: Dados inválidos
+                  details:
+                    - field: Idempotency-Key
+                      message: deve ser um UUID
+            usuarioDoModoInativo:
+              value:
+                error:
+                  code: VALIDATION_ERROR
+                  message: Dados inválidos
+                  details:
+                    - field: usuarioId
+                      message: Usuário inativo
     InternalError:
       description: Erro interno (sem stack trace em produção)
       content:

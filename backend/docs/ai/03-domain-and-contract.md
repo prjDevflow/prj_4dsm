@@ -166,6 +166,14 @@ Sucesso do QR: `"Acesso autorizado. Pode passar."`
 
 UID da tag: hexadecimal, maiúsculo, sem separadores, 8 a 20 caracteres.
 
+Regras da leitura (B17; o `openapi.yaml` é a fonte final):
+
+- `Idempotency-Key` é **obrigatório** (UUID, guardado em minúsculas; sem ele ou fora do formato: 422 no campo `Idempotency-Key`). `uid` é obrigatório e vale em qualquer grafia (`04:a1:b2:c3`); `lidoEm` é opcional e só é conferido: o relógio do servidor decide.
+- Repetir a chave devolve a decisão anterior, sem novo uso nem novo evento. Chave de outro terminal, ou de um evento que não foi leitura NFC: 409 `CONFLICT`.
+- A mesma tag no mesmo terminal em menos de `NFC_DEBOUNCE_SECONDS` devolve a decisão anterior (3 s exatos já é nova tentativa).
+- No modo de cadastro, UID já cadastrado: 409 `TAG_JA_CADASTRADA` (o modo já foi gasto); usuário do modo inativo: 422 em `usuarioId`; inexistente: 404.
+- Não cria comando `ABRIR` nem `NEGAR`: o terminal age pela resposta. O evento guarda o `Idempotency-Key` em `clientEventId` e o UID inteiro em `detalhes.uid` (`docs/eventos-campos.md`).
+
 ### 4.6 Tags NFC e modo de cadastro (B16)
 
 Só `ADMIN`. Formatos adotados na B16 (o `openapi.yaml` é a fonte final; pergunta #13 no `STATUS.md`).
@@ -214,15 +222,18 @@ Coordenadas que o app **não envia** (ausentes ou `null`) dentro de um QR bem fo
 
 ### 5.2 Ordem do NFC (`POST /terminal/nfc`)
 
-1. Terminal em modo de cadastro e prazo vigente: vincula a tag, responde `CADASTRADA`, não consome uso.
+0. `Idempotency-Key` já vista: devolve a decisão do evento anterior.
+1. Terminal em modo de cadastro e prazo vigente (o instante exato ainda vale): gasta o modo, vincula a tag, responde `CADASTRADA`, não consome uso nem grava evento.
+1b. Mesma tag no mesmo terminal em menos de `NFC_DEBOUNCE_SECONDS`: devolve a decisão anterior.
 2. Tag existe (`TAG_DESCONHECIDA`), tag ativa (`TAG_INATIVA`), usuário ativo (`USUARIO_INATIVO`).
 3. `AccessEvaluator` (verificações 6 a 9 acima, sem distância).
-4. Consumo do uso e evento na mesma transação. Sempre HTTP 200 com a decisão.
+4. Evento e consumo do uso na mesma transação (o evento primeiro: o `clientEventId` é único, e a repetição que corre contra o original nunca vira falso `USOS_ESGOTADOS`). Sempre HTTP 200 com a decisão.
 
 ### 5.3 Efeitos de uma decisão
 
-- **Aprovação (transação única):** consumir a credencial (`consumidoEm IS NULL`), consumir um uso (`usosRealizados < usosPermitidos AND situacao = 'ATIVA'`), inserir evento `AUTORIZADO`, inserir comando `ABRIR`. Se qualquer passo falhar, tudo é desfeito. Falha ao gravar o evento → 500 `INTERNAL_ERROR`, uso não consumido.
-- **Negação:** inserir evento `NEGADO` com motivo e, se o terminal foi identificado, comando `NEGAR`. O QR **não** é consumido numa negação. Se a gravação do evento falhar, registrar no log e **mesmo assim negar**.
+- **Aprovação do QR (transação única):** consumir a credencial (`consumidoEm IS NULL`), consumir um uso (`usosRealizados < usosPermitidos AND situacao = 'ATIVA'`), inserir evento `AUTORIZADO`, inserir comando `ABRIR`. Se qualquer passo falhar, tudo é desfeito. Falha ao gravar o evento → 500 `INTERNAL_ERROR`, uso não consumido.
+- **Negação do QR:** inserir evento `NEGADO` com motivo e, se o terminal foi identificado, comando `NEGAR`. O QR **não** é consumido numa negação. Se a gravação do evento falhar, registrar no log e **mesmo assim negar**.
+- **NFC (B17):** a aprovação é o evento `AUTORIZADO` (com o `Idempotency-Key` em `clientEventId`) e o consumo de um uso na mesma transação, **sem credencial e sem comando**: a resposta da rota é a decisão e o terminal abre ou nega por ela. A negação grava só o evento `NEGADO` (se a gravação falhar, registra no log e **mesmo assim nega**). Falha ao gravar o evento de uma aprovação → 500, uso não consumido.
 - Credencial desconhecida: evento com `terminalId` nulo e, em `detalhes`, só um prefixo do hash.
 
 ### 5.4 Regras puras reutilizáveis

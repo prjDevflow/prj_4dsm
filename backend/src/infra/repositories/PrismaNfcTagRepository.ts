@@ -51,6 +51,11 @@ export class PrismaNfcTagRepository implements INfcTagRepository {
     }
   }
 
+  async findByUid(uid: string) {
+    const row = await this.prisma.nfcTag.findUnique({ where: { uid } });
+    return row ? toEntity(row) : null;
+  }
+
   async updateStatus(id: string, ativa: boolean) {
     try {
       return toEntity(await this.prisma.nfcTag.update({ where: { id }, data: { ativa } }));

@@ -2,7 +2,10 @@ import { beforeEach, describe, expect, it } from 'vitest';
 import { AccessEvent } from '../../src/entities/AccessEvent';
 import { TerminalCommand } from '../../src/entities/TerminalCommand';
 import { PrismaAccessGrantRepository } from '../../src/infra/repositories/PrismaAccessGrantRepository';
-import type { CommitApprovalInput } from '../../src/repositories/IAccessGrantRepository';
+import type {
+  CommitApprovalInput,
+  CommitNfcApprovalInput,
+} from '../../src/repositories/IAccessGrantRepository';
 import {
   expectViolation,
   insertAccessPoint,
@@ -245,6 +248,158 @@ describe('PrismaAccessGrantRepository.commitApproval', () => {
       expect(results.filter((r) => r.ok)).toHaveLength(3);
       expect((await authorizationRow(scene.authorization.id)).usosRealizados).toBe(3);
       expect(await counts()).toEqual({ events: 3, commands: 3 });
+    });
+  });
+});
+
+describe('PrismaAccessGrantRepository.commitNfcApproval', () => {
+  beforeEach(resetDatabase);
+
+  const UID = '04A1B2C3D4';
+
+  /** The input of an NFC approval for `scene`; every call gets its own event id and, by default, its own key. */
+  function nfcInputFor(
+    scene: Scene,
+    { clientEventId = newId() }: { clientEventId?: string } = {},
+  ): CommitNfcApprovalInput {
+    return {
+      authorizationId: scene.authorization.id,
+      event: AccessEvent.approved({
+        id: newId(),
+        ocorridoEm: NOW,
+        metodo: 'NFC',
+        terminalId: scene.terminal.id,
+        accessPointId: scene.accessPoint.id,
+        usuarioId: scene.user.id,
+        authorizationId: scene.authorization.id,
+        clientEventId,
+        uid: UID,
+      }),
+    };
+  }
+
+  const usesOf = async (scene: Scene) =>
+    (await prisma.authorization.findUniqueOrThrow({ where: { id: scene.authorization.id } }))
+      .usosRealizados;
+
+  it('deve gravar o evento e consumir um uso, devolvendo os usos restantes, sem credencial nem comando', async () => {
+    const scene = await seedScene({ usosPermitidos: 3 });
+    const input = nfcInputFor(scene);
+
+    const result = await grants.commitNfcApproval(input);
+
+    expect(result).toEqual({ ok: true, usosRestantes: 2 });
+    expect(await usesOf(scene)).toBe(1);
+    expect(await prisma.accessEvent.findUniqueOrThrow({ where: { id: input.event.id } })).toEqual(
+      input.event,
+    );
+    expect(
+      (await prisma.qrCredential.findUniqueOrThrow({ where: { id: scene.credential.id } }))
+        .consumidoEm,
+    ).toBeNull();
+    expect(await prisma.terminalCommand.count()).toBe(0);
+  });
+
+  it('deve devolver USOS_ESGOTADOS sem deixar o evento quando os usos acabaram', async () => {
+    const scene = await seedScene({ usosPermitidos: 2, usosRealizados: 2 });
+
+    const result = await grants.commitNfcApproval(nfcInputFor(scene));
+
+    expect(result).toEqual({ ok: false, reason: 'USOS_ESGOTADOS' });
+    expect(await usesOf(scene)).toBe(2);
+    expect(await prisma.accessEvent.count()).toBe(0);
+  });
+
+  it('deve devolver USOS_ESGOTADOS quando a autorização foi cancelada, sem deixar o evento', async () => {
+    const scene = await seedScene({ situacao: 'CANCELADA' });
+
+    const result = await grants.commitNfcApproval(nfcInputFor(scene));
+
+    expect(result).toEqual({ ok: false, reason: 'USOS_ESGOTADOS' });
+    expect(await usesOf(scene)).toBe(0);
+    expect(await prisma.accessEvent.count()).toBe(0);
+  });
+
+  it('deve devolver CHAVE_REPETIDA, sem outro uso, quando a chave já pertence a um evento', async () => {
+    const scene = await seedScene({ usosPermitidos: 3 });
+    const key = newId();
+    await grants.commitNfcApproval(nfcInputFor(scene, { clientEventId: key }));
+
+    const again = await grants.commitNfcApproval(nfcInputFor(scene, { clientEventId: key }));
+
+    expect(again).toEqual({ ok: false, reason: 'CHAVE_REPETIDA' });
+    expect(await usesOf(scene)).toBe(1);
+    expect(await prisma.accessEvent.count()).toBe(1);
+  });
+
+  it('deve preferir CHAVE_REPETIDA a USOS_ESGOTADOS: a chave é conferida antes dos usos', async () => {
+    const scene = await seedScene({ usosPermitidos: 1 });
+    const key = newId();
+    await grants.commitNfcApproval(nfcInputFor(scene, { clientEventId: key }));
+
+    // The only use is spent now; the retry must still be told it is a repeat, not a denial.
+    const again = await grants.commitNfcApproval(nfcInputFor(scene, { clientEventId: key }));
+
+    expect(again).toEqual({ ok: false, reason: 'CHAVE_REPETIDA' });
+  });
+
+  it('deve lançar e não consumir uso quando o evento não pode ser gravado', async () => {
+    const scene = await seedScene({ usosPermitidos: 3 });
+    const input = nfcInputFor(scene);
+    // A terminal that does not exist breaks the foreign key of the event.
+    input.event = { ...input.event, terminalId: newId() };
+
+    await expect(grants.commitNfcApproval(input)).rejects.toThrow();
+
+    expect(await usesOf(scene)).toBe(0);
+    expect(await prisma.accessEvent.count()).toBe(0);
+  });
+
+  describe('concorrência', () => {
+    it('vinte chamadas com a mesma chave: uma aprovada, dezenove CHAVE_REPETIDA, um uso e um evento', async () => {
+      const scene = await seedScene({ usosPermitidos: 3 });
+      const key = newId();
+
+      const results = await Promise.all(
+        Array.from({ length: 20 }, () =>
+          grants.commitNfcApproval(nfcInputFor(scene, { clientEventId: key })),
+        ),
+      );
+
+      expect(results.filter((r) => r.ok)).toHaveLength(1);
+      expect(results.filter((r) => !r.ok).map((r) => (r.ok ? '' : r.reason))).toEqual(
+        Array.from({ length: 19 }, () => 'CHAVE_REPETIDA'),
+      );
+      expect(await usesOf(scene)).toBe(1);
+      expect(await prisma.accessEvent.count()).toBe(1);
+    });
+
+    it('vinte chamadas com a mesma chave e um só uso: nenhuma vira USOS_ESGOTADOS', async () => {
+      const scene = await seedScene({ usosPermitidos: 1 });
+      const key = newId();
+
+      const results = await Promise.all(
+        Array.from({ length: 20 }, () =>
+          grants.commitNfcApproval(nfcInputFor(scene, { clientEventId: key })),
+        ),
+      );
+
+      expect(results.filter((r) => r.ok)).toHaveLength(1);
+      expect(results.filter((r) => !r.ok && r.reason === 'USOS_ESGOTADOS')).toHaveLength(0);
+      expect(await usesOf(scene)).toBe(1);
+    });
+
+    it('oito chamadas com chaves diferentes e três usos: três aprovadas, cinco USOS_ESGOTADOS, três eventos', async () => {
+      const scene = await seedScene({ usosPermitidos: 3 });
+
+      const results = await Promise.all(
+        Array.from({ length: 8 }, () => grants.commitNfcApproval(nfcInputFor(scene))),
+      );
+
+      expect(results.filter((r) => r.ok)).toHaveLength(3);
+      expect(results.filter((r) => !r.ok && r.reason === 'USOS_ESGOTADOS')).toHaveLength(5);
+      expect(await usesOf(scene)).toBe(3);
+      expect(await prisma.accessEvent.count()).toBe(3);
     });
   });
 });

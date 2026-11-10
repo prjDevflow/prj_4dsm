@@ -269,6 +269,19 @@ describe('parseEnv', () => {
     }
   });
 
+  it('deve usar 3 s como padrão de NFC_DEBOUNCE_SECONDS e converter para número', () => {
+    expect(parseEnv(validSource).NFC_DEBOUNCE_SECONDS).toBe(3);
+    expect(parseEnv({ ...validSource, NFC_DEBOUNCE_SECONDS: '5' }).NFC_DEBOUNCE_SECONDS).toBe(5);
+  });
+
+  it('deve rejeitar NFC_DEBOUNCE_SECONDS zero, negativo, decimal ou não numérico', () => {
+    for (const value of ['0', '-1', 'abc', '2.5']) {
+      expect(() => parseEnv({ ...validSource, NFC_DEBOUNCE_SECONDS: value })).toThrow(
+        /NFC_DEBOUNCE_SECONDS/,
+      );
+    }
+  });
+
   it('deve aceitar tolerância do QR igual a zero e rejeitar negativa, decimal ou não numérica', () => {
     expect(parseEnv({ ...validSource, QR_TOLERANCE_SECONDS: '0' }).QR_TOLERANCE_SECONDS).toBe(0);
     for (const value of ['-1', 'abc', '2.5']) {
