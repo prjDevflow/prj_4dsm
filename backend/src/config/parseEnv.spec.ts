@@ -308,4 +308,43 @@ describe('parseEnv', () => {
       );
     },
   );
+
+  it('deve usar os limites de requisição por minuto como padrão e converter para número (B20)', () => {
+    const env = parseEnv(validSource);
+    expect(env.TERMINAL_MAX_PER_MINUTE).toBe(300);
+    expect(env.TERMINAL_AUTH_FAIL_MAX_PER_MINUTE).toBe(20);
+    expect(env.PUBLIC_MAX_PER_MINUTE).toBe(120);
+
+    const custom = parseEnv({
+      ...validSource,
+      TERMINAL_MAX_PER_MINUTE: '50',
+      TERMINAL_AUTH_FAIL_MAX_PER_MINUTE: '7',
+      PUBLIC_MAX_PER_MINUTE: '9',
+    });
+    expect(custom.TERMINAL_MAX_PER_MINUTE).toBe(50);
+    expect(custom.TERMINAL_AUTH_FAIL_MAX_PER_MINUTE).toBe(7);
+    expect(custom.PUBLIC_MAX_PER_MINUTE).toBe(9);
+  });
+
+  it.each([
+    'TERMINAL_MAX_PER_MINUTE',
+    'TERMINAL_AUTH_FAIL_MAX_PER_MINUTE',
+    'PUBLIC_MAX_PER_MINUTE',
+  ])('deve rejeitar %s zero, negativo, decimal ou não numérico', (key) => {
+    for (const value of ['0', '-1', 'abc', '2.5']) {
+      expect(() => parseEnv({ ...validSource, [key]: value })).toThrow(new RegExp(key));
+    }
+  });
+
+  it('deve usar 0 como padrão de TRUST_PROXY (não confia em nenhum proxy) e aceitar o número de proxies', () => {
+    expect(parseEnv(validSource).TRUST_PROXY).toBe(0);
+    expect(parseEnv({ ...validSource, TRUST_PROXY: '1' }).TRUST_PROXY).toBe(1);
+    expect(parseEnv({ ...validSource, TRUST_PROXY: '2' }).TRUST_PROXY).toBe(2);
+  });
+
+  it('deve rejeitar TRUST_PROXY negativo, decimal ou não numérico (inclusive true, que confiaria em qualquer cabeçalho)', () => {
+    for (const value of ['-1', 'abc', '1.5', 'true']) {
+      expect(() => parseEnv({ ...validSource, TRUST_PROXY: value })).toThrow(/TRUST_PROXY/);
+    }
+  });
 });

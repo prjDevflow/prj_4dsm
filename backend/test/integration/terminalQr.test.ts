@@ -100,6 +100,8 @@ describe('POST /api/v1/terminal/qr', () => {
 
       expect(res.status).toBe(429);
       expect(res.body.error.code).toBe('RATE_LIMITED');
+      // The minimum interval is not a per-minute limit: it never sends Retry-After (doc 03, section 4.8).
+      expect(res.headers).not.toHaveProperty('retry-after');
       expect(await storedCredentials()).toHaveLength(1);
     });
 

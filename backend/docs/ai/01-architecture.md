@@ -251,9 +251,11 @@ Create a port only when a step needs it. Do not create empty folders or speculat
 
 ## 9. HTTP wiring
 
-`main/app.ts` builds the app in this order: request id, request logging, `helmet`, `cors` (origins from env), `express.json({ limit: '100kb' })`, routers under `/api/v1`, 404 handler, error handler. The offline batch route has a tighter cap: `app.ts` mounts `express.json({ limit: '64kb' })` on it just before the general parser, which then skips a body already read. A body over a limit is a 413 `PAYLOAD_TOO_LARGE` (the error handler maps body-parser's `entity.too.large`). `main/server.ts` only calls `listen`, so supertest imports `app` without opening a port.
+`main/app.ts` builds the app in this order: `trust proxy` (the `TRUST_PROXY` hop count, never `true`), request id, request logging, `helmet` (HSTS of one year only in production), `cors` (origins from env), `express.json({ limit: '100kb' })`, routers under `/api/v1`, 404 handler, error handler. The offline batch route has a tighter cap: `app.ts` mounts `express.json({ limit: '64kb' })` on it just before the general parser, which then skips a body already read. A body over a limit is a 413 `PAYLOAD_TOO_LARGE` (the error handler maps body-parser's `entity.too.large`). `main/server.ts` only calls `listen`, so supertest imports `app` without opening a port.
 
-Middlewares in `infra/http`: `authenticate({ allowInactive? })`, `authorize(...perfis)`, `authenticateTerminal`, rate limiters. Middlewares reload the user or terminal through ports; they hold no business rules.
+Middlewares in `infra/http`: `authenticate({ allowInactive? })`, `authorize(...perfis)`, `authenticateTerminal`, rate limiters.
+
+Rate limiters are built by `makeRateLimit` (one-minute window, `Retry-After`, 429 in the API's error format); each limiter keeps its own `keyGenerator` inline, calling `ipKeyGenerator` when it uses `req.ip`. Every route builder is a function, so each app has its own counters. Terminal routes go through `[terminalAuthFailLimit, authenticateTerminal, terminalRateLimit]` in this order: failed authentications are counted per IP before the key is checked, and the per-terminal quota is spent after the terminal is known. `/health` and `/ready` share one per-IP `publicRateLimit`. Values and reasons: `docs/seguranca.md`. Middlewares reload the user or terminal through ports; they hold no business rules.
 
 The authenticated identity is exposed as `req.auth` (`{ userId, perfil }`) for users and `req.terminal` (`{ terminalId, accessPointId }`) for terminals. Declare both by augmenting Express `Request` in `src/@types/express/index.d.ts` (the template's `typeRoots` already points to `src/@types`).
 

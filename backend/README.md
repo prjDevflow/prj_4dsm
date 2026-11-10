@@ -58,6 +58,10 @@ Variáveis do `.env`:
 | `MAX_DISTANCE_M`                                       | `100`                   | distância máxima, em metros, entre o celular e o terminal  |
 | `ENROLL_MODE_SECONDS`                                  | `60`                    | segundos do modo de cadastro de tag NFC no terminal        |
 | `NFC_DEBOUNCE_SECONDS`                                 | `3`                     | segundos em que a mesma tag repete a decisão no terminal   |
+| `TERMINAL_MAX_PER_MINUTE`                              | `300`                   | requisições por minuto de cada terminal, em todas as rotas |
+| `TERMINAL_AUTH_FAIL_MAX_PER_MINUTE`                    | `20`                    | falhas de autenticação do terminal por minuto e por IP     |
+| `PUBLIC_MAX_PER_MINUTE`                                | `120`                   | requisições por minuto por IP em `/health` e `/ready`      |
+| `TRUST_PROXY`                                          | `0`                     | proxies na frente da API (um número, nunca `true`)         |
 | `SEED_*`                                               | ver `.env.example`      | credenciais e local do seed de desenvolvimento             |
 
 O `.env` nunca vai para o Git nem para a imagem Docker. Troque a senha do exemplo no seu `.env`.
@@ -85,7 +89,13 @@ curl http://localhost:3000/api/v1/health
 # {"status":"ok","version":"0.1.0","time":"...","db":"up"}
 ```
 
-Com o banco parado (`docker compose stop db`) o `/health` continua respondendo 200, com `"db":"down"`.
+Com o banco parado (`docker compose stop db`) o `/health` continua respondendo 200, com `"db":"down"`, e o
+`/ready` responde **503** (é ele que serve para alertas; ver [Segurança e monitoramento](#segurança-e-monitoramento)):
+
+```bash
+curl -i http://localhost:3000/api/v1/ready
+# 200 {"status":"ready","db":"up","time":"..."}  |  503 {"status":"unavailable","db":"down","time":"..."}
+```
 
 O que sobe:
 
@@ -373,6 +383,33 @@ curl "http://localhost:3000/api/v1/access-events?resultado=NEGADO&metodo=NFC&pag
 - Em `/me/access-events` o dono é sempre o do token: um `usuarioId` na query é ignorado. Usuário desativado leva `401`, como em `/me/authorizations`.
 - A ordem é por `ocorridoEm` e, no mesmo instante, por `id`, então uma página nunca repete nem pula um evento. Com 10 mil eventos uma página volta em cerca de 20 ms (a meta é 300 ms); os índices da B04 bastam por enquanto (ver o STATUS).
 
+## Segurança e monitoramento
+
+Checklist completo, com a evidência de cada item e os procedimentos de troca de segredos: [docs/seguranca.md](docs/seguranca.md).
+
+- **Prontidão.** `GET /api/v1/ready` (pública) dá `200` com o banco no ar e `503` com ele fora; o `/health` sempre dá `200`. Use o `/ready` num monitor de disponibilidade.
+- **Cabeçalhos.** `helmet` em todas as respostas e `Strict-Transport-Security` de um ano só em produção (`NODE_ENV=production`). O HTTPS em si é do provedor de hospedagem. CORS só para as origens de `CORS_ORIGINS`.
+- **Limites de requisição** (`429 RATE_LIMITED`; os limites por minuto trazem `Retry-After`, o intervalo mínimo do heartbeat e do QR não): login, validação de QR, cada terminal, falhas de autenticação do terminal por IP e as rotas públicas. Atrás de um proxy, configure `TRUST_PROXY` (o número de proxies), senão todos os clientes parecem ter o mesmo IP.
+- **Validação.** Toda entrada passa pelo `zod`; um teste percorre as rotas registradas e falha se alguma não for classificada e validada.
+- **Erros e logs.** O `500` não mostra `stack` em produção. Os logs ocultam `authorization`, `cookie` e `x-terminal-key`, e nunca registram corpos de requisição.
+- **Segredos e dependências.** O job **Segurança** do CI roda `npm audit --omit=dev --audit-level=high` e uma varredura de segredos (gitleaks) em todo o histórico.
+- **Trocar o `JWT_SECRET` ou a chave de um terminal:** [docs/seguranca.md](docs/seguranca.md#6-troca-de-segredos).
+
+## Documentação
+
+| Documento                                                    | O que tem                                                          |
+| ------------------------------------------------------------ | ------------------------------------------------------------------ |
+| [openapi.yaml](openapi.yaml) (Swagger em `/docs`)            | contrato de todas as rotas, com exemplos de cada resposta          |
+| [docs/arquitetura-backend.md](docs/arquitetura-backend.md)   | camadas, decisões, segurança e operação                            |
+| [docs/sequencias.md](docs/sequencias.md)                     | diagramas de sequência do acesso por QR, por NFC e do lote offline |
+| [docs/comunicacao.md](docs/comunicacao.md)                   | como o app e o terminal falam com a API                            |
+| [docs/modelo-de-dados.md](docs/modelo-de-dados.md)           | diagrama ER (gerado do schema)                                     |
+| [docs/seguranca.md](docs/seguranca.md)                       | checklist de segurança, limites, troca de segredos e monitoramento |
+| [docs/plano-de-testes.md](docs/plano-de-testes.md)           | estratégia de testes e relatório de execução                       |
+| [docs/backup-e-restauracao.md](docs/backup-e-restauracao.md) | copiar e restaurar o banco                                         |
+| [docs/ambiente-dev.md](docs/ambiente-dev.md)                 | dados de desenvolvimento e roteiro com `curl`                      |
+| [docs/eventos-campos.md](docs/eventos-campos.md)             | o que cada campo do histórico significa                            |
+
 ## Estrutura
 
 Clean Architecture, um use case por pasta. Detalhes e regra de dependência em
@@ -429,6 +466,10 @@ em todo pull request**. Quando `backend/**` mudou, ele executa, nesta ordem:
 5. testes unitários com cobertura (mínimo 80% de linhas e 75% de branches), com o relatório publicado
    como artefato `backend-coverage` (aba **Actions** do run);
 6. testes de integração.
+
+Em paralelo roda o job **Segurança**: `npm audit --omit=dev --audit-level=high` e a varredura de segredos
+(gitleaks, versão e checksum fixos, configuração em [`.gitleaks.toml`](../.gitleaks.toml)). Ele **não** faz parte
+do `backend-ci` obrigatório, para uma vulnerabilidade nova ficar visível sem travar os outros PRs.
 
 O job final **`backend-ci`** é o único check a exigir na proteção de `develop` e `main`. Ele passa quando
 o backend foi validado ou quando o PR não mexe no backend, então PRs só de `mobile/` ou `terminal/` não

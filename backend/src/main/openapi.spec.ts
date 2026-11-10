@@ -485,3 +485,99 @@ describe('openapi.yaml: informações gerais', () => {
     expect(info().description).toContain('100 kb');
   });
 });
+
+describe('openapi.yaml: GET /ready', () => {
+  interface ReadySpec {
+    paths: Record<
+      string,
+      {
+        get?: {
+          operationId?: string;
+          security?: unknown[];
+          responses: Record<
+            string,
+            { content?: { 'application/json': { example?: Record<string, unknown> } } }
+          >;
+        };
+      }
+    >;
+  }
+  const ready = () => (loadOpenApiSpec() as unknown as ReadySpec).paths['/ready']?.get;
+  const example = (status: string) =>
+    ready()?.responses[status]?.content?.['application/json'].example;
+
+  it('deve ser pública: o monitor não tem token', () => {
+    expect(ready()?.security).toEqual([]);
+  });
+
+  it('deve trazer o exemplo de 200 com o banco no ar', () => {
+    expect(example('200')).toMatchObject({ status: 'ready', db: 'up' });
+  });
+
+  it('deve trazer o exemplo de 503 com o banco fora, que não é o formato de erro', () => {
+    expect(example('503')).toMatchObject({ status: 'unavailable', db: 'down' });
+    expect(example('503')).not.toHaveProperty('error');
+  });
+});
+
+describe('openapi.yaml: limites de requisição', () => {
+  interface PathsSpec {
+    info: { description: string };
+    paths: Record<string, Record<string, { responses?: Record<string, unknown> } | undefined>>;
+  }
+  const spec = () => loadOpenApiSpec() as unknown as PathsSpec;
+  const METHODS = ['get', 'post', 'patch'];
+
+  // The spec is read once per call: loadOpenApiSpec() parses the whole YAML (140 kB) every time, and one
+  // call per path and method pushed this test past the 5 s limit when the machine was busy (coverage run).
+  const withoutRateLimit = (paths: string[], documented: PathsSpec['paths'] = spec().paths) =>
+    paths.flatMap((path) =>
+      METHODS.filter((method) => documented[path]?.[method]) // only the operations that exist
+        .filter((method) => !documented[path]?.[method]?.responses?.['429'])
+        .map((method) => `${method.toUpperCase()} ${path}`),
+    );
+
+  it('deve documentar o 429 em toda rota do terminal', () => {
+    const { paths } = spec();
+    const terminalPaths = Object.keys(paths).filter((path) => path.startsWith('/terminal/'));
+
+    expect(terminalPaths.length).toBeGreaterThanOrEqual(6);
+    expect(withoutRateLimit(terminalPaths, paths)).toEqual([]);
+  });
+
+  it('deve documentar o 429 nas rotas públicas: /health, /ready e o login', () => {
+    expect(withoutRateLimit(['/health', '/ready', '/auth/login'])).toEqual([]);
+  });
+
+  it('deve explicar nas informações gerais o 429, o código RATE_LIMITED e o Retry-After', () => {
+    const { description } = spec().info;
+
+    expect(description).toContain('429');
+    expect(description).toContain('RATE_LIMITED');
+    expect(description).toContain('Retry-After');
+  });
+
+  // The 429 of the minimum interval (B11, B12) is thrown by the use case and has no Retry-After; the
+  // per-minute limits of B20 (terminal quota, IP failures) do. Both come out of the same two routes.
+  it('deve dizer no heartbeat e no QR que o limite por minuto traz Retry-After e o intervalo mínimo não', () => {
+    const { components } = loadOpenApiSpec() as unknown as {
+      components: {
+        responses: Record<string, { description: string; headers?: Record<string, unknown> }>;
+      };
+    };
+
+    for (const name of ['HeartbeatRateLimited', 'QrRateLimited']) {
+      const response = components.responses[name];
+      expect(response?.headers, name).toHaveProperty('Retry-After');
+      expect(response?.description, name).toContain('limite por minuto');
+      expect(response?.description, name).toContain('intervalo mínimo');
+    }
+  });
+
+  it('deve avisar nas informações gerais que o intervalo mínimo do heartbeat e do QR não traz Retry-After', () => {
+    const { description } = spec().info;
+
+    expect(description).toContain('intervalo mínimo do heartbeat e do QR');
+    expect(description).toContain('sem `Retry-After`');
+  });
+});

@@ -76,7 +76,7 @@ Prefixo `/api/v1`. Ver arquivo `docs/contrato-api.md` e `openapi.yaml` no reposi
 | Auth do terminal | `X-Terminal-Id: <uuid>` e `X-Terminal-Key: <chave>` |
 | Paginação | `?page=1&pageSize=20` (máximo 100). Resposta `{ "data": [], "page": 1, "pageSize": 20, "total": 134 }` |
 | Erro | `{ "error": { "code": "CODIGO", "message": "Texto", "details": [ { "field": "email", "message": "..." } ] } }`; `details` só em validação |
-| Status | 200/201 sucesso; 401 sem login ou token inválido; 403 perfil sem permissão **ou acesso negado**; 404; 409 conflito; 413 corpo maior que o limite; 422 validação; 429 limite; 500 erro interno |
+| Status | 200/201 sucesso; 401 sem login ou token inválido; 403 perfil sem permissão **ou acesso negado**; 404; 409 conflito; 413 corpo maior que o limite; 422 validação; 429 limite de requisições (`RATE_LIMITED`; `Retry-After` nos limites por minuto, não no intervalo mínimo do heartbeat e do QR); 500 erro interno; 503 só em `GET /ready`, com o banco fora |
 | Códigos genéricos | `VALIDATION_ERROR`, `CREDENCIAIS_INVALIDAS`, `UNAUTHORIZED`, `FORBIDDEN`, `NOT_FOUND`, `CONFLICT`, `PAYLOAD_TOO_LARGE`, `RATE_LIMITED`, `INTERNAL_ERROR` |
 | Códigos específicos de conflito | `EMAIL_JA_CADASTRADO`, `ULTIMO_ADMIN`, `AUTO_DESATIVACAO`, `LOCAL_COM_AUTORIZACOES_ATIVAS`, `TAG_JA_CADASTRADA` |
 
@@ -230,6 +230,30 @@ Só `ADMIN`. Formatos adotados na B16 (o `openapi.yaml` é a fonte final; pergun
 - `de` e `ate`: instantes ISO 8601 (`Z` ou fuso), os dois **inclusivos**. Data sem hora, `ate` anterior a `de` e instante antes do ano 1 dão 422 (o PostgreSQL não tem ano 0). `motivo` aceita só os 13 códigos da seção 4.4; método e resultado, os valores do contrato.
 - Eventos são somente leitura: nenhuma rota os altera ou apaga.
 
+### 4.8 Prontidão e limites de requisição (B20)
+
+`GET /ready` (pública, para monitores) confere o banco. O `GET /health` continua respondendo 200 mesmo com o banco fora; o `/ready` é o que serve para alerta.
+
+```json
+// 200, banco no ar
+{ "status": "ready", "db": "up", "time": "2026-11-08T12:00:00.000Z" }
+// 503, banco fora (não é o formato de erro: o monitor lê o status; a mensagem do erro do banco nunca aparece)
+{ "status": "unavailable", "db": "down", "time": "2026-11-08T12:00:00.000Z" }
+```
+
+Todo limite de requisições responde `429` com `{ "error": { "code": "RATE_LIMITED", "message": "..." } }`. Os limites por minuto trazem também o cabeçalho `Retry-After` (segundos). A exceção é o intervalo mínimo do heartbeat e do QR (última linha da tabela, das etapas B11 e B12): o `429` vem sem `Retry-After` e o terminal manda o próximo no ritmo normal. Quem é contado em cada grupo de rotas:
+
+| Rotas | Contado por | Variável |
+|---|---|---|
+| `POST /auth/login` | IP e e-mail | `LOGIN_MAX_PER_MINUTE` |
+| `POST /access/qr/validate` | usuário | `QR_VALIDATE_MAX_PER_MINUTE` |
+| `GET /health`, `GET /ready` | IP (as duas somam) | `PUBLIC_MAX_PER_MINUTE` |
+| `/terminal/*` (todas somadas) | terminal | `TERMINAL_MAX_PER_MINUTE` |
+| `/terminal/*`, só as falhas de autenticação (`401`, `403`) | IP | `TERMINAL_AUTH_FAIL_MAX_PER_MINUTE` |
+| `POST /terminal/heartbeat`, `POST /terminal/qr` | terminal, intervalo mínimo | `HEARTBEAT_MIN_INTERVAL_S`, `QR_ISSUE_MIN_INTERVAL_S` |
+
+Passando do limite de falhas de autenticação, o IP recebe `429` em todas as rotas do terminal até o minuto acabar, mesmo com a chave certa. Detalhes, motivos e evidências: `docs/seguranca.md`.
+
 ## 5. Regras de acesso
 
 ### 5.1 Ordem de avaliação do QR (`POST /access/qr/validate`)
@@ -323,6 +347,10 @@ Os CHECK vão em SQL na migração. Eventos são somente inserção.
 | `COMMAND_PURGE_AFTER_HOURS` | 1 | limpeza de comandos vencidos |
 | `QR_REFRESH_MS`, `COMMAND_POLL_MS` | 10000, 1000 | enviados no heartbeat |
 | `ENROLL_MODE_SECONDS`, `NFC_DEBOUNCE_SECONDS` | 60, 3 | NFC |
+| `TERMINAL_MAX_PER_MINUTE` | 300 | requisições por terminal, somando as rotas `/terminal/*` |
+| `TERMINAL_AUTH_FAIL_MAX_PER_MINUTE` | 20 | falhas de autenticação do terminal por IP |
+| `PUBLIC_MAX_PER_MINUTE` | 120 | `/health` e `/ready` por IP |
+| `TRUST_PROXY` | 0 | quantos proxies reversos ficam na frente da API (número, nunca `true`) |
 | `SEED_ADMIN_EMAIL`, `SEED_ADMIN_PASSWORD` | — | seed |
 
 Toda variável nova entra em `.env.example` e em `config/env.ts`.

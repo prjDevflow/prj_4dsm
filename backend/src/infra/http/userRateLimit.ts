@@ -1,5 +1,5 @@
-import { rateLimit } from 'express-rate-limit';
-import { RateLimitedError, UnauthorizedError } from '../../shared/errors/AppError';
+import { UnauthorizedError } from '../../shared/errors/AppError';
+import { makeRateLimit } from './makeRateLimit';
 
 /**
  * Limits requests per minute for each authenticated user. It must run after `authenticate`: the key is the
@@ -7,15 +7,10 @@ import { RateLimitedError, UnauthorizedError } from '../../shared/errors/AppErro
  * does not use up someone else's quota. The counters live in this process's memory.
  */
 export function makeUserRateLimit(maxPerMinute: number) {
-  return rateLimit({
-    windowMs: 60_000,
-    limit: maxPerMinute,
-    standardHeaders: 'draft-7',
-    legacyHeaders: false,
+  return makeRateLimit(maxPerMinute, {
     keyGenerator: (req) => {
       if (!req.auth) throw new UnauthorizedError();
       return req.auth.userId;
     },
-    handler: (_req, _res, next) => next(new RateLimitedError()),
   });
 }

@@ -195,6 +195,8 @@ describe('POST /api/v1/terminal/heartbeat', () => {
       expect(first.status).toBe(200);
       expect(second.status).toBe(429);
       expect(second.body.error.code).toBe('RATE_LIMITED');
+      // The minimum interval is not a per-minute limit: it never sends Retry-After (doc 03, section 4.8).
+      expect(second.headers).not.toHaveProperty('retry-after');
       expect(typeof second.body.error.message).toBe('string');
       expect(await storedTerminal(terminal.id)).toMatchObject({
         ultimoContatoEm: contact,
