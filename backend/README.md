@@ -337,6 +337,25 @@ curl -X PATCH http://localhost:3000/api/v1/authorizations/<id>/cancel \
   -d '{"motivo":"Pedido da moradora"}'
 ```
 
+## Histórico de acessos
+
+As tentativas de acesso, aprovadas e negadas, da mais recente para a mais antiga (contrato no Swagger, tag `AccessEvents`). Só leitura: um evento nunca é editado nem apagado, e não existe rota para isso.
+
+| Rota                                                                                                                              | Quem                            |
+| --------------------------------------------------------------------------------------------------------------------------------- | ------------------------------- |
+| `GET /access-events` (filtros `usuarioId`, `accessPointId`, `terminalId`, `metodo`, `resultado`, `motivo`, `de`, `ate`; paginada) | `ADMIN` (os demais levam `403`) |
+| `GET /me/access-events` (os mesmos filtros, menos `usuarioId`; paginada)                                                          | qualquer perfil, só os do token |
+
+```bash
+curl "http://localhost:3000/api/v1/access-events?resultado=NEGADO&metodo=NFC&pageSize=10" \
+  -H "Authorization: Bearer <accessToken do admin>"
+```
+
+- Cada evento já traz a pessoa, o local com o edifício e o terminal (`usuario`, `local`, `terminal`), para o app não fazer várias chamadas. Os três são `null` quando a tentativa não os identificou: uma tag NFC desconhecida não tem pessoa, e um QR que não existe não chega a um terminal. O UID da tag, o prefixo do hash da credencial e a `Idempotency-Key` ficam no registro e **não** saem na resposta.
+- Os filtros se combinam. `de` e `ate` são **instantes** ISO 8601 (`2026-10-20T14:00:00Z` ou com fuso, `-03:00`), com as duas pontas **inclusivas**; uma data sem hora dá `422`, e `ate` anterior a `de` também. Na URL, o `+` de um fuso positivo vai como `%2B`. `motivo` aceita só os códigos do contrato (seção 4.4), `TERMINAL_OFFLINE` inclusive.
+- Em `/me/access-events` o dono é sempre o do token: um `usuarioId` na query é ignorado. Usuário desativado leva `401`, como em `/me/authorizations`.
+- A ordem é por `ocorridoEm` e, no mesmo instante, por `id`, então uma página nunca repete nem pula um evento. Com 10 mil eventos uma página volta em cerca de 20 ms (a meta é 300 ms); os índices da B04 bastam por enquanto (ver o STATUS).
+
 ## Estrutura
 
 Clean Architecture, um use case por pasta. Detalhes e regra de dependência em

@@ -221,6 +221,27 @@ curl -s -X POST $B/terminal/nfc "${T[@]}" -H "Idempotency-Key: $(cat /proc/sys/k
   `{"resultado":"CADASTRADA"}`, a tag aparece em `GET /nfc-tags` e nenhum evento de acesso é gravado.
 - Chave ausente ou fora do formato de UUID dá `422` no campo `Idempotency-Key`; a chave de outro terminal dá `409`.
 
+## Histórico de acessos (B18)
+
+Depois de algumas leituras (QR ou NFC, seções acima), o administrador vê as tentativas (F12). Com `$B` e o token do admin:
+
+```bash
+A=(-H "Authorization: Bearer $TOKEN_ADMIN")
+
+curl -s "$B/access-events" "${A[@]}"
+# {"data":[{"id":"…","ocorridoEm":"…","metodo":"NFC","resultado":"NEGADO","motivo":"TAG_DESCONHECIDA",
+#           "usuario":null,"local":{…},"terminal":{…}, …}],"page":1,"pageSize":20,"total":3}
+
+curl -s "$B/access-events?metodo=NFC&resultado=NEGADO" "${A[@]}"        # só as negações por NFC
+curl -s "$B/access-events?motivo=TAG_INATIVA&pageSize=5" "${A[@]}"      # só um motivo
+curl -s "$B/access-events?de=2026-10-20T11:00:00-03:00" "${A[@]}"       # de um instante em diante (inclusivo)
+curl -s "$B/me/access-events" -H "Authorization: Bearer $TOKEN_VISITANTE"   # só os do visitante
+```
+
+- `usuario`, `local` e `terminal` vêm `null` quando a tentativa não os identificou (a tag desconhecida acima não tem pessoa).
+- Em `de` e `ate`, um fuso positivo precisa de `%2B` na URL (`…T17:00:00%2B03:00`); um `+` solto vira espaço e a resposta é `422`.
+- `GET /access-events` com o token de visitante dá `403`; sem token, `401`.
+
 ## Local e autorização de teste
 
 | Item           | Valor                                                                                           |

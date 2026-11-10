@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it } from 'vitest';
 import { AccessEvent } from '../../src/entities/AccessEvent';
 import { PrismaAccessEventRepository } from '../../src/infra/repositories/PrismaAccessEventRepository';
+import type { Prisma } from '../../src/generated/prisma/client';
 import {
   expectViolation,
   insertAccessPoint,
@@ -265,5 +266,78 @@ describe('PrismaAccessEventRepository: consultas do NFC', () => {
         await events.findRecentNfc({ terminalId: scene.terminal.id, uid: UID, since }),
       ).toBeNull();
     });
+  });
+});
+
+describe('PrismaAccessEventRepository: list', () => {
+  beforeEach(resetDatabase);
+
+  const insert = (overrides: Partial<Prisma.AccessEventUncheckedCreateInput> = {}) =>
+    prisma.accessEvent.create({
+      data: { ocorridoEm: T0, metodo: 'QR', resultado: 'AUTORIZADO', ...overrides },
+    });
+
+  it('desempata os eventos do mesmo instante pelo id, do maior para o menor, sem repetir nem pular na paginação', async () => {
+    const rows = [];
+    for (let i = 0; i < 5; i++) rows.push(await insert());
+    const expected = rows
+      .map((row) => row.id)
+      .sort()
+      .reverse();
+
+    const first = await events.list({ page: 1, pageSize: 2 });
+    const second = await events.list({ page: 2, pageSize: 2 });
+    const third = await events.list({ page: 3, pageSize: 2 });
+
+    const paged = [...first.items, ...second.items, ...third.items].map((item) => item.id);
+    expect(paged).toEqual(expected);
+    expect(first.total).toBe(5);
+  });
+
+  it('lista o evento que não tem pessoa, ponto, terminal nem autorização', async () => {
+    const orphan = await insert({
+      resultado: 'NEGADO',
+      motivo: 'CREDENCIAL_INVALIDA',
+      detalhes: { credencialHashPrefixo: 'abcd1234' },
+    });
+
+    const { items, total } = await events.list({ page: 1, pageSize: 20 });
+
+    expect(total).toBe(1);
+    expect(items).toEqual([
+      {
+        id: orphan.id,
+        ocorridoEm: T0,
+        metodo: 'QR',
+        resultado: 'NEGADO',
+        motivo: 'CREDENCIAL_INVALIDA',
+        distanciaM: null,
+        authorizationId: null,
+        usuario: null,
+        local: null,
+        terminal: null,
+      },
+    ]);
+  });
+
+  it('conta o total depois dos filtros, não da página', async () => {
+    const user = await insertUser();
+    for (let i = 0; i < 3; i++) await insert({ usuarioId: user.id });
+    await insert();
+
+    const { items, total } = await events.list({ page: 1, pageSize: 2, usuarioId: user.id });
+
+    expect(items).toHaveLength(2);
+    expect(total).toBe(3);
+  });
+
+  it('lê dentro de uma transação, como o resto do repositório', async () => {
+    const inserted = await insert();
+
+    const found = await prisma.$transaction((tx) =>
+      new PrismaAccessEventRepository(tx).list({ page: 1, pageSize: 20 }),
+    );
+
+    expect(found.items.map((item) => item.id)).toEqual([inserted.id]);
   });
 });

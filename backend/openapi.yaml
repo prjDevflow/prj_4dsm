@@ -37,6 +37,11 @@ tags:
     description: >-
       Validação de acesso pelo app: a pessoa lê o QR Code do terminal e o backend decide.
       Qualquer perfil, inclusive conta inativa (para a tentativa ficar registrada).
+  - name: AccessEvents
+    description: >-
+      Histórico de acessos: as tentativas aprovadas e as negadas, da mais recente para a mais
+      antiga. Só leitura, porque um evento nunca é editado nem apagado. O ADMIN vê todas; cada
+      usuário, as próprias.
 paths:
   /health:
     get:
@@ -1492,6 +1497,325 @@ paths:
           $ref: '#/components/responses/RateLimited'
         '500':
           $ref: '#/components/responses/InternalError'
+  /access-events:
+    get:
+      tags: [AccessEvents]
+      summary: Histórico de acessos
+      description: >-
+        Só `ADMIN`. As tentativas de acesso, aprovadas e negadas, da mais recente para a mais
+        antiga (`id` desempata eventos do mesmo instante, então a página não repete nem pula
+        evento). Cada evento já traz a pessoa, o local com o edifício e o terminal resolvidos, para
+        o app não fazer várias chamadas. `usuario`, `local` e `terminal` são `null` quando a
+        tentativa não os identificou: uma tag NFC desconhecida não tem pessoa, e um QR que não
+        existe não chega a um terminal. Os filtros se combinam (todos valem ao mesmo tempo). Os
+        eventos são somente leitura: não há rota para alterá-los nem apagá-los.
+      operationId: listAccessEvents
+      parameters:
+        - name: usuarioId
+          in: query
+          description: Só os eventos desta pessoa.
+          schema:
+            type: string
+            format: uuid
+        - name: accessPointId
+          in: query
+          description: Só os eventos deste ponto de acesso.
+          schema:
+            type: string
+            format: uuid
+        - name: terminalId
+          in: query
+          description: Só os eventos deste terminal.
+          schema:
+            type: string
+            format: uuid
+        - name: metodo
+          in: query
+          schema:
+            type: string
+            enum: [QR, NFC]
+        - name: resultado
+          in: query
+          schema:
+            type: string
+            enum: [AUTORIZADO, NEGADO]
+        - name: motivo
+          in: query
+          description: >-
+            Só as negações com este código (seção 4.4 do contrato). `TERMINAL_OFFLINE` é o dos
+            eventos que o terminal envia depois de ficar sem rede.
+          schema:
+            type: string
+            enum:
+              [
+                CREDENCIAL_INVALIDA,
+                CREDENCIAL_EXPIRADA,
+                CREDENCIAL_REUTILIZADA,
+                USUARIO_INATIVO,
+                SEM_AUTORIZACAO,
+                AUTORIZACAO_CANCELADA,
+                FORA_DO_PERIODO,
+                USOS_ESGOTADOS,
+                DISTANTE_DO_TERMINAL,
+                LOCALIZACAO_INVALIDA,
+                TAG_DESCONHECIDA,
+                TAG_INATIVA,
+                TERMINAL_OFFLINE,
+              ]
+        - name: de
+          in: query
+          description: >-
+            Instante ISO 8601, com `Z` ou com fuso (`2026-10-20T14:00:00Z`,
+            `2026-10-20T11:00:00-03:00`). Só os eventos desse instante em diante: o limite é
+            **inclusivo**. Na URL, o `+` de um fuso positivo vai como `%2B`
+            (`2026-10-20T17:00:00%2B03:00`); sem isso ele vira espaço e a resposta é 422. Uma data
+            sem hora (`2026-10-20`) não é aceita.
+          schema:
+            type: string
+            format: date-time
+        - name: ate
+          in: query
+          description: >-
+            Instante ISO 8601, como em `de`. Só os eventos até esse instante: o limite é
+            **inclusivo**. Não pode ser anterior a `de` (igual a `de` vale, e é um instante só).
+          schema:
+            type: string
+            format: date-time
+        - $ref: '#/components/parameters/Page'
+        - $ref: '#/components/parameters/PageSize'
+      responses:
+        '200':
+          description: Página de eventos
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ListaEventosDeAcesso'
+              examples:
+                aprovadoPorQr:
+                  summary: Aprovado pelo QR Code, com a distância medida
+                  value:
+                    data:
+                      - id: 5eed0000-0000-4000-8000-000000000101
+                        ocorridoEm: '2026-10-20T14:32:07.123Z'
+                        metodo: QR
+                        resultado: AUTORIZADO
+                        motivo: null
+                        distanciaM: 14.25
+                        authorizationId: 5eed0000-0000-4000-8000-000000000008
+                        usuario:
+                          id: 5eed0000-0000-4000-8000-000000000002
+                          nome: Maria Souza
+                          perfil: VISITANTE
+                        local:
+                          id: 5eed0000-0000-4000-8000-000000000005
+                          nome: Catraca Social
+                          tipo: CATRACA
+                          edificio:
+                            id: 5eed0000-0000-4000-8000-000000000004
+                            nome: Edifício Central
+                        terminal:
+                          id: 5eed0000-0000-4000-8000-000000000006
+                          nome: Terminal Social
+                    page: 1
+                    pageSize: 20
+                    total: 1
+                negadoPorNfc:
+                  summary: Negado pelo NFC, fora do horário da autorização
+                  value:
+                    data:
+                      - id: 5eed0000-0000-4000-8000-000000000102
+                        ocorridoEm: '2026-10-20T22:05:41.882Z'
+                        metodo: NFC
+                        resultado: NEGADO
+                        motivo: FORA_DO_PERIODO
+                        distanciaM: null
+                        authorizationId: null
+                        usuario:
+                          id: 5eed0000-0000-4000-8000-000000000002
+                          nome: Maria Souza
+                          perfil: VISITANTE
+                        local:
+                          id: 5eed0000-0000-4000-8000-000000000005
+                          nome: Catraca Social
+                          tipo: CATRACA
+                          edificio:
+                            id: 5eed0000-0000-4000-8000-000000000004
+                            nome: Edifício Central
+                        terminal:
+                          id: 5eed0000-0000-4000-8000-000000000006
+                          nome: Terminal Social
+                    page: 1
+                    pageSize: 20
+                    total: 1
+                tagDesconhecida:
+                  summary: 'Tag que ninguém cadastrou: não há pessoa (usuario é null)'
+                  value:
+                    data:
+                      - id: 5eed0000-0000-4000-8000-000000000103
+                        ocorridoEm: '2026-10-20T22:07:12.004Z'
+                        metodo: NFC
+                        resultado: NEGADO
+                        motivo: TAG_DESCONHECIDA
+                        distanciaM: null
+                        authorizationId: null
+                        usuario: null
+                        local:
+                          id: 5eed0000-0000-4000-8000-000000000005
+                          nome: Catraca Social
+                          tipo: CATRACA
+                          edificio:
+                            id: 5eed0000-0000-4000-8000-000000000004
+                            nome: Edifício Central
+                        terminal:
+                          id: 5eed0000-0000-4000-8000-000000000006
+                          nome: Terminal Social
+                    page: 1
+                    pageSize: 20
+                    total: 1
+                credencialDesconhecida:
+                  summary: 'QR que não existe: a pessoa está logada, mas não há ponto nem terminal'
+                  value:
+                    data:
+                      - id: 5eed0000-0000-4000-8000-000000000104
+                        ocorridoEm: '2026-10-20T22:09:30.517Z'
+                        metodo: QR
+                        resultado: NEGADO
+                        motivo: CREDENCIAL_INVALIDA
+                        distanciaM: null
+                        authorizationId: null
+                        usuario:
+                          id: 5eed0000-0000-4000-8000-000000000002
+                          nome: Maria Souza
+                          perfil: VISITANTE
+                        local: null
+                        terminal: null
+                    page: 1
+                    pageSize: 20
+                    total: 1
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '422':
+          $ref: '#/components/responses/AccessEventQueryError'
+        '500':
+          $ref: '#/components/responses/InternalError'
+  /me/access-events:
+    get:
+      tags: [AccessEvents]
+      summary: Meu histórico de acessos
+      description: >-
+        Qualquer perfil autenticado; devolve só os eventos do dono do token. Um `usuarioId` enviado
+        na query é ignorado. Mesmo objeto, mesma ordem e mesmos filtros de `GET /access-events`,
+        menos `usuarioId`. Eventos que não identificaram ninguém (uma tag desconhecida) não
+        aparecem para ninguém aqui.
+      operationId: listMyAccessEvents
+      parameters:
+        - name: accessPointId
+          in: query
+          description: Só os eventos deste ponto de acesso.
+          schema:
+            type: string
+            format: uuid
+        - name: terminalId
+          in: query
+          description: Só os eventos deste terminal.
+          schema:
+            type: string
+            format: uuid
+        - name: metodo
+          in: query
+          schema:
+            type: string
+            enum: [QR, NFC]
+        - name: resultado
+          in: query
+          schema:
+            type: string
+            enum: [AUTORIZADO, NEGADO]
+        - name: motivo
+          in: query
+          description: >-
+            Só as negações com este código (seção 4.4 do contrato). `TERMINAL_OFFLINE` é o dos
+            eventos que o terminal envia depois de ficar sem rede.
+          schema:
+            type: string
+            enum:
+              [
+                CREDENCIAL_INVALIDA,
+                CREDENCIAL_EXPIRADA,
+                CREDENCIAL_REUTILIZADA,
+                USUARIO_INATIVO,
+                SEM_AUTORIZACAO,
+                AUTORIZACAO_CANCELADA,
+                FORA_DO_PERIODO,
+                USOS_ESGOTADOS,
+                DISTANTE_DO_TERMINAL,
+                LOCALIZACAO_INVALIDA,
+                TAG_DESCONHECIDA,
+                TAG_INATIVA,
+                TERMINAL_OFFLINE,
+              ]
+        - name: de
+          in: query
+          description: >-
+            Instante ISO 8601, com `Z` ou com fuso (`2026-10-20T14:00:00Z`,
+            `2026-10-20T11:00:00-03:00`). Só os eventos desse instante em diante: o limite é
+            **inclusivo**. Na URL, o `+` de um fuso positivo vai como `%2B`
+            (`2026-10-20T17:00:00%2B03:00`); sem isso ele vira espaço e a resposta é 422. Uma data
+            sem hora (`2026-10-20`) não é aceita.
+          schema:
+            type: string
+            format: date-time
+        - name: ate
+          in: query
+          description: >-
+            Instante ISO 8601, como em `de`. Só os eventos até esse instante: o limite é
+            **inclusivo**. Não pode ser anterior a `de` (igual a `de` vale, e é um instante só).
+          schema:
+            type: string
+            format: date-time
+        - $ref: '#/components/parameters/Page'
+        - $ref: '#/components/parameters/PageSize'
+      responses:
+        '200':
+          description: Página dos meus eventos
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ListaEventosDeAcesso'
+              example:
+                data:
+                  - id: 5eed0000-0000-4000-8000-000000000101
+                    ocorridoEm: '2026-10-20T14:32:07.123Z'
+                    metodo: QR
+                    resultado: AUTORIZADO
+                    motivo: null
+                    distanciaM: 14.25
+                    authorizationId: 5eed0000-0000-4000-8000-000000000008
+                    usuario:
+                      id: 5eed0000-0000-4000-8000-000000000002
+                      nome: Maria Souza
+                      perfil: VISITANTE
+                    local:
+                      id: 5eed0000-0000-4000-8000-000000000005
+                      nome: Catraca Social
+                      tipo: CATRACA
+                      edificio:
+                        id: 5eed0000-0000-4000-8000-000000000004
+                        nome: Edifício Central
+                    terminal:
+                      id: 5eed0000-0000-4000-8000-000000000006
+                      nome: Terminal Social
+                page: 1
+                pageSize: 20
+                total: 1
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '422':
+          $ref: '#/components/responses/AccessEventQueryError'
+        '500':
+          $ref: '#/components/responses/InternalError'
   /terminal/heartbeat:
     post:
       tags: [Terminal]
@@ -2607,6 +2931,111 @@ components:
         total:
           type: integer
           description: Total de autorizações que atendem aos filtros, antes da paginação.
+    ListaEventosDeAcesso:
+      type: object
+      required: [data, page, pageSize, total]
+      properties:
+        data:
+          type: array
+          items:
+            $ref: '#/components/schemas/EventoDeAcesso'
+        page:
+          type: integer
+        pageSize:
+          type: integer
+        total:
+          type: integer
+          description: Total de eventos que atendem aos filtros, antes da paginação.
+    EventoDeAcesso:
+      type: object
+      description: >-
+        Uma tentativa de acesso. Não traz o UID da tag, o prefixo do hash da credencial nem a
+        `Idempotency-Key` da leitura: são dados internos do registro.
+      required:
+        - id
+        - ocorridoEm
+        - metodo
+        - resultado
+        - motivo
+        - distanciaM
+        - authorizationId
+        - usuario
+        - local
+        - terminal
+      properties:
+        id:
+          type: string
+          format: uuid
+        ocorridoEm:
+          type: string
+          format: date-time
+          description: O instante do servidor, em UTC.
+        metodo:
+          type: string
+          enum: [QR, NFC]
+        resultado:
+          type: string
+          enum: [AUTORIZADO, NEGADO]
+        motivo:
+          type: string
+          nullable: true
+          description: Código de negação (seção 4.4 do contrato). `null` quando `AUTORIZADO`.
+        distanciaM:
+          type: number
+          nullable: true
+          description: >-
+            Distância medida até o terminal, em metros. Só existe no QR, quando aprovado e em
+            `DISTANTE_DO_TERMINAL`; `null` no NFC e nas demais negações.
+        authorizationId:
+          type: string
+          format: uuid
+          nullable: true
+          description: A autorização usada. Preenchida quando `AUTORIZADO` e em algumas negações do QR.
+        usuario:
+          type: object
+          nullable: true
+          required: [id, nome, perfil]
+          properties:
+            id:
+              type: string
+              format: uuid
+            nome:
+              type: string
+            perfil:
+              type: string
+              enum: [ADMIN, CONDOMINO, VISITANTE]
+        local:
+          type: object
+          nullable: true
+          required: [id, nome, tipo, edificio]
+          properties:
+            id:
+              type: string
+              format: uuid
+            nome:
+              type: string
+            tipo:
+              type: string
+              enum: [PORTARIA, PORTA, CATRACA]
+            edificio:
+              type: object
+              required: [id, nome]
+              properties:
+                id:
+                  type: string
+                  format: uuid
+                nome:
+                  type: string
+        terminal:
+          type: object
+          nullable: true
+          required: [id, nome]
+          properties:
+            id:
+              type: string
+              format: uuid
+            nome:
+              type: string
     Autorizacao:
       type: object
       required:
@@ -3000,6 +3429,33 @@ components:
                   details:
                     - field: dataAte
                       message: deve ser igual ou depois de dataDe
+    AccessEventQueryError:
+      description: Filtro ou paginação inválidos, com a mensagem de cada parâmetro em `details`
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          examples:
+            filtrosInvalidos:
+              summary: Método desconhecido e instante que não é ISO 8601
+              value:
+                error:
+                  code: VALIDATION_ERROR
+                  message: Dados inválidos
+                  details:
+                    - field: metodo
+                      message: deve ser QR ou NFC
+                    - field: de
+                      message: deve ser um instante ISO 8601
+            periodoInvertido:
+              summary: ate antes de de
+              value:
+                error:
+                  code: VALIDATION_ERROR
+                  message: Dados inválidos
+                  details:
+                    - field: ate
+                      message: não pode ser anterior a de
     AuthorizationCancelError:
       description: Motivo com mais de 200 caracteres
       content:
