@@ -2,7 +2,13 @@ openapi: 3.1.0
 info:
   title: API de Controle de Acesso
   version: 0.1.0
-  description: Backend do sistema integrado de controle de acesso (ABP 2026-2).
+  description: >-
+    Backend do sistema integrado de controle de acesso (ABP 2026-2).
+
+
+    **Corpo grande demais:** em qualquer rota, um corpo acima de 100 kb dá `413` com o código
+    `PAYLOAD_TOO_LARGE` (antes era um `500`); o lote offline (`POST /terminal/events/batch`) tem um limite
+    próprio, de 64 kb. Nada é processado.
 servers:
   - url: http://localhost:3000/api/v1
     description: Local
@@ -2056,6 +2062,81 @@ paths:
           $ref: '#/components/responses/NfcReadValidationError'
         '500':
           $ref: '#/components/responses/InternalError'
+  /terminal/events/batch:
+    post:
+      tags: [Terminal]
+      summary: Enviar as tentativas guardadas enquanto o terminal estava sem conexão
+      description: >-
+        Sem rede, o terminal **nega** as leituras e as guarda. Ao reconectar, envia aqui, em lote, o que
+        guardou. Autenticado pela chave do terminal (cabeçalhos `X-Terminal-Id` e `X-Terminal-Key`),
+        nunca pelo token de usuário.
+
+
+        **Só negações:** o terminal sem conexão não consumiu nenhum uso, então um evento `AUTORIZADO` é
+        recusado (422), assim como um `metodo` que não seja `NFC` e um `motivo` que não seja
+        `TERMINAL_OFFLINE`. Cada evento vira uma linha do histórico (`GET /access-events`) com esse
+        motivo, o terminal e o local de quem enviou e, quando a tag é conhecida (ativa ou não), a
+        pessoa dela em `usuario`; uma tag desconhecida fica sem pessoa. O envio não consome uso, não
+        cria comando e não altera nenhuma autorização.
+
+
+        **Idempotência:** cada evento traz uma `clientEventId`, um UUID escolhido pelo terminal (vale em
+        minúsculas ou maiúsculas) e único em todo o sistema. Um evento cuja chave já está guardada não
+        é gravado de novo e **não é erro**: entra na contagem de `duplicados`. Por isso o terminal pode
+        reenviar o mesmo lote quantas vezes precisar (depois de um 500, ou de uma queda antes de ler a
+        resposta) e deve guardar os eventos até receber o 200. Uma chave repetida dentro do mesmo lote
+        também conta como duplicada. Uma chave que já pertence a outro terminal, ou a uma leitura NFC ao
+        vivo (`Idempotency-Key`), conta como duplicada também; o evento que já existia não é alterado.
+
+
+        **Limites:** de 1 a 50 eventos por lote e corpo de até 64 kb (acima disso, 413
+        `PAYLOAD_TOO_LARGE`). `ocorridoEm` é o instante do relógio do terminal e precisa estar entre
+        7 dias antes e 5 minutos depois do relógio do servidor, as duas pontas incluídas. Um problema em
+        qualquer evento rejeita o lote inteiro com 422, sem gravar nada, e o `details` aponta cada
+        problema com o índice do evento (`events.1.resultado`).
+
+
+        Os eventos aparecem no histórico no instante em que ocorreram, não no do envio. As leituras NFC
+        ao vivo não são afetadas por eles: a repetição rápida (`NFC_DEBOUNCE_SECONDS`) só olha leituras
+        ao vivo.
+      operationId: ingestOfflineEvents
+      security:
+        - terminalId: []
+          terminalKey: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LoteOffline'
+            example:
+              events:
+                - clientEventId: 3f1c9a52-8e0b-4f55-9d57-2a6f0c1d7e44
+                  metodo: NFC
+                  uid: 04A1B2C3D4
+                  ocorridoEm: '2026-10-20T14:12:07Z'
+                  resultado: NEGADO
+                  motivo: TERMINAL_OFFLINE
+      responses:
+        '200':
+          description: O lote foi processado, inclusive quando todos os eventos já eram conhecidos
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ResultadoLote'
+              example:
+                aceitos: 3
+                duplicados: 1
+        '401':
+          $ref: '#/components/responses/TerminalUnauthorized'
+        '403':
+          $ref: '#/components/responses/TerminalForbidden'
+        '413':
+          $ref: '#/components/responses/PayloadTooLarge'
+        '422':
+          $ref: '#/components/responses/OfflineBatchValidationError'
+        '500':
+          $ref: '#/components/responses/InternalError'
   /terminal/commands:
     get:
       tags: [Terminal]
@@ -2969,7 +3050,10 @@ components:
         ocorridoEm:
           type: string
           format: date-time
-          description: O instante do servidor, em UTC.
+          description: >-
+            O instante da tentativa, em UTC. É o do servidor, exceto nos eventos com `motivo`
+            `TERMINAL_OFFLINE`: nesses é o do relógio do terminal, que enviou o lote depois (até 7 dias
+            depois).
         metodo:
           type: string
           enum: [QR, NFC]
@@ -3172,6 +3256,7 @@ components:
                   TAG_JA_CADASTRADA,
                   CONFLICT,
                   RATE_LIMITED,
+                  PAYLOAD_TOO_LARGE,
                   INTERNAL_ERROR,
                   CREDENCIAL_INVALIDA,
                   CREDENCIAL_EXPIRADA,
@@ -3232,6 +3317,60 @@ components:
             - FORA_DO_PERIODO
             - USOS_ESGOTADOS
           description: Só em `NEGADO`.
+    LoteOffline:
+      type: object
+      required: [events]
+      properties:
+        events:
+          type: array
+          minItems: 1
+          maxItems: 50
+          items:
+            $ref: '#/components/schemas/EventoOffline'
+    EventoOffline:
+      type: object
+      description: Uma tentativa que o terminal negou e guardou enquanto estava sem conexão.
+      required: [clientEventId, metodo, uid, ocorridoEm, resultado, motivo]
+      properties:
+        clientEventId:
+          type: string
+          format: uuid
+          description: >-
+            Chave do evento, escolhida pelo terminal e única em todo o sistema. Reenviar o evento com a
+            mesma chave não o grava de novo (conta em `duplicados`).
+        metodo:
+          type: string
+          enum: [NFC]
+          description: Só `NFC` (o QR depende do servidor e não acontece sem conexão).
+        uid:
+          type: string
+          description: >-
+            UID da tag: hexadecimal, 8 a 20 caracteres depois de tirar `:`, `-` e espaços; maiúsculas
+            ou minúsculas.
+          example: 04:a1:b2:c3:d4
+        ocorridoEm:
+          type: string
+          format: date-time
+          description: >-
+            Instante da tentativa segundo o relógio do terminal. No máximo 7 dias antes e 5 minutos
+            depois do relógio do servidor.
+        resultado:
+          type: string
+          enum: [NEGADO]
+          description: Só `NEGADO` (sem conexão o terminal nega, e nenhum uso foi consumido).
+        motivo:
+          type: string
+          enum: [TERMINAL_OFFLINE]
+    ResultadoLote:
+      type: object
+      required: [aceitos, duplicados]
+      properties:
+        aceitos:
+          type: integer
+          description: Eventos gravados agora.
+        duplicados:
+          type: integer
+          description: Eventos cuja `clientEventId` já estava guardada (ou repetida no próprio lote), ignorados.
   responses:
     ValidationError:
       description: Corpo inválido ou JSON malformado
@@ -3745,6 +3884,63 @@ components:
                   details:
                     - field: usuarioId
                       message: Usuário inativo
+    PayloadTooLarge:
+      description: >-
+        Corpo maior que o limite: 64 kb no lote offline (`POST /terminal/events/batch`) e 100 kb nas
+        demais rotas. Nada foi processado.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          example:
+            error:
+              code: PAYLOAD_TOO_LARGE
+              message: O corpo da requisição é maior que o limite permitido
+    OfflineBatchValidationError:
+      description: >-
+        O lote inteiro foi rejeitado e nada foi gravado. O `details` traz um item por problema, com o
+        índice do evento no campo (`events.1.resultado`). Os problemas de formato (chave que não é UUID,
+        instante inválido, valor fora do vocabulário do contrato, lote vazio ou com mais de 50 eventos)
+        vêm sozinhos; corrigidos esses, vêm os das regras do terminal sem conexão, todos de uma vez
+        (aprovação, método que não seja NFC, motivo que não seja `TERMINAL_OFFLINE`, UID inválido e
+        `ocorridoEm` fora da janela).
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          examples:
+            aprovacaoNoLote:
+              value:
+                error:
+                  code: VALIDATION_ERROR
+                  message: Dados inválidos
+                  details:
+                    - field: events.1.resultado
+                      message: o terminal sem conexão só envia NEGADO; uma aprovação não pode ser enviada em lote
+            instanteForaDaJanela:
+              value:
+                error:
+                  code: VALIDATION_ERROR
+                  message: Dados inválidos
+                  details:
+                    - field: events.0.ocorridoEm
+                      message: deve estar entre 7 dias antes e 5 minutos depois do horário do servidor
+            uidInvalido:
+              value:
+                error:
+                  code: VALIDATION_ERROR
+                  message: Dados inválidos
+                  details:
+                    - field: events.2.uid
+                      message: deve ser hexadecimal, com 8 a 20 caracteres (":", "-" e espaços são ignorados)
+            loteGrande:
+              value:
+                error:
+                  code: VALIDATION_ERROR
+                  message: Dados inválidos
+                  details:
+                    - field: events
+                      message: deve ter no máximo 50 eventos
     InternalError:
       description: Erro interno (sem stack trace em produção)
       content:

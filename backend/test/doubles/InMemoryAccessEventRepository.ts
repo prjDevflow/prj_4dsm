@@ -1,4 +1,5 @@
 import type { AccessEvent } from '../../src/entities/AccessEvent';
+import { OFFLINE_DENIAL_REASON } from '../../src/entities/DenialReason';
 import type {
   AccessEventDetails,
   AccessEventListFilter,
@@ -109,6 +110,20 @@ export class InMemoryAccessEventRepository implements IAccessEventRepository {
     this.items.push({ ...event });
   }
 
+  async appendIfAbsent(events: AccessEvent[]) {
+    if (this.failure) throw this.failure;
+    let stored = 0;
+    for (const event of events) {
+      const taken =
+        event.clientEventId !== null &&
+        this.items.some((item) => item.clientEventId === event.clientEventId);
+      if (taken) continue;
+      this.items.push({ ...event });
+      stored += 1;
+    }
+    return stored;
+  }
+
   async findByClientEventId(clientEventId: string) {
     const found = this.items.find((item) => item.clientEventId === clientEventId);
     return found ? { ...found } : null;
@@ -119,6 +134,8 @@ export class InMemoryAccessEventRepository implements IAccessEventRepository {
       .filter(
         (item) =>
           item.metodo === 'NFC' &&
+          // A batch sent after the terminal was offline carries the terminal's clock, not a live read.
+          item.motivo !== OFFLINE_DENIAL_REASON &&
           item.terminalId === terminalId &&
           item.detalhes?.uid === uid &&
           item.ocorridoEm.getTime() > since.getTime(),
@@ -127,8 +144,8 @@ export class InMemoryAccessEventRepository implements IAccessEventRepository {
     return newestFirst[0] ? { ...newestFirst[0] } : null;
   }
 
-  /** Makes every following `append` fail with `error`, like a database that stopped answering. */
-  failWith(error: Error) {
+  /** Makes every following write fail with `error`, like a database that stopped answering; `null` heals it. */
+  failWith(error: Error | null) {
     this.failure = error;
   }
 

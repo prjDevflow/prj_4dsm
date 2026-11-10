@@ -42,6 +42,12 @@ export class NotFoundError extends AppError {
   }
 }
 
+export class PayloadTooLargeError extends AppError {
+  constructor(message = 'O corpo da requisição é maior que o limite permitido') {
+    super('PAYLOAD_TOO_LARGE', message, 413);
+  }
+}
+
 export class ConflictError extends AppError {
   constructor(code: string, message: string) {
     super(code, message, 409);

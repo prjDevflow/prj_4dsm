@@ -266,6 +266,203 @@ describe('PrismaAccessEventRepository: consultas do NFC', () => {
         await events.findRecentNfc({ terminalId: scene.terminal.id, uid: UID, since }),
       ).toBeNull();
     });
+
+    describe('eventos de um lote offline (B19)', () => {
+      const offline = (scene: Awaited<ReturnType<typeof seedTerminal>>, at: Date) =>
+        nfcEvent(scene, at, { motivo: 'TERMINAL_OFFLINE', clientEventId: newId() });
+
+      it('ignora o evento TERMINAL_OFFLINE recente do mesmo UID e do mesmo terminal', async () => {
+        const scene = await seedTerminal();
+        await events.append(offline(scene, new Date(T0.getTime() - 500)));
+
+        expect(
+          await events.findRecentNfc({ terminalId: scene.terminal.id, uid: UID, since }),
+        ).toBeNull();
+      });
+
+      it('ignora o evento TERMINAL_OFFLINE com data adiantada em relação ao servidor', async () => {
+        const scene = await seedTerminal();
+        await events.append(offline(scene, new Date(T0.getTime() + 4 * 60 * 1000)));
+
+        expect(
+          await events.findRecentNfc({ terminalId: scene.terminal.id, uid: UID, since }),
+        ).toBeNull();
+      });
+
+      it('devolve a leitura ao vivo mais antiga quando há um evento offline mais novo', async () => {
+        const scene = await seedTerminal();
+        const live = nfcEvent(scene, new Date(T0.getTime() - 2000));
+        await events.append(live);
+        await events.append(offline(scene, new Date(T0.getTime() - 500)));
+
+        const found = await events.findRecentNfc({
+          terminalId: scene.terminal.id,
+          uid: UID,
+          since,
+        });
+
+        expect(found).toEqual(live);
+      });
+
+      it('continua devolvendo a leitura aprovada, que não tem motivo (NULL no SQL)', async () => {
+        const scene = await seedTerminal();
+        const user = await insertUser();
+        const authorization = await insertAuthorization({
+          usuarioId: user.id,
+          accessPointId: scene.accessPoint.id,
+        });
+        const approved = AccessEvent.approved({
+          id: newId(),
+          ocorridoEm: new Date(T0.getTime() - 500),
+          metodo: 'NFC',
+          terminalId: scene.terminal.id,
+          accessPointId: scene.accessPoint.id,
+          usuarioId: user.id,
+          authorizationId: authorization.id,
+          uid: UID,
+        });
+        await events.append(approved);
+
+        const found = await events.findRecentNfc({
+          terminalId: scene.terminal.id,
+          uid: UID,
+          since,
+        });
+
+        expect(found).toEqual(approved);
+      });
+    });
+  });
+});
+
+describe('PrismaAccessEventRepository: appendIfAbsent', () => {
+  beforeEach(resetDatabase);
+
+  const key = (n: number) => `3f1c9a52-8e0b-4f55-9d57-${String(n).padStart(12, '0')}`;
+
+  async function seedTerminal() {
+    const accessPoint = await insertAccessPoint();
+    const terminal = await insertTerminal({ accessPointId: accessPoint.id });
+    return { accessPoint, terminal };
+  }
+
+  /** What IngestOfflineEvents stores: a denial with the terminal's own clock and the client's key. */
+  const offlineEvent = (
+    scene: Awaited<ReturnType<typeof seedTerminal>>,
+    n: number,
+    overrides: Partial<Parameters<typeof AccessEvent.denied>[0]> = {},
+  ) =>
+    AccessEvent.denied({
+      id: newId(),
+      ocorridoEm: new Date(T0.getTime() - n * 1000),
+      metodo: 'NFC',
+      terminalId: scene.terminal.id,
+      accessPointId: scene.accessPoint.id,
+      motivo: 'TERMINAL_OFFLINE',
+      clientEventId: key(n),
+      uid: '04A1B2C3',
+      ...overrides,
+    });
+
+  it('grava todos os eventos novos, com todos os campos, e devolve quantos gravou', async () => {
+    const scene = await seedTerminal();
+    const user = await insertUser();
+    const batch = [offlineEvent(scene, 1, { usuarioId: user.id }), offlineEvent(scene, 2)];
+
+    const stored = await events.appendIfAbsent(batch);
+
+    expect(stored).toBe(2);
+    const rows = await prisma.accessEvent.findMany({ orderBy: { clientEventId: 'asc' } });
+    expect(rows).toEqual(batch);
+  });
+
+  it('pula o evento cuja chave já existe, sem alterar o que estava gravado, e conta só os novos', async () => {
+    const scene = await seedTerminal();
+    const original = offlineEvent(scene, 1);
+    await events.appendIfAbsent([original]);
+
+    const stored = await events.appendIfAbsent([
+      offlineEvent(scene, 1, { ocorridoEm: T0, uid: 'AABBCCDD' }),
+      offlineEvent(scene, 2),
+    ]);
+
+    expect(stored).toBe(1);
+    expect(await prisma.accessEvent.count()).toBe(2);
+    expect(await prisma.accessEvent.findUniqueOrThrow({ where: { id: original.id } })).toEqual(
+      original,
+    );
+  });
+
+  it('grava só o primeiro quando a mesma chave se repete dentro da lista', async () => {
+    const scene = await seedTerminal();
+    const first = offlineEvent(scene, 1);
+
+    const stored = await events.appendIfAbsent([first, offlineEvent(scene, 1)]);
+
+    expect(stored).toBe(1);
+    const rows = await prisma.accessEvent.findMany();
+    expect(rows).toEqual([first]);
+  });
+
+  it('devolve 0 e não falha com uma lista vazia', async () => {
+    expect(await events.appendIfAbsent([])).toBe(0);
+  });
+
+  it('grava cada evento uma única vez quando vários envios da mesma lista chegam ao mesmo tempo', async () => {
+    const scene = await seedTerminal();
+    const batch = Array.from({ length: 10 }, (_, i) => offlineEvent(scene, i + 1));
+
+    // Every call builds new ids for the same keys, as every resend of a batch does.
+    const results = await Promise.all(
+      Array.from({ length: 6 }, () =>
+        events.appendIfAbsent(batch.map((event) => ({ ...event, id: newId() }))),
+      ),
+    );
+
+    expect(results.reduce((sum, stored) => sum + stored, 0)).toBe(10);
+    expect(await prisma.accessEvent.count()).toBe(10);
+  });
+
+  it('não dá deadlock quando dois envios simultâneos trazem as mesmas chaves em ordens opostas', async () => {
+    const scene = await seedTerminal();
+    const rounds = 30;
+
+    for (let round = 0; round < rounds; round += 1) {
+      // New keys every round, 50 per batch (the most a request carries), the second batch reversed.
+      const ascending = Array.from({ length: 50 }, (_, i) =>
+        offlineEvent(scene, round * 100 + i + 1),
+      );
+      const descending = [...ascending].reverse().map((event) => ({ ...event, id: newId() }));
+
+      const results = await Promise.allSettled([
+        events.appendIfAbsent(ascending),
+        events.appendIfAbsent(descending),
+      ]);
+
+      // A rejection shows its reason in the failure message instead of a bare "rejected".
+      expect(
+        results.map((result) =>
+          result.status === 'fulfilled' ? 'fulfilled' : String(result.reason),
+        ),
+      ).toEqual(['fulfilled', 'fulfilled']);
+      const stored = results.reduce(
+        (sum, result) => sum + (result.status === 'fulfilled' ? result.value : 0),
+        0,
+      );
+      expect(stored).toBe(50);
+    }
+    expect(await prisma.accessEvent.count()).toBe(rounds * 50);
+  });
+
+  it('não grava nada de um evento com a chave já usada por uma leitura ao vivo', async () => {
+    const scene = await seedTerminal();
+    const live = offlineEvent(scene, 1, { motivo: 'TAG_DESCONHECIDA' });
+    await events.append(live);
+
+    const stored = await events.appendIfAbsent([offlineEvent(scene, 1)]);
+
+    expect(stored).toBe(0);
+    expect(await prisma.accessEvent.findUniqueOrThrow({ where: { id: live.id } })).toEqual(live);
   });
 });
 

@@ -21,6 +21,12 @@ export const DENIAL_REASONS = [
 export type DenialReason = (typeof DENIAL_REASONS)[number];
 
 /**
+ * The reason of an event a terminal sends in a batch after an outage (B19). Those events carry the
+ * terminal's own clock, so the NFC debounce must never take one for a read happening now.
+ */
+export const OFFLINE_DENIAL_REASON = 'TERMINAL_OFFLINE' satisfies DenialReason;
+
+/**
  * The ten reasons a QR validation can deny with (doc 03, section 4.4): the eleven checks of section 5.1
  * share these codes, since check 4 reuses `CREDENCIAL_INVALIDA`. The NFC codes and `TERMINAL_OFFLINE` do not apply.
  */
