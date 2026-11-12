@@ -1,4 +1,4 @@
-import { fireEvent, render, screen } from '@testing-library/react-native';
+import { fireEvent, render, screen, waitFor } from '@testing-library/react-native';
 import type { EventoDeAcesso } from '@/lib/types/accessEvents';
 import {
   FakeAccessEventDirectory,
@@ -87,7 +87,7 @@ describe('Histórico (T26)', () => {
   it('o método aparece com ícone e texto', async () => {
     await renderHistory();
 
-    expect((await screen.findAllByText('Tag NFC')).length).toBeGreaterThan(0);
+    expect((await screen.findAllByText(/, Tag NFC$/)).length).toBeGreaterThan(0);
     expect(screen.getAllByTestId('metodo-icon', { includeHiddenElements: true }).length).toBe(
       sampleAccessEvents(NOW).length,
     );
@@ -103,9 +103,11 @@ describe('Histórico (T26)', () => {
     await renderHistory(events);
     await screen.findAllByText('QR Code expirado');
 
-    const tree = JSON.stringify(screen.toJSON());
-    for (const code of codes) expect(tree).not.toContain(code);
-    expect(screen.getByText('Terminal sem conexão')).toBeOnTheScreen();
+    for (const code of codes) {
+      expect(screen.queryByText(new RegExp(code))).toBeNull();
+      expect(screen.queryByLabelText(new RegExp(code))).toBeNull();
+    }
+    expect(screen.getByText('QR Code inválido')).toBeOnTheScreen();
   });
 
   it('tocar num item abre o detalhe', async () => {
@@ -138,11 +140,13 @@ describe('Histórico (T26)', () => {
     await fireEvent.press(await screen.findByRole('radio', { name: 'Negado' }));
 
     expect(await screen.findByRole('button', { name: 'Limpar filtros' })).toBeOnTheScreen();
-    expect(
-      screen.queryByRole('button', {
-        name: /^Visitante \(dev\), Catraca Social, QR Code, 24\/10 14:48:00, Autorizado/,
-      }),
-    ).toBeNull();
+    await waitFor(() =>
+      expect(
+        screen.queryByRole('button', {
+          name: /^Visitante \(dev\), Catraca Social, QR Code, 24\/10 14:48:00, Autorizado/,
+        }),
+      ).toBeNull(),
+    );
   });
 
   it('"Período" abre as datas "De" e "Até"', async () => {

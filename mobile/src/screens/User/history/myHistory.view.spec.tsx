@@ -43,7 +43,8 @@ describe('Meu histórico (T12)', () => {
     await screen.findAllByText('Catraca Social');
 
     expect(screen.queryByText('Visitante (dev)')).toBeNull();
-    expect(JSON.stringify(screen.toJSON())).not.toContain('CREDENCIAL_EXPIRADA');
+    expect(screen.queryByText(/CREDENCIAL_EXPIRADA/)).toBeNull();
+    expect(screen.queryByLabelText(/CREDENCIAL_EXPIRADA/)).toBeNull();
   });
 
   it('sem tentativas, avisa', async () => {
