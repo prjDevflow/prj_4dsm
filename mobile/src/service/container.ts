@@ -1,4 +1,8 @@
 import { env } from '@/lib/env';
+import {
+  FakeListAccessEventsService,
+  FakeListMyAccessEventsService,
+} from './fakes/FakeAccessEventServices';
 import { FakeValidateQrService } from './fakes/FakeAccessServices';
 import { FakeGetHealthService } from './fakes/FakeGetHealthService';
 import { FakeGetMeService } from './fakes/FakeGetMeService';
@@ -45,6 +49,10 @@ import {
   FakeListUsersService,
   FakeUpdateUserService,
 } from './fakes/FakeUserServices';
+import {
+  ListAccessEventsService,
+  ListMyAccessEventsService,
+} from './implementations/AccessEventServices';
 import { ValidateQrService } from './implementations/AccessServices';
 import {
   CancelAuthorizationService,
@@ -98,7 +106,8 @@ import { UpdateUserService } from './implementations/UpdateUserService';
 // "locations" does the same for buildings, access points and terminals, and "authorizations" for
 // the services of /authorizations and /me/authorizations. "camera" switches what the QR reader
 // asks of the phone: the permission, the vibrations and the settings. "position" switches the
-// location of a validation, and "validateQr" the validation itself.
+// location of a validation, and "validateQr" the validation itself. "accessEvents" switches both
+// history lists.
 export const createServices = (fakeServices: string[]) => {
   const isFake = (name: string) => fakeServices.includes(name);
   const fakeUsers = isFake('users');
@@ -177,6 +186,12 @@ export const createServices = (fakeServices: string[]) => {
       ? new FakeSimulatePositionService()
       : new SimulatePositionService(positionReader),
     validateQr: isFake('validateQr') ? new FakeValidateQrService() : new ValidateQrService(),
+    listAccessEvents: isFake('accessEvents')
+      ? new FakeListAccessEventsService()
+      : new ListAccessEventsService(),
+    listMyAccessEvents: isFake('accessEvents')
+      ? new FakeListMyAccessEventsService()
+      : new ListMyAccessEventsService(),
   };
 };
 
