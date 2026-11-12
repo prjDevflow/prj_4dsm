@@ -1,4 +1,4 @@
-import { Pressable, StyleSheet, View } from 'react-native';
+import { Pressable, StyleSheet, useWindowDimensions, View } from 'react-native';
 import { Icon } from '@/components/Icon';
 import { Cookie12 } from '@/components/shapes';
 import { Text } from '@/components/ui';
@@ -12,6 +12,9 @@ type AccessEventRowProps = {
   perspective: 'admin' | 'pessoa';
   onPress?: () => void;
 };
+
+// From this system font size on, the time goes below the name instead of squeezing it.
+const STACK_FONT_SCALE = 1.3;
 
 const UNKNOWN_PERSON = 'Não identificado';
 const UNKNOWN_PLACE = 'Local não identificado';
@@ -35,6 +38,7 @@ export const AccessEventRow = ({ event, perspective, onPress }: AccessEventRowPr
   const theme = useTheme();
   const { colors } = theme;
   const admin = theme.scale === 'admin';
+  const stacked = useWindowDimensions().fontScale >= STACK_FONT_SCALE;
   const texts = accessEventTexts(event, perspective);
   const denied = event.resultado === 'NEGADO';
   const label = [texts.title, texts.place, texts.metodo, texts.time, texts.result, texts.reason]
@@ -53,8 +57,8 @@ export const AccessEventRow = ({ event, perspective, onPress }: AccessEventRowPr
         </Cookie12>
       </View>
       <View style={[styles.body, { borderBottomColor: colors.contornoSuave }]}>
-        <View style={styles.top}>
-          <Text variant={admin ? 'adminItem' : 'pessoaCorpoForte'} style={styles.fill}>
+        <View testID="access-event-top" style={stacked ? styles.topStacked : styles.top}>
+          <Text variant={admin ? 'adminItem' : 'pessoaCorpoForte'} style={!stacked && styles.fill}>
             {texts.title}
           </Text>
           <Text
@@ -116,7 +120,8 @@ export const AccessEventRow = ({ event, perspective, onPress }: AccessEventRowPr
 const styles = StyleSheet.create({
   row: { flexDirection: 'row', alignItems: 'flex-start', gap: 16, paddingTop: 12 },
   body: { flex: 1, gap: 4, paddingBottom: 12, borderBottomWidth: 1 },
-  top: { flexDirection: 'row', alignItems: 'flex-start', gap: 8, flexWrap: 'wrap' },
+  top: { flexDirection: 'row', alignItems: 'flex-start', gap: 8 },
+  topStacked: { flexDirection: 'column', gap: 2 },
   metodo: { flexDirection: 'row', alignItems: 'center', gap: 6 },
   time: { fontVariant: ['tabular-nums'] },
   fill: { flexShrink: 1, flexGrow: 1 },
