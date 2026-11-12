@@ -7,12 +7,17 @@ import { useSessionStore } from '@/context/SessionStore';
 import { TOKEN_KEY } from '@/context/tokenStorage';
 import type { Usuario } from '@/lib/types/auth';
 import { sampleAccessGranted } from '@/service/fakes/FakeAccessServices';
+import {
+  FakeAccessEventDirectory,
+  sampleAccessEvents,
+} from '@/service/fakes/FakeAccessEventDirectory';
 import { FakeAuthorizationDirectory } from '@/service/fakes/FakeAuthorizationDirectory';
 import { FakeLocationDirectory } from '@/service/fakes/FakeLocationDirectory';
 import { FakeUserDirectory } from '@/service/fakes/FakeUserDirectory';
 import { sampleAdmin, sampleCondomino, sampleVisitante } from '@/service/fakes/sampleData';
 import { API_URL } from '@test/msw/handlers';
 import { server } from '@test/msw/server';
+import { accessEventsHandlers } from '@test/msw/accessEventsHandlers';
 import { authorizationsHandlers } from '@test/msw/authorizationsHandlers';
 import { locationsHandlers } from '@test/msw/locationsHandlers';
 import { usersHandlers } from '@test/msw/usersHandlers';
@@ -218,18 +223,44 @@ describe('sessão e navegação por perfil', () => {
     expect(screen.getByText('condomino@dev.local')).toBeOnTheScreen();
   });
 
-  it('os atalhos da pessoa abrem as telas "Em breve", e o voltar retorna ao início', async () => {
+  it('"Meu histórico" mostra as tentativas da pessoa, e o voltar retorna ao início', async () => {
+    server.use(
+      ...accessEventsHandlers(
+        new FakeAccessEventDirectory(sampleAccessEvents()),
+        sampleVisitante.id,
+      ),
+    );
     await renderApp();
     await login(sampleVisitante);
     await screen.findByRole('header', { name: 'Olá, Visitante' });
 
-    for (const [button, title] of [['Meu histórico', 'Meu histórico']]) {
-      await fireEvent.press(screen.getByRole('button', { name: button }));
-      expect(await screen.findByRole('header', { name: title })).toBeOnTheScreen();
-      expect(screen.getByText('Em breve')).toBeOnTheScreen();
-      await fireEvent.press(screen.getByRole('button', { name: 'Voltar' }));
-      expect(await screen.findByRole('header', { name: 'Olá, Visitante' })).toBeOnTheScreen();
-    }
+    await fireEvent.press(screen.getByRole('button', { name: 'Meu histórico' }));
+
+    expect(await screen.findByRole('header', { name: 'Meu histórico' })).toBeOnTheScreen();
+    expect((await screen.findAllByText('Catraca Social')).length).toBeGreaterThan(0);
+    expect(screen).toHavePathname('/me/history');
+    await fireEvent.press(screen.getByRole('button', { name: 'Voltar' }));
+    expect(await screen.findByRole('header', { name: 'Olá, Visitante' })).toBeOnTheScreen();
+  });
+
+  it('"Histórico" do administrador abre a lista e o detalhe de uma tentativa', async () => {
+    server.use(
+      ...accessEventsHandlers(new FakeAccessEventDirectory(sampleAccessEvents()), sampleAdmin.id),
+    );
+    await renderApp();
+    await login(sampleAdmin);
+    await screen.findByRole('header', { name: 'Administração' });
+
+    await fireEvent.press(screen.getByRole('button', { name: /^Histórico,/ }));
+    expect(await screen.findByRole('header', { name: 'Histórico' })).toBeOnTheScreen();
+    expect(screen).toHavePathname('/admin/history');
+
+    await fireEvent.press(await screen.findByRole('button', { name: /^Não identificado,/ }));
+    expect(await screen.findByRole('header', { name: 'Tentativa de acesso' })).toBeOnTheScreen();
+    expect(screen.getByLabelText('Pessoa: Não identificado')).toBeOnTheScreen();
+
+    await fireEvent.press(screen.getByRole('button', { name: 'Voltar' }));
+    expect(await screen.findByRole('header', { name: 'Histórico' })).toBeOnTheScreen();
   });
 
   const authorizationsDirectory = () =>
