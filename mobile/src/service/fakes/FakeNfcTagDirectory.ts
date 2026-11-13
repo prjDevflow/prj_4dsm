@@ -18,7 +18,7 @@ export class FakeNfcTagDirectory {
   constructor({ now = () => new Date(), withSamples = false }: Options = {}) {
     this.now = now;
     if (withSamples) {
-      const [maria, ana, , carla] = sampleUsers;
+      const [maria, ana, , carla] = sampleUsers.slice(3);
       this.create({ usuarioId: maria.id, uid: '04A1B2C3D4', descricao: 'Chaveiro azul' });
       this.create({ usuarioId: ana.id, uid: '04F7E21A9C', descricao: 'Cartão da garagem' });
       const old = this.create({

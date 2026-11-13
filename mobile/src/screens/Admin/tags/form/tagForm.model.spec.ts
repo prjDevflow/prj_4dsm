@@ -73,7 +73,7 @@ describe('useTagFormModel (T29)', () => {
 
       await act(() => result.current.onSubmit());
 
-      expect(result.current.form.formState.errors.uid?.message).toBe(
+      expect(result.current.form.getFieldState('uid').error?.message).toBe(
         'Código inválido. Use de 8 a 20 letras e números.',
       );
       expect(createNfcTagService.calls).toEqual([]);
@@ -87,7 +87,7 @@ describe('useTagFormModel (T29)', () => {
 
     await act(() => result.current.onSubmit());
 
-    expect(result.current.form.formState.errors.usuarioId?.message).toBe('Escolha a pessoa.');
+    expect(result.current.form.getFieldState('usuarioId').error?.message).toBe('Escolha a pessoa.');
     expect(createNfcTagService.calls).toEqual([]);
   });
 
@@ -101,7 +101,7 @@ describe('useTagFormModel (T29)', () => {
     await act(() => result.current.onSubmit());
 
     await waitFor(() =>
-      expect(result.current.form.formState.errors.uid?.message).toBe(
+      expect(result.current.form.getFieldState('uid').error?.message).toBe(
         'Esta tag já está vinculada a alguém.',
       ),
     );
@@ -125,7 +125,7 @@ describe('useTagFormModel (T29)', () => {
 
     await act(async () => result.current.onReadOnTerminal());
 
-    expect(result.current.form.formState.errors.usuarioId?.message).toBe(
+    expect(result.current.form.getFieldState('usuarioId').error?.message).toBe(
       'Escolha a pessoa antes de ler a tag no terminal.',
     );
     expect(onOpenEnroll).not.toHaveBeenCalled();
