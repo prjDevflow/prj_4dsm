@@ -68,6 +68,24 @@ describe('useTagsListModel (T28)', () => {
     await waitFor(() => expect(result.current.items).toHaveLength(2));
   });
 
+  it('pagina no fim da lista e puxar atualiza', async () => {
+    const context = setup();
+    for (let index = 0; index < 25; index += 1) {
+      context.directory.create({
+        usuarioId: condomino.id,
+        uid: `0A0B0C${String(index).padStart(2, '0')}`,
+      });
+    }
+    const result = await ready(context);
+    expect(result.current.items).toHaveLength(20);
+
+    await act(async () => result.current.onEndReached());
+    await waitFor(() => expect(result.current.items).toHaveLength(27));
+
+    await act(() => result.current.onRefresh());
+    expect(result.current.refreshing).toBe(false);
+  });
+
   it('sem tags, fica vazio', async () => {
     const context = setup();
     context.listNfcTagsService.exec = async ({ page, pageSize }) => ({
@@ -145,6 +163,20 @@ describe('useTagDetailModel', () => {
     expect(result.current.confirmVisible).toBe(false);
     expect(updateNfcTagService.calls).toEqual([]);
     expect(result.current.tag?.ativa).toBe(true);
+  });
+
+  it('se não der para mudar, avisa e mantém a tag como estava', async () => {
+    const { result, updateNfcTagService } = await detail();
+    updateNfcTagService.exec = jest.fn().mockRejectedValue(new ApiError(500, 'X', ''));
+    await act(async () => result.current.onToggleAtiva(false));
+
+    await act(() => result.current.onConfirmDeactivate());
+
+    await waitFor(() =>
+      expect(result.current.apiError).toBe('Não foi possível mudar a tag agora. Tente de novo.'),
+    );
+    expect(result.current.tag?.ativa).toBe(true);
+    expect(result.current.confirmVisible).toBe(false);
   });
 
   it('ativar de novo não pede confirmação', async () => {

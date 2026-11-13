@@ -10,6 +10,7 @@ import {
 import { FakeUserDirectory } from '@/service/fakes/FakeUserDirectory';
 import { FakeListUsersService } from '@/service/fakes/FakeUserServices';
 import { sampleUsers } from '@/service/fakes/sampleData';
+import { ApiError } from '@/service/ApiError';
 import { createWrapper } from '@test/renderWithProviders';
 import { TagDetailView } from './detail/tagDetail.view';
 import { useTagEnrollModel } from './enroll/tagEnroll.model';
@@ -69,6 +70,40 @@ describe('Tags NFC (T28)', () => {
 
     expect(navigation.onNew).toHaveBeenCalled();
     expect(navigation.onOpen).toHaveBeenCalledWith(old.id);
+  });
+
+  it('sem tags, convida a vincular a primeira', async () => {
+    const services = {
+      listNfcTagsService: new FakeListNfcTagsService(new FakeNfcTagDirectory()),
+      listUsersService: users(),
+    };
+    const Screen = () => (
+      <TagsListView
+        {...useTagsListModel(services)}
+        onBack={jest.fn()}
+        onNew={jest.fn()}
+        onOpen={jest.fn()}
+      />
+    );
+    await render(<Screen />, { wrapper: createWrapper() });
+
+    expect(await screen.findByText('Nenhuma tag vinculada.')).toBeOnTheScreen();
+  });
+
+  it('um erro mostra o aviso', async () => {
+    const listNfcTagsService = new FakeListNfcTagsService(new FakeNfcTagDirectory());
+    listNfcTagsService.exec = jest.fn().mockRejectedValue(new ApiError(null, 'NETWORK', ''));
+    const Screen = () => (
+      <TagsListView
+        {...useTagsListModel({ listNfcTagsService, listUsersService: users() })}
+        onBack={jest.fn()}
+        onNew={jest.fn()}
+        onOpen={jest.fn()}
+      />
+    );
+    await render(<Screen />, { wrapper: createWrapper() });
+
+    expect(await screen.findByText('Não foi possível carregar as tags.')).toBeOnTheScreen();
   });
 
   it('a busca por pessoa está na tela', async () => {
@@ -206,6 +241,18 @@ describe('Detalhe da tag', () => {
     expect(onCancelDeactivate).toHaveBeenCalled();
   });
 
+  it('uma falha ao mudar aparece na tela, e a tag inativa explica o efeito', async () => {
+    await renderDetail({
+      tag: { ...tag, ativa: false },
+      apiError: 'Não foi possível mudar a tag agora. Tente de novo.',
+    });
+
+    expect(
+      screen.getByText('Não foi possível mudar a tag agora. Tente de novo.'),
+    ).toBeOnTheScreen();
+    expect(screen.getByText('Desativada: o terminal não aceita esta tag.')).toBeOnTheScreen();
+  });
+
   it('sem a tag carregada, mostra um aviso e o caminho de volta', async () => {
     const { onBack } = await renderDetail({ tag: null });
 
@@ -251,5 +298,59 @@ describe('Ler tag no terminal (T30)', () => {
     expect(screen.getByText(`Tag vinculada a ${condomino.nome}.`)).toBeOnTheScreen();
     await fireEvent.press(screen.getByRole('button', { name: 'Concluir' }));
     expect(navigation.onDone).toHaveBeenCalled();
+  });
+
+  const renderEnroll = async (configure?: (service: FakeEnableEnrollModeService) => void) => {
+    jest.useFakeTimers();
+    const directory = new FakeNfcTagDirectory();
+    const enableEnrollModeService = new FakeEnableEnrollModeService(directory, null);
+    configure?.(enableEnrollModeService);
+    const services = {
+      enableEnrollModeService,
+      listNfcTagsService: new FakeListNfcTagsService(directory),
+      listTerminalsService: new FakeListTerminalsService(new FakeLocationDirectory()),
+      listUsersService: users(),
+    };
+    const Screen = () => (
+      <TagEnrollView
+        {...useTagEnrollModel({ ...services, usuarioId: condomino.id })}
+        onBack={jest.fn()}
+        onDone={jest.fn()}
+      />
+    );
+    await render(<Screen />, { wrapper: createWrapper() });
+    await act(async () => jest.advanceTimersByTimeAsync(10));
+  };
+
+  const chooseTerminal = async () => {
+    await fireEvent.press(screen.getByRole('button', { name: 'Terminal' }));
+    await fireEvent.press(await screen.findByRole('radio', { name: /^Terminal da Portaria/ }));
+    await act(async () => jest.advanceTimersByTimeAsync(10));
+  };
+
+  it('sem tag em 60 s, mostra o tempo esgotado e "Tentar de novo"', async () => {
+    await renderEnroll();
+    expect(
+      screen.getByText('Escolha o terminal onde a tag vai ser lida. Ele espera a tag por 60 s.'),
+    ).toBeOnTheScreen();
+    await chooseTerminal();
+
+    await act(async () => jest.advanceTimersByTimeAsync(61_000));
+
+    expect(screen.getByText('Tempo esgotado. Nenhuma tag foi lida.')).toBeOnTheScreen();
+    await fireEvent.press(screen.getByRole('button', { name: 'Tentar de novo' }));
+    await act(async () => jest.advanceTimersByTimeAsync(10));
+    expect(screen.getByText('Faltam 60 s')).toBeOnTheScreen();
+  });
+
+  it('se o terminal não aceitar, mostra o motivo', async () => {
+    await renderEnroll((service) => {
+      service.exec = jest.fn().mockRejectedValue(new ApiError(422, 'X', ''));
+    });
+    await chooseTerminal();
+
+    expect(
+      screen.getByText('Esta pessoa está inativa. Ative o cadastro antes de vincular uma tag.'),
+    ).toBeOnTheScreen();
   });
 });

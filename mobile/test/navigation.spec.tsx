@@ -455,6 +455,27 @@ describe('sessão e navegação por perfil', () => {
     expect(await screen.findByLabelText('Código: 04A1B2C3D4')).toBeOnTheScreen();
   });
 
+  it('"Ler tag no terminal" abre a leitura para a pessoa escolhida', async () => {
+    server.use(
+      ...nfcTagsHandlers(new FakeNfcTagDirectory()),
+      ...usersHandlers(new FakeUserDirectory(), sampleAdmin.id),
+      ...locationsHandlers(new FakeLocationDirectory()),
+    );
+    await renderApp();
+    await login(sampleAdmin);
+    await fireEvent.press(await screen.findByRole('button', { name: /^Tags NFC,/ }));
+    await fireEvent.press(await screen.findByRole('button', { name: 'Vincular tag' }));
+    await screen.findByRole('header', { name: 'Vincular tag' });
+
+    await fireEvent.press(screen.getByRole('button', { name: 'Pessoa' }));
+    await fireEvent.press(await screen.findByRole('radio', { name: /^Condômino \(dev\)/ }));
+    await fireEvent.press(screen.getByRole('button', { name: 'Ler tag no terminal' }));
+
+    expect(await screen.findByRole('header', { name: 'Ler tag no terminal' })).toBeOnTheScreen();
+    expect(screen).toHavePathname('/admin/tags/enroll');
+    expect(await screen.findByRole('button', { name: 'Terminal' })).toBeOnTheScreen();
+  });
+
   it('endereço de área que não existe volta ao início', async () => {
     await SecureStore.setItemAsync(TOKEN_KEY, 'token-salvo');
     answerMe(sampleCondomino);
