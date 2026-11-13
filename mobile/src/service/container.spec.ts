@@ -1,5 +1,11 @@
 import { createServices } from './container';
 import {
+  FakeCreateNfcTagService,
+  FakeEnableEnrollModeService,
+  FakeListNfcTagsService,
+  FakeUpdateNfcTagService,
+} from './fakes/FakeNfcTagServices';
+import {
   FakeListAccessEventsService,
   FakeListMyAccessEventsService,
 } from './fakes/FakeAccessEventServices';
@@ -40,6 +46,12 @@ import {
   ListMyAccessEventsService,
 } from './implementations/AccessEventServices';
 import { ValidateQrService } from './implementations/AccessServices';
+import {
+  CreateNfcTagService,
+  EnableEnrollModeService,
+  ListNfcTagsService,
+  UpdateNfcTagService,
+} from './implementations/NfcTagServices';
 import { CreateUserService } from './implementations/CreateUserService';
 import { GetHealthService } from './implementations/GetHealthService';
 import { GetMeService } from './implementations/GetMeService';
@@ -157,6 +169,20 @@ describe('createServices', () => {
     expect(fake.preparePosition).toBeInstanceOf(FakePreparePositionService);
     expect(fake.getPosition).toBeInstanceOf(FakeGetPositionService);
     expect(fake.simulatePosition).toBeInstanceOf(FakeSimulatePositionService);
+  });
+
+  it('as tags NFC são reais por padrão e falsas com "nfcTags" na lista', () => {
+    const real = createServices([]);
+    const fake = createServices(['nfcTags']);
+
+    expect(real.listNfcTags).toBeInstanceOf(ListNfcTagsService);
+    expect(real.createNfcTag).toBeInstanceOf(CreateNfcTagService);
+    expect(real.updateNfcTag).toBeInstanceOf(UpdateNfcTagService);
+    expect(real.enableEnrollMode).toBeInstanceOf(EnableEnrollModeService);
+    expect(fake.listNfcTags).toBeInstanceOf(FakeListNfcTagsService);
+    expect(fake.createNfcTag).toBeInstanceOf(FakeCreateNfcTagService);
+    expect(fake.updateNfcTag).toBeInstanceOf(FakeUpdateNfcTagService);
+    expect(fake.enableEnrollMode).toBeInstanceOf(FakeEnableEnrollModeService);
   });
 
   it('o histórico é real por padrão e falso com "accessEvents" na lista', () => {
