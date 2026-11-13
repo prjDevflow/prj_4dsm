@@ -200,7 +200,8 @@ describe('Detalhe da tag', () => {
       ),
     ).toBeOnTheScreen();
     await fireEvent.press(screen.getByRole('button', { name: 'Desativar' }));
-    await fireEvent.press(screen.getByRole('button', { name: 'Voltar' }));
+    // The last "Voltar" is the dialog's; the first is the header's arrow.
+    await fireEvent.press(screen.getAllByRole('button', { name: 'Voltar' }).at(-1)!);
     expect(onConfirmDeactivate).toHaveBeenCalled();
     expect(onCancelDeactivate).toHaveBeenCalled();
   });
