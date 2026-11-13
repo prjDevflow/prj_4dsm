@@ -38,7 +38,7 @@ Mensagens: UID inválido → "Código inválido. Use de 8 a 20 letras e números
 
 **Definição de pronto**
 
-- [ ] Ensaiado com o Matheus: tag cadastrada pelo app é reconhecida pelo terminal.
+- [x] Ensaiado com o Matheus: tag cadastrada pelo app é reconhecida pelo terminal. (13/11, com o ESP32 do Pedro: "Ler tag no terminal" vinculou o chaveiro azul ao visitante e a leitura seguinte abriu a catraca; ativar e desativar pelo app valeu na hora)
 
 ---
 
