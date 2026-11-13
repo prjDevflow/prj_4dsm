@@ -105,7 +105,9 @@ usos e cancelamento idempotente), usando as mesmas pessoas e locais dos falsos `
 já vêm com exemplos das quatro situações, inclusive para `visitante@dev.local`.
 
 `camera` troca o que o leitor pede ao aparelho: a permissão da câmera, as vibrações e as configurações.
-`position` troca a localização da validação, e `validateQr`, a própria validação.
+`position` troca a localização da validação, e `validateQr`, a própria validação. `accessEvents`
+troca o histórico do administrador e o "Meu histórico", com exemplos dos últimos dias. `nfcTags`
+troca as tags e o modo de cadastro do terminal: sem hardware, uma tag é "lida" 4 s depois.
 
 ## Tema e componentes
 

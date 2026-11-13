@@ -26,19 +26,19 @@ Mensagens: UID inválido → "Código inválido. Use de 8 a 20 letras e números
 
 **Lista de testes**
 
-- [ ] U `normalizeUid` (mesma regra do backend): `04:a1:b2:c3` → `04A1B2C3`; hífens e espaços; 7 e 21 caracteres e letra fora de A–F recusados; 8 e 20 passam.
-- [ ] U model do formulário: envia o UID já normalizado; 409 vira erro no campo.
-- [ ] U model do detalhe: desativar pede confirmação e envia `PATCH`.
-- [ ] 🟢 U model da T30: contagem de 60 s e mensagem de tempo esgotado.
+- [x] U `normalizeUid` (mesma regra do backend): `04:a1:b2:c3` → `04A1B2C3`; hífens e espaços; 7 e 21 caracteres e letra fora de A–F recusados; 8 e 20 passam.
+- [x] U model do formulário: envia o UID já normalizado; 409 vira erro no campo.
+- [x] U model do detalhe: desativar pede confirmação e envia `PATCH`.
+- [x] 🟢 U model da T30: contagem de 60 s e mensagem de tempo esgotado.
 
 **Critérios de aceitação**
 
-- [ ] `04:a1:b2:c3` é aceito e salvo como `04A1B2C3`.
-- [ ] Desativar a tag exige confirmação e vale na hora no terminal (com a B17).
+- [x] `04:a1:b2:c3` é aceito e salvo como `04A1B2C3`. (no emulador, `0a:0b:0c:0d` salvo como `0A0B0C0D` na API real)
+- [x] Desativar a tag exige confirmação e vale na hora no terminal (com a B17). (a leitura seguinte pela rota do terminal voltou `TAG_INATIVA`)
 
 **Definição de pronto**
 
-- [ ] Ensaiado com o Matheus: tag cadastrada pelo app é reconhecida pelo terminal.
+- [x] Ensaiado com o Matheus: tag cadastrada pelo app é reconhecida pelo terminal. (13/11, com o ESP32 do Pedro: "Ler tag no terminal" vinculou o chaveiro azul ao visitante e a leitura seguinte abriu a catraca; ativar e desativar pelo app valeu na hora)
 
 ---
 
@@ -62,18 +62,18 @@ Os motivos de NFC e do terminal (`TAG_DESCONHECIDA` "Tag não reconhecida.", `TA
 
 **Lista de testes**
 
-- [ ] U model: cada filtro vira o parâmetro certo; o período padrão são os últimos 7 dias em São Paulo (relógio controlado).
-- [ ] U tela: evento sem usuário mostra "Não identificado"; negado mostra o motivo em texto, nunca o código.
-- [ ] U formatter `dd/MM HH:mm:ss` em São Paulo.
+- [x] U model: cada filtro vira o parâmetro certo; o período padrão são os últimos 7 dias em São Paulo (relógio controlado).
+- [x] U tela: evento sem usuário mostra "Não identificado"; negado mostra o motivo em texto, nunca o código.
+- [x] U formatter `dd/MM HH:mm:ss` em São Paulo.
 
 **Critérios de aceitação**
 
-- [ ] Filtros isolados e combinados trazem o conjunto esperado.
-- [ ] Uma tentativa feita no terminal aparece no histórico em até 5 s (puxar para atualizar).
+- [x] Filtros isolados e combinados trazem o conjunto esperado. (testes do model e, no emulador, "Negado" com a API real)
+- [x] Uma tentativa feita no terminal aparece no histórico em até 5 s (puxar para atualizar). (leitura NFC pela rota do terminal: 3,4 s até aparecer, contando a automação)
 
 **Definição de pronto**
 
-- [ ] Testado com eventos reais do ensaio do M4.
+- [x] Testado com eventos reais do ensaio do M4. (tentativas do ESP32 e do iPhone de 10/11, no emulador)
 
 ---
 

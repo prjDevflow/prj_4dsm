@@ -10,6 +10,8 @@ const areaRoutes: Partial<Record<AdminArea, Href>> = {
   autorizacoes: '/admin/authorizations',
   usuarios: '/admin/users',
   locais: '/admin/locations',
+  historico: '/admin/history',
+  tags: '/admin/tags',
 };
 
 // T14: home of the administrator.

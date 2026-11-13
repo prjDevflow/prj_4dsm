@@ -2,11 +2,11 @@
 
 Atualize este arquivo no fim de cada sessão de trabalho e ao abrir ou integrar um PR. A IA lê aqui qual é a etapa atual antes de começar.
 
-**Etapa atual:** F11 (PR #42 aberto, falta o ensaio com o terminal) → próximo: ensaio para a Review 2 de 11/11; depois, F13 e F12
-**Branch:** `feature/F11-access-validation` (criada da `feature/F10-qr-reader`; PR #42 sobre `develop`, depois dos #40 e #41)
-**Último teste vermelho/verde:** `SpinningCookie` gira em torno do próprio centro (green), 888 testes passando
+**Etapa atual:** F13 (PR #55 aberto, depois do #54 da F12) → próxima: F14
+**Branch:** `feature/F13-nfc-tags` (criada da `feature/F12-access-history`, porque as duas mexem no início e no "Em breve"; PR #55 sobre `develop`, depois do #54)
+**Último teste vermelho/verde:** mensagens, estados vazio e de erro e tempo esgotado das tags (testes de cobertura), 1049 testes passando
 
-**Atenção (07/11):** os PRs #28, #29, #30, #31 e #38 foram integrados nas branches de base, não em `develop`. O `develop` só tem a F04 da pilha; F05 a F09 estão juntas em `feature/F08-authorizations-list`. O merge simulado com `develop` não tem conflito. O PR #40 leva tudo para `develop`, por merge commit, e a F10 entra depois dele.
+**Resolvido (07/11):** a pilha F05 a F09 entrou em `develop` pelo PR #40, seguida da F10 (#41) e da F11 (#42).
 
 Legenda: ⬜ pendente · 🟨 em andamento · ✅ pronta (critérios e DoD marcados, PR integrado em `develop`) · 🔴 essencial · 🟡 importante · 🟢 pode ser cortada · ❓ pergunta em aberto (lista no fim deste arquivo).
 
@@ -31,8 +31,8 @@ Hoje é 28/10 e o app começa do zero. 💡 Por isso a ordem muda em relação a
 | F06 | Locais e terminais | T17 a T22 | F04 | B07, B11 | 15/11 | 🔴 | 🟨 | PR #29 |
 | F07 | Nova autorização | T24 | F05, F06 | B08 | 16/11 | 🔴 | 🟨 | PR #30 |
 | F08 | Lista e cancelamento de autorizações | T23, T25 | F07 | B09 | 17/11 | 🔴 | 🟨 | PR #31 |
-| F13 | Tags NFC | T28, T29, T30 | F05 | B16 | 18/11 | 🔴 | ⬜ | |
-| F12 | Histórico de acessos | T26, T27, T12 | F04 | B18 | 20/11 | 🟡 | ⬜ | |
+| F13 | Tags NFC | T28, T29, T30 | F05 | B16 ✅ | 18/11 | 🔴 | 🟨 | PR #55 |
+| F12 | Histórico de acessos | T26, T27, T12 | F04 | B18 ✅ | 20/11 | 🟡 | 🟨 | PR #54 |
 | F14 | Acessibilidade e usabilidade | todas | F11, F12, F13 | — | 22/11 | 🟡 | ⬜ | |
 | F15 | Robustez, build e manual | T31, todas | F14 | B10 (URL de homologação) | 24/11 | 🟡 | ⬜ | |
 | — | **Review 3** | | | | **25/11 19h30** | | | |
@@ -110,6 +110,16 @@ Formato: data · decisão · motivo.
 - 2026-11-03 · Na F07, depois de criar, o app volta para a tela de onde veio (hoje, "Autorizações" com "Em breve") em vez da lista · a lista é a F08; a criação já invalida `['authorizations']`, então a F08 mostra a nova no topo quando chegar.
 - 2026-11-03 · Na F07, o resumo diz "poderá entrar em Catraca Social (Edifício Central)" em vez de "na Catraca Social do Edifício Central" · o app não sabe se o nome do local pede "na" ou "no"; o texto do card fica igual em todo o resto.
 - 2026-11-03 · Na F07, o resumo só aparece quando o formulário passaria na validação, e é montado do mesmo objeto enviado à API · assim ele nunca mostra algo que o servidor recusaria.
+- 2026-11-13 · Na T28, o código da tag aparece parcial ("••••C3D4") e, no detalhe, inteiro · o card pede "UID (parcial)"; o Figma mostra inteiro. O leitor de tela diz "Tag terminada em C3D4".
+- 2026-11-13 · A T28 busca só por pessoa · a API filtra só por `usuarioId`; o "Buscar por código ou pessoa" do Figma ficaria pela metade.
+- 2026-11-13 · O detalhe da tag lê a lista já carregada · não há `GET /nfc-tags/:id`; o nome vem de `/users`, porque a lista traz só `usuarioId`.
+- 2026-11-13 · T30 (❓ 19): o app liga o modo de cadastro e consulta `GET /nfc-tags?usuarioId=` a cada 2 s, por 60 s contados no aparelho · a tag nova é a que não estava na lista antes de ligar. "Cancelar" só sai da tela: não há rota para desligar o modo, que expira sozinho.
+- 2026-11-13 · "Ler tag no terminal" pede a pessoa antes e troca o formulário pela leitura · a tag lida já sai vinculada, então o formulário não tem mais o que salvar.
+- 2026-11-12 · O histórico mostra o motivo em texto curto, como no Figma ("QR Code expirado"), num mapa próprio (`lib/accessEvents.ts`) com os 13 códigos · as frases da tela de resultado continuam no `denialReasons`; código desconhecido vira "Motivo não informado".
+- 2026-11-12 · O item da T26 traz `dd/MM HH:mm:ss`, sem os cabeçalhos "Hoje" e "Ontem" do Figma · o card pede a data e a hora no item; agrupar por dia com paginação fica para depois.
+- 2026-11-12 · A T27 lê a tentativa da lista já carregada · a API não tem rota de um evento, e os eventos nunca mudam. Aberta por link, sem a lista, mostra "Tentativa não encontrada."
+- 2026-11-12 · O período padrão são hoje e os 6 dias anteriores, de 00:00 ao último milissegundo, em `-03:00` · São Paulo não tem horário de verão desde 2019.
+- 2026-11-12 · A T12 não tem filtros nem período · o card a descreve como "tela simples".
 - 2026-11-07 · O leitor já começa a pegar a posição e a validação usa a pronta, uma vez só · o QR vale 15 s e o GPS pode levar 8 s; a posição preparada vale 30 s, e "Tentar de novo" lê outra vez, para ver onde a pessoa está agora.
 - 2026-11-07 · A pergunta da localização (T08) fica na validação, como no card, e o leitor só prepara a posição se a permissão já existe · na primeira vez, o QR pode expirar durante a pergunta, e o "Ler outro QR Code" resolve.
 - 2026-11-07 · Sem conexão e erro do servidor usam o título "Acesso não validado", em âmbar · ninguém negou nada, e o card e o `tokens.md` não definem esse título. 429 e 422 inesperado caem no "Não foi possível validar agora".
@@ -158,6 +168,8 @@ Formato: data · decisão · motivo.
 | 2026-10-28 | F02 | Tema do `tokens.md` (cores conferidas pelo teste contra o próprio `tokens.md`, contraste WCAG), fonte Atkinson com a splash, formas, `Icon` e 25 componentes em `components/ui`; catálogo em `/catalog` só em `__DEV__`; teste que percorre o catálogo e exige papel e rótulo em todo elemento interativo. Conferido no emulador a 100% e a 200% (161 testes) | Testar o catálogo no celular; revisão do Rafael e do Eduardo; F03 |
 | 2026-10-28 | F01, F02 | Revisão: no celular do Pedro (Expo Go), "API: ok" com o mock e "API: fora do ar" sem ele, sem fechar o app. Corrigidos na F02: anúncio do erro de campo, dos avisos e dos estados no iOS (`useAnnounce`), aviso curto lido uma vez, rodapé em linha com fragmento, "Voltar" do catálogo aberto por link; o teste de contraste cobre as partes que não são texto (175 testes) | F01: celular com o Docker e revisor no #14; F02: catálogo no celular e revisão do Eduardo |
 | 2026-10-29 | F03 | Login (T02): schema, mensagens, `LoginUserService` e falso com os usuários do seed, model com toque duplo, senha limpa e foco, faixa que some ao digitar e aviso de sessão expirada; guards por sessão (`Stack.Protected` com `redirectTo`) e inícios provisórios; `/health` vira ferramenta de desenvolvimento. Emulador contra a API real no Docker: os três perfis, senha errada, sem internet, voltar do Android, fonte em 200% com teclado. Corrigido no aparelho: o foco não ia para a senha depois do erro | Abrir o PR (base #16); GIF; ouvir com TalkBack/VoiceOver; Eduardo confirmar o contrato; teste com uma pessoa; F04 |
+| 2026-11-13 | F13 | Tags NFC: T28 com código parcial, pessoa, descrição e selo, busca por pessoa; T29 com o UID normalizado e o erro de tag repetida no campo; detalhe com "Tag ativa" e confirmação; T30 com contagem de 60 s. Emulador contra a API real, com o terminal pela rota dele (`POST /terminal/nfc`): `0a:0b:0c:0d` salvo como `0A0B0C0D` e aceito pelo terminal; repetida recusada no campo; desativada, o terminal negou na hora com `TAG_INATIVA`; no modo de cadastro, a leitura voltou `CADASTRADA` e o app mostrou "Tag vinculada a Condômino de Teste."; o tempo esgotado também apareceu. Com o ESP32 do Pedro: "Ler tag no terminal" vinculou o chaveiro azul (`4E7BBB06`) ao visitante, e as leituras seguintes abriram a catraca. Achados: `terminal/docs/tags-demo.md` troca os UIDs do chaveiro e do cartão; o RC522 parou de ler até reiniciar a placa; no modo de cadastro, uma tag já cadastrada recebe 409 só no terminal e o app espera os 60 s. 1049 testes, 96,7% de linhas | Revisão dos PRs #54 e #55; F14 |
+| 2026-11-12 | F12 | Histórico: T26 com os filtros em chips (período nos últimos 7 dias, resultado, pessoa, local, método, motivo) e "Limpar filtros", T27 com todos os campos, distância e "Ver autorização", T12 Meu histórico. Emulador contra a API real de `develop`, com as tentativas do ESP32 e do iPhone de 10/11: uma leitura NFC no terminal apareceu em 3,4 s depois de puxar a lista; "Negado" deixou só as negações; 100% e 200%. 966 testes, 96,8% de linhas | Revisão do PR #54; F13 |
 | 2026-11-07 | F11 | Validação e resultado: permissão de localização (T08), progresso (T09), autorizado (T10), negado âmbar e vermelho (T11), selo "Localização pronta" no leitor, posição preparada, "Simular posição". Emulador contra a API real da `develop`: os 10 motivos, cenários 1 a 7 do M4, sinal `ABRIR`/`NEGAR` igual ao resultado, 1 evento por tentativa, 1,1 a 1,4 s do toque ao resultado, 100% e 200%. No iPhone do Pedro, com um terminal virtual no computador e a câmera lendo o QR que muda: negação por distância e autorização, com "Catraca aberta" no terminal. 888 testes, 96,8% de linhas | Aceitar #40, #41 e #42; ensaio com o Eduardo e o Matheus; medir os 3 s em celular real; F13 e F12 |
 | 2026-11-07 | F10 | Leitor de QR Code: permissão da câmera (T06) com pedido, recusa e configurações, leitor (T07) com moldura, lanterna, dica e aviso de QR de outro tipo, leitura congelada e vibração. Conferido no emulador com leitura real pela câmera (`-camera-back imagefile:`), em 100% e 200%, e no iPhone do Pedro, que leu um QR fixo e abriu a validação. 704 testes, 96,5% de linhas. PRs #40 (F05 a F09 para `develop`) e #41 (F10) | Aceitar o #40 e depois o #41; testar no segundo celular real, medir os 2 s e a distância de 20 a 40 cm, com vídeo no PR; depois, F11 |
 | 2026-11-05 | F09 | Minhas autorizações (T04): ativas, anteriores recolhidas, aviso de fora do horário em São Paulo, selos com texto, ícone e cor, vazio, erro e puxar para atualizar; contador no início. Conferido no emulador contra a API real, em 100% e 200%, com o aparelho em UTC. 648 testes, 96,4% de linhas | Revisão do PR #38; teste de 10 s com quem não conhece o sistema; "Abrir catraca" leva ao "Em breve" até a F10; depois, F10 |

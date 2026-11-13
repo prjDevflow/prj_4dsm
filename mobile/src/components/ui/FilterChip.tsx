@@ -3,17 +3,23 @@ import { Icon } from '@/components/Icon';
 import { useTheme } from '@/theme';
 import { Text } from './Text';
 
-type FilterChipProps = { label: string; selected: boolean; onPress: () => void };
+type FilterChipProps = {
+  label: string;
+  selected: boolean;
+  onPress: () => void;
+  /** When the visible text alone does not say what the chip filters ("Últimos 7 dias"). */
+  accessibilityLabel?: string;
+};
 
 /** Selected: primary container with a check. Default: outline. */
-export const FilterChip = ({ label, selected, onPress }: FilterChipProps) => {
+export const FilterChip = ({ label, selected, onPress, accessibilityLabel }: FilterChipProps) => {
   const theme = useTheme();
   const { colors } = theme;
 
   return (
     <Pressable
       accessibilityRole="button"
-      accessibilityLabel={label}
+      accessibilityLabel={accessibilityLabel ?? label}
       accessibilityState={{ selected }}
       onPress={onPress}
       style={({ pressed }) => [
