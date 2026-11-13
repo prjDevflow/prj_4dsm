@@ -12,12 +12,14 @@ import {
   sampleAccessEvents,
 } from '@/service/fakes/FakeAccessEventDirectory';
 import { FakeAuthorizationDirectory } from '@/service/fakes/FakeAuthorizationDirectory';
+import { FakeNfcTagDirectory } from '@/service/fakes/FakeNfcTagDirectory';
 import { FakeLocationDirectory } from '@/service/fakes/FakeLocationDirectory';
 import { FakeUserDirectory } from '@/service/fakes/FakeUserDirectory';
 import { sampleAdmin, sampleCondomino, sampleVisitante } from '@/service/fakes/sampleData';
 import { API_URL } from '@test/msw/handlers';
 import { server } from '@test/msw/server';
 import { accessEventsHandlers } from '@test/msw/accessEventsHandlers';
+import { nfcTagsHandlers } from '@test/msw/nfcTagsHandlers';
 import { authorizationsHandlers } from '@test/msw/authorizationsHandlers';
 import { locationsHandlers } from '@test/msw/locationsHandlers';
 import { usersHandlers } from '@test/msw/usersHandlers';
@@ -433,18 +435,24 @@ describe('sessão e navegação por perfil', () => {
     expect(await screen.findByText('Você ainda não tem autorizações.')).toBeOnTheScreen();
   });
 
-  it('os blocos do administrador abrem as áreas "Em breve"', async () => {
+  it('"Tags NFC" abre a lista, "Vincular tag" abre o formulário e o voltar retorna', async () => {
+    server.use(...nfcTagsHandlers(new FakeNfcTagDirectory({ withSamples: true })));
     await renderApp();
     await login(sampleAdmin);
     await screen.findByRole('header', { name: 'Administração' });
 
     await fireEvent.press(screen.getByRole('button', { name: /^Tags NFC,/ }));
     expect(await screen.findByRole('header', { name: 'Tags NFC' })).toBeOnTheScreen();
-    expect(screen.getByText('Esta tela chega na etapa F13 do app.')).toBeOnTheScreen();
+    expect(screen).toHavePathname('/admin/tags');
+    expect((await screen.findAllByText(/^••••/)).length).toBeGreaterThan(0);
 
-    await fireEvent.press(screen.getByRole('button', { name: 'Voltar' }));
-    await fireEvent.press(await screen.findByRole('button', { name: 'Abrir catraca' }));
-    expect(await screen.findByRole('header', { name: leitor })).toBeOnTheScreen();
+    await fireEvent.press(screen.getByRole('button', { name: 'Vincular tag' }));
+    expect(await screen.findByRole('header', { name: 'Vincular tag' })).toBeOnTheScreen();
+    await fireEvent.press(screen.getByRole('button', { name: 'Cancelar' }));
+    expect(await screen.findByRole('header', { name: 'Tags NFC' })).toBeOnTheScreen();
+
+    await fireEvent.press(await screen.findByRole('button', { name: /^Tag terminada em C3D4/ }));
+    expect(await screen.findByLabelText('Código: 04A1B2C3D4')).toBeOnTheScreen();
   });
 
   it('endereço de área que não existe volta ao início', async () => {
