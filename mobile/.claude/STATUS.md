@@ -2,7 +2,7 @@
 
 Atualize este arquivo no fim de cada sessão de trabalho e ao abrir ou integrar um PR. A IA lê aqui qual é a etapa atual antes de começar.
 
-**Etapa atual:** F14 (auditoria e 5 correções prontas na branch local, não enviada; falta o teste com pessoas de 60+ e a passada com leitor de tela no celular) → próxima: F15
+**Etapa atual:** F14 (PR #56 aberto, depois do #54 e do #55; falta o teste com pessoas de 60+ e a passada com leitor de tela no celular) → próxima: F15
 **Branch:** `feature/F14-accessibility` (criada da `feature/F13-nfc-tags`, porque a auditoria cobre as telas da F12 e da F13; o PR vai contra `develop`, depois do #54 e do #55)
 **Último teste vermelho/verde:** opções empilhadas com canto de campo (fix); depois, mais 9 pares de contraste: 1094 testes passando, 96,7% de linhas
 
@@ -33,7 +33,7 @@ Hoje é 28/10 e o app começa do zero. 💡 Por isso a ordem muda em relação a
 | F08 | Lista e cancelamento de autorizações | T23, T25 | F07 | B09 | 17/11 | 🔴 | 🟨 | PR #31 |
 | F13 | Tags NFC | T28, T29, T30 | F05 | B16 ✅ | 18/11 | 🔴 | 🟨 | PR #55 |
 | F12 | Histórico de acessos | T26, T27, T12 | F04 | B18 ✅ | 20/11 | 🟡 | 🟨 | PR #54 |
-| F14 | Acessibilidade e usabilidade | todas | F11, F12, F13 | — | 22/11 | 🟡 | 🟨 | não enviada |
+| F14 | Acessibilidade e usabilidade | todas | F11, F12, F13 | — | 22/11 | 🟡 | 🟨 | PR #56 |
 | F15 | Robustez, build e manual | T31, todas | F14 | B10 (URL de homologação) | 24/11 | 🟡 | ⬜ | |
 | — | **Review 3** | | | | **25/11 19h30** | | | |
 
