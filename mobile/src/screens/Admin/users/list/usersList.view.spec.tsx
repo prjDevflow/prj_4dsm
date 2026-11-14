@@ -66,6 +66,16 @@ describe('UsersListView (T15)', () => {
     expect(handlers.onChangeSearch).toHaveBeenCalledWith('mar');
   });
 
+  it('o texto de exemplo da busca é curto, para não cortar com a fonte grande (F14)', async () => {
+    const { rendered } = renderView();
+    await rendered;
+
+    expect(screen.getByLabelText('Buscar por nome ou e-mail')).toHaveProp(
+      'placeholder',
+      'Nome ou e-mail',
+    );
+  });
+
   it('filtros de perfil: "Todos" marcado, e os outros trocam o perfil', async () => {
     const { handlers, rendered } = renderView();
     await rendered;

@@ -1,6 +1,7 @@
 import { fireEvent, render, screen } from '@testing-library/react-native';
 import { Dimensions } from 'react-native';
 import { colors, ThemeProvider, typography } from '@/theme';
+import { ChipRow } from './ChipRow';
 import { Fab } from './Fab';
 import { FieldRow } from './FieldRow';
 import { Header } from './Header';
@@ -99,6 +100,40 @@ describe('Fab', () => {
     expect(screen.getByRole('button', { name: 'Abrir catraca' })).toHaveStyle({
       backgroundColor: colors.acao,
     });
+  });
+});
+
+describe('ChipRow (F14)', () => {
+  afterEach(() => jest.restoreAllMocks());
+
+  const withFontScale = (fontScale: number) => {
+    const window = Dimensions.get('window');
+    jest.spyOn(Dimensions, 'get').mockReturnValue({ ...window, fontScale });
+  };
+
+  const chips = (
+    <ChipRow>
+      <Text>Todas</Text>
+      <Text>Ativas</Text>
+      <Text>Canceladas</Text>
+    </ChipRow>
+  );
+
+  it('com a fonte normal, os filtros rolam de lado numa linha', async () => {
+    withFontScale(1);
+    await render(chips);
+
+    expect(screen.getByTestId('chip-row')).toHaveProp('horizontal', true);
+  });
+
+  it('com a fonte grande, os filtros quebram a linha e nenhum fica fora da tela', async () => {
+    withFontScale(2);
+    await render(chips);
+
+    const row = screen.getByTestId('chip-row');
+    expect(row).not.toHaveProp('horizontal', true);
+    expect(row).toHaveStyle({ flexDirection: 'row', flexWrap: 'wrap' });
+    expect(screen.getByText('Canceladas')).toBeOnTheScreen();
   });
 });
 

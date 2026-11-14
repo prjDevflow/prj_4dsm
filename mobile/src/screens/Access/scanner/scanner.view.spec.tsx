@@ -141,6 +141,14 @@ describe('Leitor (T07)', () => {
     expect(screen.getByTestId('scanner-frame')).toBeOnTheScreen();
   });
 
+  it('a moldura encolhe quando falta espaço, sem cobrir a instrução (fonte grande, F14)', async () => {
+    await renderScreen();
+
+    const frame = await screen.findByTestId('scanner-frame');
+    expect(frame).toHaveStyle({ aspectRatio: 1, flexShrink: 1, maxHeight: 240 });
+    expect(frame).not.toHaveStyle({ height: 240 });
+  });
+
   it('avisa que a localização está pronta', async () => {
     await renderScreen();
 
