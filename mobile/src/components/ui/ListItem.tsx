@@ -1,9 +1,10 @@
 import type { ReactNode } from 'react';
-import { Pressable, StyleSheet, useWindowDimensions, View } from 'react-native';
+import { Pressable, StyleSheet, View } from 'react-native';
 import { Icon } from '@/components/Icon';
 import { useTheme } from '@/theme';
 import { StatusBadge, badgeLabel, type StatusBadgeProps } from './StatusBadge';
 import { Text } from './Text';
+import { useLargeFont } from './useLargeFont';
 
 type ListItemProps = {
   title: string;
@@ -21,8 +22,6 @@ type ListItemProps = {
   divider?: boolean;
 };
 
-const STACK_FONT_SCALE = 1.3;
-
 /** List row: the screen reader reads title, subtitle and badge as one item. */
 export const ListItem = ({
   title,
@@ -36,7 +35,7 @@ export const ListItem = ({
 }: ListItemProps) => {
   const theme = useTheme();
   // With a large system font the badge goes below the texts instead of squeezing them.
-  const stacked = useWindowDimensions().fontScale >= STACK_FONT_SCALE;
+  const stacked = useLargeFont();
   const badges = badge === undefined ? [] : Array.isArray(badge) ? badge : [badge];
   const label = [title, subtitle, ...details, meta, ...badges.map(badgeLabel)]
     .filter(Boolean)

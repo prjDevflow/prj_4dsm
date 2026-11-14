@@ -266,7 +266,14 @@ const styles = StyleSheet.create({
     backgroundColor: colors.superficieAlta,
   },
   center: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: 16 },
-  frame: { width: FRAME_SIZE, height: FRAME_SIZE },
+  // Shrinks when a large font leaves less room, instead of covering the instruction (F14).
+  frame: {
+    flexBasis: FRAME_SIZE,
+    flexShrink: 1,
+    maxHeight: FRAME_SIZE,
+    minHeight: 96,
+    aspectRatio: 1,
+  },
   corner: {
     position: 'absolute',
     width: CORNER_SIZE,
