@@ -188,7 +188,10 @@ describe('SegmentedField', () => {
       withFontScale(2);
       await render(<ControlledSegmented />);
 
-      expect(screen.getByLabelText('Tipo')).toHaveStyle({ flexDirection: 'column' });
+      expect(screen.getByLabelText('Tipo')).toHaveStyle({
+        flexDirection: 'column',
+        borderRadius: 12,
+      });
       expect(screen.getByRole('radio', { name: 'Porta' })).toHaveStyle({ borderTopWidth: 1 });
     });
   });

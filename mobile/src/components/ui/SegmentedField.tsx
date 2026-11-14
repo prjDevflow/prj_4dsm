@@ -38,7 +38,11 @@ export const SegmentedField = <T extends string>({
         style={[
           styles.group,
           stacked && styles.stacked,
-          { borderRadius: theme.radius.pilula, borderColor: error ? colors.erro : colors.contorno },
+          {
+            // A pill only makes sense in a row; stacked, the options sit in a field-shaped box.
+            borderRadius: stacked ? theme.radius.campo : theme.radius.pilula,
+            borderColor: error ? colors.erro : colors.contorno,
+          },
         ]}
       >
         {options.map((option, index) => {
