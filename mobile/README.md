@@ -123,6 +123,12 @@ As telas só usam o que está em `@/components/ui` e `@/theme`, com os valores d
   `NumberStepper`, `SwitchField`, `FilterChip`, `StatusBadge`, `Card`, `ListItem`, `NavRow`, `ProgressBar`,
   `Alert`, `Dialog`, `useToast`, `LoadingState`, `EmptyState`, `ErrorState`, `OfflineBanner`,
   `ScreenContainer`, `Header` e `Fab`. Formas em `@/components/shapes` e ícones em `@/components/Icon`.
+- **Fonte grande:** a partir de 130% de fonte no sistema (`useLargeFont`), o que fica lado a lado vai para
+  baixo. Para uma fila de filtros, use `ChipRow`: ela rola de lado com a fonte normal e quebra a linha com a
+  fonte grande. O `TextField` quebra a linha num texto longo, e o Enter continua passando ao próximo campo.
+- **Leitor de tela:** `test/a11y.audit.spec.tsx` abre as telas pelas rotas e reprova tudo que se toca sem
+  nome ou sem função. Uma tela nova entra na lista desse teste. O resultado da auditoria da F14 está em
+  [docs/app-mobile/usabilidade](../docs/app-mobile/usabilidade/relatorio-F14.md).
 
 Em desenvolvimento, o rodapé do login tem **"Ferramentas de desenvolvimento"** (rota `/health`): mostra se
 a API está no ar e leva ao **catálogo de componentes** (rota `/catalog`), com todos os componentes e estados

@@ -93,14 +93,14 @@ Os motivos de NFC e do terminal (`TAG_DESCONHECIDA` "Tag não reconhecida.", `TA
 
 **Critérios de aceitação**
 
-- [ ] Nenhuma tela corta texto com a fonte no máximo.
-- [ ] Todos os elementos interativos são anunciados com nome e função.
+- [x] Nenhuma tela corta texto com a fonte no máximo. (emulador em 200%, 30 telas, depois das 5 correções)
+- [x] Todos os elementos interativos são anunciados com nome e função. (`test/a11y.audit.spec.tsx` nas 25 telas e árvore do emulador; falta a passada num celular real)
 - [ ] As pessoas do teste concluem as três tarefas; os problemas viram lista priorizada.
-- [ ] Os cinco problemas mais graves estão corrigidos e conferidos.
+- [x] Os cinco problemas mais graves estão corrigidos e conferidos. (da auditoria; rever depois do teste com pessoas)
 
 **Definição de pronto**
 
-- [ ] Relatório de usabilidade (1 a 2 páginas: método, resultados, correções) em `docs/app-mobile/`.
+- [ ] Relatório de usabilidade (1 a 2 páginas: método, resultados, correções) em `docs/app-mobile/`. (em `docs/app-mobile/usabilidade/relatorio-F14.md`, com a auditoria e as correções; falta a seção 3.2, do teste com pessoas)
 
 ---
 
