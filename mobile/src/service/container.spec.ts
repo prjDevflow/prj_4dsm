@@ -1,4 +1,8 @@
 import { createServices } from './container';
+import {
+  FakeListAccessEventsService,
+  FakeListMyAccessEventsService,
+} from './fakes/FakeAccessEventServices';
 import { FakeValidateQrService } from './fakes/FakeAccessServices';
 import {
   FakeCancelAuthorizationService,
@@ -31,6 +35,10 @@ import {
   FakeListUsersService,
   FakeUpdateUserService,
 } from './fakes/FakeUserServices';
+import {
+  ListAccessEventsService,
+  ListMyAccessEventsService,
+} from './implementations/AccessEventServices';
 import { ValidateQrService } from './implementations/AccessServices';
 import { CreateUserService } from './implementations/CreateUserService';
 import { GetHealthService } from './implementations/GetHealthService';
@@ -149,6 +157,16 @@ describe('createServices', () => {
     expect(fake.preparePosition).toBeInstanceOf(FakePreparePositionService);
     expect(fake.getPosition).toBeInstanceOf(FakeGetPositionService);
     expect(fake.simulatePosition).toBeInstanceOf(FakeSimulatePositionService);
+  });
+
+  it('o histórico é real por padrão e falso com "accessEvents" na lista', () => {
+    const real = createServices([]);
+    const fake = createServices(['accessEvents']);
+
+    expect(real.listAccessEvents).toBeInstanceOf(ListAccessEventsService);
+    expect(real.listMyAccessEvents).toBeInstanceOf(ListMyAccessEventsService);
+    expect(fake.listAccessEvents).toBeInstanceOf(FakeListAccessEventsService);
+    expect(fake.listMyAccessEvents).toBeInstanceOf(FakeListMyAccessEventsService);
   });
 
   it('a validação do QR é real por padrão e falsa com "validateQr" na lista', () => {

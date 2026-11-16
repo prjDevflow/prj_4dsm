@@ -3,13 +3,12 @@ import { comingSoonArea } from './comingSoon.areas';
 import { ComingSoonView } from './comingSoon.view';
 
 describe('Em breve', () => {
-  it.each([
-    ['meu-historico', 'Meu histórico', 'F12'],
-    ['tags', 'Tags NFC', 'F13'],
-    ['historico', 'Histórico', 'F12'],
-  ])('a área %s é "%s", que chega na %s', (area, title, step) => {
-    expect(comingSoonArea(area)).toMatchObject({ title, step });
-  });
+  it.each([['tags', 'Tags NFC', 'F13']])(
+    'a área %s é "%s", que chega na %s',
+    (area, title, step) => {
+      expect(comingSoonArea(area)).toMatchObject({ title, step });
+    },
+  );
 
   it('área desconhecida (ou que já chegou, como "usuarios") não existe', () => {
     expect(comingSoonArea('qualquer')).toBeNull();

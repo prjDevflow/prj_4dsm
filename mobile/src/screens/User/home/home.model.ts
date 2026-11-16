@@ -23,7 +23,7 @@ export const useUserHomeModel = ({ listMyAuthorizationsService }: UserHomeModelP
     onOpenAccount: () => router.push('/me/account'),
     onOpenScanner: () => router.push('/access/scanner'),
     onOpenAuthorizations: () => router.push('/me/authorizations'),
-    onOpenHistory: () => router.push('/em-breve/meu-historico'),
+    onOpenHistory: () => router.push('/me/history'),
     ...useLogoutModel(),
   };
 };

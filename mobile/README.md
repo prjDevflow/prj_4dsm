@@ -105,7 +105,8 @@ usos e cancelamento idempotente), usando as mesmas pessoas e locais dos falsos `
 já vêm com exemplos das quatro situações, inclusive para `visitante@dev.local`.
 
 `camera` troca o que o leitor pede ao aparelho: a permissão da câmera, as vibrações e as configurações.
-`position` troca a localização da validação, e `validateQr`, a própria validação.
+`position` troca a localização da validação, e `validateQr`, a própria validação. `accessEvents`
+troca o histórico do administrador e o "Meu histórico", com exemplos dos últimos dias.
 
 ## Tema e componentes
 
