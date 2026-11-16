@@ -1,7 +1,7 @@
-import { Pressable, StyleSheet, useWindowDimensions, View } from 'react-native';
+import { Pressable, StyleSheet, View } from 'react-native';
 import { Icon } from '@/components/Icon';
 import { Cookie12 } from '@/components/shapes';
-import { Text } from '@/components/ui';
+import { Text, useLargeFont } from '@/components/ui';
 import { accessReasonLabel, formatEventTime, metodoIcons, metodoLabels } from '@/lib/accessEvents';
 import type { EventoDeAcesso } from '@/lib/types/accessEvents';
 import { useTheme } from '@/theme';
@@ -13,8 +13,7 @@ type AccessEventRowProps = {
   onPress?: () => void;
 };
 
-// From this system font size on, the time goes below the name instead of squeezing it.
-const STACK_FONT_SCALE = 1.3;
+// With a large font the time goes below the name instead of squeezing it.
 
 const UNKNOWN_PERSON = 'Não identificado';
 const UNKNOWN_PLACE = 'Local não identificado';
@@ -38,7 +37,7 @@ export const AccessEventRow = ({ event, perspective, onPress }: AccessEventRowPr
   const theme = useTheme();
   const { colors } = theme;
   const admin = theme.scale === 'admin';
-  const stacked = useWindowDimensions().fontScale >= STACK_FONT_SCALE;
+  const stacked = useLargeFont();
   const texts = accessEventTexts(event, perspective);
   const denied = event.resultado === 'NEGADO';
   const label = [texts.title, texts.place, texts.metodo, texts.time, texts.result, texts.reason]

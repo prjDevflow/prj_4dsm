@@ -1,5 +1,6 @@
 import { fireEvent, render, screen } from '@testing-library/react-native';
 import { useState } from 'react';
+import { Dimensions } from 'react-native';
 import { colors } from '@/theme';
 import { RadioGroup } from './RadioGroup';
 import { SearchField } from './SearchField';
@@ -86,6 +87,22 @@ describe('SearchField', () => {
     return <SearchField label="Buscar por nome ou e-mail" value={value} onChangeText={setValue} />;
   };
 
+  it('um texto de exemplo curto cabe na caixa com a fonte grande; o nome continua o rótulo (F14)', async () => {
+    await render(
+      <SearchField
+        label="Buscar por nome ou e-mail"
+        placeholder="Nome ou e-mail"
+        value=""
+        onChangeText={jest.fn()}
+      />,
+    );
+
+    expect(screen.getByLabelText('Buscar por nome ou e-mail')).toHaveProp(
+      'placeholder',
+      'Nome ou e-mail',
+    );
+  });
+
   it('é um campo com o rótulo como nome e como texto de exemplo, em pílula', async () => {
     await render(<ControlledSearch />);
 
@@ -150,6 +167,33 @@ describe('SegmentedField', () => {
     });
     expect(screen.getByTestId('segment-check', { includeHiddenElements: true })).toBeOnTheScreen();
     expect(screen.getByRole('radio', { name: 'Porta' })).not.toBeChecked();
+  });
+
+  describe('com a fonte do sistema', () => {
+    afterEach(() => jest.restoreAllMocks());
+
+    const withFontScale = (fontScale: number) => {
+      const window = Dimensions.get('window');
+      jest.spyOn(Dimensions, 'get').mockReturnValue({ ...window, fontScale });
+    };
+
+    it('normal, as partes ficam lado a lado', async () => {
+      withFontScale(1);
+      await render(<ControlledSegmented />);
+
+      expect(screen.getByLabelText('Tipo')).toHaveStyle({ flexDirection: 'row' });
+    });
+
+    it('grande, as partes vão uma embaixo da outra, sem quebrar a palavra (F14)', async () => {
+      withFontScale(2);
+      await render(<ControlledSegmented />);
+
+      expect(screen.getByLabelText('Tipo')).toHaveStyle({
+        flexDirection: 'column',
+        borderRadius: 12,
+      });
+      expect(screen.getByRole('radio', { name: 'Porta' })).toHaveStyle({ borderTopWidth: 1 });
+    });
   });
 
   it('mostra o erro embaixo', async () => {

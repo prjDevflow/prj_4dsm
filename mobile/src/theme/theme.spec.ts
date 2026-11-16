@@ -85,6 +85,16 @@ describe('tema', () => {
       colors.primariaContainerApoio,
       colors.primariaContainer,
     ],
+    // F14: the pairs the audit found on screen that were not listed yet.
+    ['bloco Usuários do início', colors.areaUsuariosSobre, colors.areaUsuarios],
+    ['bloco Locais do início', colors.areaLocaisSobre, colors.areaLocais],
+    ['bloco Tags do início', colors.areaTagsSobre, colors.areaTags],
+    ['bloco Histórico do início', colors.areaHistoricoSobre, colors.areaHistorico],
+    ['texto de apoio no cartão', colors.textoApoio, colors.superficie],
+    ['link dentro do cartão ("Adicionar local")', colors.primaria, colors.superficie],
+    ['dica sobre a câmera do leitor', colors.texto, colors.fundoLeitor],
+    ['motivo da negação no histórico', colors.erro, colors.fundo],
+    ['selo "Offline" do terminal', colors.acaoSobre, colors.aviso],
   ])('o par "%s" passa de 4,5:1 (WCAG AA)', (_, foreground, background) => {
     expect(contrastRatio(foreground, background)).toBeGreaterThanOrEqual(4.5);
   });

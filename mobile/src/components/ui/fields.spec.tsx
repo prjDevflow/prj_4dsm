@@ -112,6 +112,26 @@ describe('TextField', () => {
   });
 });
 
+describe('TextField com texto longo (F14)', () => {
+  it('quebra a linha em vez de mostrar só o fim, e o Enter passa adiante', async () => {
+    await render(
+      <TextField label="Nome" value="Terminal de Desenvolvimento" onChangeText={jest.fn()} />,
+    );
+
+    const input = screen.getByLabelText('Nome');
+    expect(input).toHaveProp('multiline', true);
+    expect(input).toHaveProp('submitBehavior', 'blurAndSubmit');
+  });
+
+  it('quem pede outro comportamento do Enter continua mandando', async () => {
+    await render(
+      <TextField label="E-mail" value="" onChangeText={jest.fn()} submitBehavior="submit" />,
+    );
+
+    expect(screen.getByLabelText('E-mail')).toHaveProp('submitBehavior', 'submit');
+  });
+});
+
 describe('PasswordField', () => {
   const ControlledPassword = () => {
     const [value, setValue] = useState('');
@@ -133,6 +153,14 @@ describe('PasswordField', () => {
     await fireEvent.press(screen.getByRole('button', { name: 'Ocultar senha' }));
     expect(input().props.secureTextEntry).toBe(true);
     expect(input().props.value).toBe('segredo123');
+  });
+
+  it('fica sempre em uma linha, mesmo com a senha à mostra', async () => {
+    await render(<ControlledPassword />);
+
+    expect(screen.getByLabelText('Senha')).toHaveProp('multiline', false);
+    await fireEvent.press(screen.getByRole('button', { name: 'Mostrar senha' }));
+    expect(screen.getByLabelText('Senha')).toHaveProp('multiline', false);
   });
 
   it('o botão de mostrar tem toque de 48 × 48', async () => {

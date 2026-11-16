@@ -1,6 +1,7 @@
-import { FlatList, RefreshControl, ScrollView, StyleSheet, View } from 'react-native';
+import { FlatList, RefreshControl, StyleSheet, View } from 'react-native';
 import {
   Button,
+  ChipRow,
   DateField,
   EmptyState,
   ErrorState,
@@ -84,12 +85,7 @@ export const AccessHistoryView = ({
   // The filters scroll with the list, so a large system font still leaves room for the items.
   const listHeader = (
     <View style={styles.filters}>
-      <ScrollView
-        horizontal
-        showsHorizontalScrollIndicator={false}
-        contentContainerStyle={styles.chips}
-        keyboardShouldPersistTaps="handled"
-      >
+      <ChipRow>
         <FilterChip
           label={periodLabel}
           accessibilityLabel={`Período: ${periodLabel}`}
@@ -135,7 +131,7 @@ export const AccessHistoryView = ({
           onChange={onChangeMotivo}
           renderTrigger={chipTrigger('Motivo')}
         />
-      </ScrollView>
+      </ChipRow>
       {hasFilters ? (
         <View style={styles.clear}>
           <Button
@@ -232,7 +228,6 @@ export const AccessHistoryView = ({
 const styles = StyleSheet.create({
   content: { paddingVertical: 0 },
   filters: { gap: 8, paddingTop: 8, paddingBottom: 8 },
-  chips: { gap: 8 },
   clear: { alignItems: 'flex-start' },
   list: { flexGrow: 1, paddingBottom: 24 },
 });

@@ -1,8 +1,9 @@
-import { FlatList, RefreshControl, ScrollView, StyleSheet, View } from 'react-native';
+import { FlatList, RefreshControl, StyleSheet, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import {
   Avatar,
   Button,
+  ChipRow,
   EmptyState,
   ErrorState,
   Fab,
@@ -12,8 +13,8 @@ import {
   LoadingState,
   ScreenContainer,
   SearchField,
-  SwitchField,
   type StatusBadgeProps,
+  SwitchField,
 } from '@/components/ui';
 import { perfilLabel } from '@/lib/perfil';
 import type { UsuarioCompleto } from '@/lib/types/users';
@@ -66,17 +67,13 @@ export const UsersListView = ({
     <View style={styles.filters}>
       <SearchField
         label="Buscar por nome ou e-mail"
+        placeholder="Nome ou e-mail"
         value={search}
         onChangeText={onChangeSearch}
         autoCapitalize="none"
         maxLength={120}
       />
-      <ScrollView
-        horizontal
-        showsHorizontalScrollIndicator={false}
-        contentContainerStyle={styles.chips}
-        keyboardShouldPersistTaps="handled"
-      >
+      <ChipRow>
         {filters.map((filter) => (
           <FilterChip
             key={filter.value}
@@ -85,7 +82,7 @@ export const UsersListView = ({
             onPress={() => onChangePerfil(filter.value)}
           />
         ))}
-      </ScrollView>
+      </ChipRow>
       <SwitchField
         label="Mostrar usuários inativos"
         value={showInactive}
@@ -178,7 +175,6 @@ const styles = StyleSheet.create({
   fill: { flex: 1 },
   content: { paddingVertical: 0 },
   filters: { gap: 8, paddingTop: 8, paddingBottom: 8 },
-  chips: { gap: 8 },
   // Room at the end so the floating "Novo usuário" never covers the last person.
   list: { flexGrow: 1, paddingBottom: 96 },
 });

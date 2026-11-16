@@ -5,12 +5,20 @@ import { useTheme } from '@/theme';
 type SearchFieldProps = Omit<TextInputProps, 'style' | 'value' | 'onChangeText'> & {
   /** Name for the screen reader and the text shown while empty ("Buscar por nome ou e-mail"). */
   label: string;
+  /** Shorter text shown while empty, when the label would be cut with a large font. */
+  placeholder?: string;
   value: string;
   onChangeText: (text: string) => void;
 };
 
 /** Search pill at the top of a list (T15): magnifier on the left, "Limpar busca" when filled. */
-export const SearchField = ({ label, value, onChangeText, ...inputProps }: SearchFieldProps) => {
+export const SearchField = ({
+  label,
+  placeholder = label,
+  value,
+  onChangeText,
+  ...inputProps
+}: SearchFieldProps) => {
   const theme = useTheme();
   const { colors, sizes } = theme;
   const text = theme.typography[theme.scale === 'admin' ? 'adminCorpo' : 'pessoaCorpo'];
@@ -33,7 +41,7 @@ export const SearchField = ({ label, value, onChangeText, ...inputProps }: Searc
       <TextInput
         {...inputProps}
         accessibilityLabel={label}
-        placeholder={label}
+        placeholder={placeholder}
         value={value}
         onChangeText={onChangeText}
         placeholderTextColor={colors.textoApoio}

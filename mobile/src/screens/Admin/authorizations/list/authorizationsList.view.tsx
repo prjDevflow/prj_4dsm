@@ -1,9 +1,10 @@
-import { FlatList, Pressable, RefreshControl, ScrollView, StyleSheet, View } from 'react-native';
+import { FlatList, Pressable, RefreshControl, StyleSheet, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Icon } from '@/components/Icon';
 import {
   Avatar,
   Button,
+  ChipRow,
   DateField,
   EmptyState,
   ErrorState,
@@ -15,8 +16,8 @@ import {
   LoadingState,
   ScreenContainer,
   SelectField,
-  Text,
   type SelectOption,
+  Text,
 } from '@/components/ui';
 import { formatPeriod } from '@/lib/dateValue';
 import type { Autorizacao } from '@/lib/types/authorizations';
@@ -114,12 +115,7 @@ export const AuthorizationsListView = ({
         searchPlaceholder="Busque pelo nome ou e-mail"
         renderTrigger={PersonTrigger}
       />
-      <ScrollView
-        horizontal
-        showsHorizontalScrollIndicator={false}
-        contentContainerStyle={styles.chips}
-        keyboardShouldPersistTaps="handled"
-      >
+      <ChipRow>
         {situacoes.map((option) => (
           <FilterChip
             key={option.value}
@@ -128,7 +124,7 @@ export const AuthorizationsListView = ({
             onPress={() => onChangeSituacao(option.value)}
           />
         ))}
-      </ScrollView>
+      </ChipRow>
       <View style={styles.moreFilters}>
         <SelectField
           label="Local"
@@ -264,7 +260,6 @@ const styles = StyleSheet.create({
   content: { paddingVertical: 0 },
   filters: { gap: 8, paddingTop: 8, paddingBottom: 8 },
   pill: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingHorizontal: 16 },
-  chips: { gap: 8 },
   moreFilters: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: 8 },
   // Room at the end so the floating "Nova autorização" never covers the last item.
   list: { flexGrow: 1, paddingBottom: 96 },

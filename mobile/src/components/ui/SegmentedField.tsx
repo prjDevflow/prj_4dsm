@@ -4,6 +4,7 @@ import { useTheme } from '@/theme';
 import { FieldLabel, FieldMessage, fieldStyles } from './Field';
 import type { RadioOption } from './RadioGroup';
 import { Text } from './Text';
+import { useLargeFont } from './useLargeFont';
 
 type SegmentedFieldProps<T extends string> = {
   label: string;
@@ -25,6 +26,8 @@ export const SegmentedField = <T extends string>({
 }: SegmentedFieldProps<T>) => {
   const theme = useTheme();
   const { colors } = theme;
+  // With a large font the options go one under the other, so no word breaks in the middle.
+  const stacked = useLargeFont();
 
   return (
     <View style={fieldStyles.field}>
@@ -34,7 +37,12 @@ export const SegmentedField = <T extends string>({
         accessibilityLabel={label}
         style={[
           styles.group,
-          { borderRadius: theme.radius.pilula, borderColor: error ? colors.erro : colors.contorno },
+          stacked && styles.stacked,
+          {
+            // A pill only makes sense in a row; stacked, the options sit in a field-shaped box.
+            borderRadius: stacked ? theme.radius.campo : theme.radius.pilula,
+            borderColor: error ? colors.erro : colors.contorno,
+          },
         ]}
       >
         {options.map((option, index) => {
@@ -56,9 +64,9 @@ export const SegmentedField = <T extends string>({
                 {
                   minHeight: theme.sizes.touchMin,
                   backgroundColor: checked ? colors.primariaContainer : 'transparent',
-                  borderLeftColor: colors.contorno,
+                  borderColor: colors.contorno,
                 },
-                index > 0 && styles.divider,
+                index > 0 && (stacked ? styles.dividerTop : styles.divider),
                 pressed && styles.pressed,
                 disabled && styles.disabled,
               ]}
@@ -98,7 +106,9 @@ const styles = StyleSheet.create({
     paddingHorizontal: 8,
     paddingVertical: 6,
   },
+  stacked: { flexDirection: 'column' },
   divider: { borderLeftWidth: 1 },
+  dividerTop: { borderTopWidth: 1 },
   label: { flexShrink: 1, textAlign: 'center' },
   pressed: { opacity: 0.8 },
   disabled: { opacity: 0.38 },
