@@ -1,7 +1,9 @@
+import vm from 'node:vm';
 import request from 'supertest';
 import { beforeEach, describe, expect, it } from 'vitest';
 import { createApp } from '../../src/main/app';
 import { authenticate, authorize } from '../../src/main/middlewares';
+import { loadOpenApiSpec } from '../../src/main/openapi';
 import {
   PASSWORD,
   expiredTokenFor,
@@ -296,9 +298,28 @@ describe('GET /docs', () => {
 
     expect(page.status).toBe(200);
     expect(page.headers['content-type']).toMatch(/text\/html/);
+    const spec = await request(app).get('/docs/openapi.json');
+
     expect(init.status).toBe(200);
-    expect(init.text).toContain('/auth/login');
-    expect(init.text).toContain('/auth/me');
-    expect(init.text).toContain('bearerAuth');
+    expect(spec.status).toBe(200);
+    expect(spec.headers['content-type']).toMatch(/application\/json/);
+    expect(Object.keys(spec.body.paths)).toEqual(
+      expect.arrayContaining(['/auth/login', '/auth/me']),
+    );
+    expect(spec.body.components.securitySchemes).toHaveProperty('bearerAuth');
+  });
+
+  it('serve um swagger-ui-init.js que o navegador consegue executar', async () => {
+    const init = await request(makeApp()).get('/docs/swagger-ui-init.js');
+
+    // A "$`" in the contract (regex patterns end in "$") once broke this script: swagger-ui-express
+    // inlines the spec through String.replace, which expands "$`" and "$'". Parsing catches it.
+    expect(() => new vm.Script(init.text)).not.toThrow();
+  });
+
+  it('serve no /docs/openapi.json o mesmo contrato do openapi.yaml, sem alterar nenhum texto', async () => {
+    const spec = await request(makeApp()).get('/docs/openapi.json');
+
+    expect(spec.body).toEqual(loadOpenApiSpec());
   });
 });

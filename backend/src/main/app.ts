@@ -53,8 +53,18 @@ export function createApp({
   app.use(OFFLINE_BATCH_PATH, express.json({ limit: '64kb' }));
   app.use(express.json({ limit: '100kb' }));
 
-  // Swagger UI reads the same openapi.yaml the contract is kept in.
-  app.use('/docs', swaggerUi.serve, swaggerUi.setup(loadOpenApiSpec()));
+  // Swagger UI reads the same openapi.yaml the contract is kept in. The page fetches it from a URL
+  // instead of having it inlined: swagger-ui-express inlines with String.replace, which expands "$`"
+  // in the spec text (regex patterns end in "$") and breaks swagger-ui-init.js in the browser.
+  const openApiSpec = loadOpenApiSpec();
+  app.get('/docs/openapi.json', (_req, res) => {
+    res.json(openApiSpec);
+  });
+  app.use(
+    '/docs',
+    swaggerUi.serve,
+    swaggerUi.setup(undefined, { swaggerOptions: { url: '/docs/openapi.json' } }),
+  );
 
   const api = buildApiRouter();
   extraRoutes?.(api);
