@@ -1,6 +1,7 @@
 # Backend — Controle de Acesso (ABP 2026-2)
 
 [![Backend CI](https://github.com/prjDevflow/prj_4dsm/actions/workflows/ci.yml/badge.svg?branch=develop)](https://github.com/prjDevflow/prj_4dsm/actions/workflows/ci.yml)
+[![Deploy em homologação](https://img.shields.io/github/deployments/prjDevflow/prj_4dsm/homologacao?label=homologa%C3%A7%C3%A3o)](https://github.com/prjDevflow/prj_4dsm/deployments/homologacao)
 
 API em Node.js + Express 5 + TypeScript (`strict`) que atende o app mobile (JWT) e o terminal de acesso (ESP32 ou simulador).
 

@@ -22,7 +22,7 @@ Situação em 2026-11-08, na branch `feature/B20-security-monitoring-docs`.
 - **HSTS só em produção** (`NODE_ENV=production`): `Strict-Transport-Security: max-age=31536000; includeSubDomains` (um ano). Fora de produção não há HSTS, para o navegador não guardar a regra "só HTTPS" para o `localhost`. O valor está escrito no código, não depende do padrão da biblioteca.
 - **CORS por lista de origens** (`CORS_ORIGINS`, obrigatória e sem valor padrão: a API não sobe sem ela). Uma origem fora da lista não recebe `Access-Control-Allow-Origin`, e o navegador bloqueia a chamada. O pacote `cors` sempre manda `Access-Control-Allow-Methods`, e esse cabeçalho sozinho não libera nada.
 
-**HTTPS.** O TLS termina no provedor de hospedagem (B10, ainda pendente), não na API. A API não redireciona HTTP para HTTPS: o terminal pode usar HTTP em homologação, e o redirecionamento é configuração do provedor. O HSTS faz o navegador (por exemplo, ao abrir o Swagger em `/docs`) recusar HTTP depois da primeira visita por HTTPS. Atrás de um proxy ou balanceador, configure `TRUST_PROXY` (seção 2).
+**HTTPS.** O TLS termina no provedor de hospedagem (Azure Container Apps, B10: [deploy-azure.md](deploy-azure.md)), não na API. A API não redireciona HTTP para HTTPS: o terminal pode usar HTTP em homologação, e o redirecionamento é configuração do provedor. O HSTS faz o navegador (por exemplo, ao abrir o Swagger em `/docs`) recusar HTTP depois da primeira visita por HTTPS. Atrás de um proxy ou balanceador, configure `TRUST_PROXY` (seção 2).
 
 **Testes:** [securityHeaders.test.ts](../test/integration/securityHeaders.test.ts) (8 casos). Foram provados por mutação: helmet removido, CORS aberto a qualquer origem, HSTS de 180 dias, HSTS sem subdomínios e HSTS ligado fora de produção. Todas derrubaram o teste certo.
 
@@ -181,7 +181,7 @@ A API ficou de pé o tempo todo, e o pool de conexões se recuperou sozinho. Num
 
 Para validar: pare o banco do ambiente publicado, cronometre até o aviso chegar e registre o tempo aqui.
 
-**Selos no README.** O selo do CI já está no [README](../README.md). O do CD entra quando a B10 criar o workflow de deploy.
+**Selos no README.** O selo do CI já está no [README](../README.md). O do deploy em homologação (B10) também.
 
 ## 8. Limitações conhecidas
 
@@ -192,7 +192,7 @@ Para validar: pare o banco do ambiente publicado, cronometre até o aviso chegar
 - **Sem limite nas rotas de cadastro do app** (seção 2).
 - **O limite do login é por IP + e-mail**: quem troca o e-mail a cada tentativa tem uma cota nova a cada vez, e cada tentativa gasta uma comparação de bcrypt (cerca de 100 ms com custo 10), então um IP pode ocupar o processo da API, que atende também os terminais. Um limitador só por IP, antes do atual, fecha isso (decisão pendente, STATUS, pergunta 18).
 - **`/docs` (Swagger) é público e sem limite próprio.**
-- **`TRUST_PROXY=0` atrás de um proxy não avisa nada**: a biblioteca só valida o gerador de chave padrão, e os nossos são próprios. O limite de falhas de autenticação passaria a valer para todos juntos (20 chaves erradas de qualquer lugar travam todos os terminais por um minuto). Definir `TRUST_PROXY` é item da B10.
+- **`TRUST_PROXY=0` atrás de um proxy não avisa nada**: a biblioteca só valida o gerador de chave padrão, e os nossos são próprios. O limite de falhas de autenticação passaria a valer para todos juntos (20 chaves erradas de qualquer lugar travam todos os terminais por um minuto). A homologação (B10) usa `TRUST_PROXY=1`, porque o ingress do Azure é um proxy ([deploy-azure.md](deploy-azure.md)).
 - **O log de erro não tratado não mascara a mensagem** (seção 5).
 - **Requisições abortadas pelo cliente contam como falha** no limite de falhas de autenticação (o reembolso só acontece ao terminar a resposta), e 20 requisições simultâneas de um IP recebem `429` mesmo com a chave certa. Improvável com um terminal.
 - **Sem HTTPS real até a B10.**
