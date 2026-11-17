@@ -10,7 +10,10 @@ const response = (status: number, body: unknown) => ({
 
 const healthy = () => response(200, { status: 'ok', db: 'up', version: '0.1.0' });
 
-const makeSut = (responses: (() => ReturnType<typeof response> | Promise<never>)[], attempts = 3) => {
+const makeSut = (
+  responses: (() => ReturnType<typeof response> | Promise<never>)[],
+  attempts = 3,
+) => {
   let call = 0;
   const fetch: HealthFetch = vi.fn(async () => {
     const next = responses[Math.min(call, responses.length - 1)];
@@ -76,7 +79,10 @@ describe('checkHealth', () => {
   });
 
   it('deve desistir depois do limite de tentativas e devolver o último motivo, sem esperar depois da última', async () => {
-    const { run, fetch, sleep, log } = makeSut([() => Promise.reject(new Error('ECONNREFUSED'))], 4);
+    const { run, fetch, sleep, log } = makeSut(
+      [() => Promise.reject(new Error('ECONNREFUSED'))],
+      4,
+    );
 
     const result = await run();
     expect(result).toEqual({ ok: false, tentativas: 4, motivo: 'falha de rede: ECONNREFUSED' });
@@ -103,7 +109,14 @@ describe('checkHealth', () => {
   it('deve recusar um número de tentativas menor que 1', async () => {
     const { fetch } = makeSut([healthy]);
     await expect(
-      checkHealth({ url: URL_HEALTH, fetch, attempts: 0, delayMs: 1, sleep: async () => {}, log: () => {} }),
+      checkHealth({
+        url: URL_HEALTH,
+        fetch,
+        attempts: 0,
+        delayMs: 1,
+        sleep: async () => {},
+        log: () => {},
+      }),
     ).rejects.toThrow('tentativas');
   });
 });

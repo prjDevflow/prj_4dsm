@@ -18,7 +18,9 @@ async function main() {
     log: (text) => process.stdout.write(`${text}\n`),
   });
   if (!result.ok) {
-    throw new Error(`O /health não ficou saudável em ${result.tentativas} tentativas: ${result.motivo}.`);
+    throw new Error(
+      `O /health não ficou saudável em ${result.tentativas} tentativas: ${result.motivo}.`,
+    );
   }
 }
 

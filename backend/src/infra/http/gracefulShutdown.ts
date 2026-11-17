@@ -37,7 +37,9 @@ export function createGracefulShutdown(deps: GracefulShutdownDeps) {
     deps.logger.info('Desligando o servidor', { sinal: signal });
 
     const timer = setTimeout(() => {
-      deps.logger.error('Desligamento passou do prazo; saindo à força', { prazoMs: deps.timeoutMs });
+      deps.logger.error('Desligamento passou do prazo; saindo à força', {
+        prazoMs: deps.timeoutMs,
+      });
       exitOnce(1);
     }, deps.timeoutMs);
     // The timer alone must not keep the process alive.

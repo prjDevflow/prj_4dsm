@@ -21,10 +21,15 @@ const purgeExpiredCredentials = new PurgeExpiredCredentialsUseCase(
   container.clock,
   { purgeAfterHours: env.QR_PURGE_AFTER_HOURS },
 );
-const credentialsJob = new PurgeJob(() => purgeExpiredCredentials.execute(), logger, PURGE_INTERVAL_MS, {
-  apagou: 'Credenciais QR vencidas apagadas',
-  falhou: 'Falha ao apagar credenciais QR vencidas',
-});
+const credentialsJob = new PurgeJob(
+  () => purgeExpiredCredentials.execute(),
+  logger,
+  PURGE_INTERVAL_MS,
+  {
+    apagou: 'Credenciais QR vencidas apagadas',
+    falhou: 'Falha ao apagar credenciais QR vencidas',
+  },
+);
 credentialsJob.start();
 
 const purgeExpiredCommands = new PurgeExpiredCommandsUseCase(
