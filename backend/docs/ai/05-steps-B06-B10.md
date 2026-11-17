@@ -255,18 +255,18 @@ Resposta 201 (reutilizada em B09 e consumida por F07, F08 e F09):
 
 **Lista de verificação**
 
-- [ ] Merge na `develop` com CI verde publica sozinho.
+- [x] Merge na `develop` com CI verde publica sozinho.
 - [ ] Um commit com CI vermelho **não** publica (provar com um PR de teste).
-- [ ] Pós-deploy: `/health` responde `ok` e `db: up` por HTTPS; a falha desse passo derruba o pipeline.
-- [ ] Migrações aplicadas automaticamente no deploy.
+- [x] Pós-deploy: `/health` responde `ok` e `db: up` por HTTPS; a falha desse passo derruba o pipeline.
+- [x] Migrações aplicadas automaticamente no deploy.
 - [ ] Swagger acessível na homologação.
 
 **Critérios de aceitação**
 
-- [ ] Merge na `develop` com CI verde publica sozinho, sem passo manual.
+- [x] Merge na `develop` com CI verde publica sozinho, sem passo manual.
 - [ ] CI vermelho **não** publica.
-- [ ] A URL de homologação responde `/health` com `ok` e `db: up` via HTTPS.
-- [ ] Migrações são aplicadas automaticamente no deploy.
+- [x] A URL de homologação responde `/health` com `ok` e `db: up` via HTTPS.
+- [x] Migrações são aplicadas automaticamente no deploy.
 - [ ] O Swagger fica acessível na homologação.
 
 **Definição de pronto**
