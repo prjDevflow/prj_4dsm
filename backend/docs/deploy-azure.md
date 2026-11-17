@@ -157,7 +157,7 @@ Toda imagem publicada fica no GHCR com a tag do SHA do commit. Para voltar para 
 - **Pelo GitHub (preferido):** Actions → **Backend CD** → *Run workflow* → em `tag`, o SHA completo do commit bom.
   Ele pula o build e as migrações, publica aquela imagem e roda o teste de fumaça. (O botão só aparece quando o
   `cd.yml` estiver também na `main`, que é a branch padrão.)
-- **Pelo portal:** Container App → **Revisions and replicas** → ative a revisão anterior (o nome traz os 7 primeiros caracteres do SHA).
+- **Pelo portal:** Container App → **Revisions and replicas** → ative a revisão anterior (a coluna da imagem mostra o SHA de cada uma; o ambiente *express* não aceita sufixo de revisão, então o nome é gerado pelo Azure).
 
 Migrações **não** voltam sozinhas. Se a versão nova trouxe uma migração que quebrou dados, restaure o banco pelo
 histórico do Neon antes ([backup-e-restauracao.md](backup-e-restauracao.md)).
