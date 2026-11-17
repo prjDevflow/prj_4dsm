@@ -142,10 +142,12 @@ jobs:
         run: |
           set -euo pipefail
           for attempt in $(seq 1 30); do
-            read -r latest ready image fqdn < <(az containerapp show \
+            # One value per line; `read` on a line without a trailing newline returns 1 and `set -e` would stop here.
+            mapfile -t fields < <(az containerapp show \
               --name "$CONTAINER_APP" --resource-group "$RESOURCE_GROUP" \
               --query "[properties.latestRevisionName, properties.latestReadyRevisionName, properties.template.containers[0].image, properties.configuration.ingress.fqdn]" \
-              --output tsv | tr '\n' ' ')
+              --output tsv)
+            latest="${fields[0]:-}"; ready="${fields[1]:-}"; image="${fields[2]:-}"; fqdn="${fields[3]:-}"
             echo "Tentativa $attempt/30: última=$latest pronta=$ready imagem=$image"
             if [ "$latest" = "$ready" ] && [ "$image" = "$IMAGE:$TAG" ]; then
               echo "url=https://$fqdn" >> "$GITHUB_OUTPUT"
