@@ -1,36 +1,123 @@
-# Backend — Controle de Acesso (ABP 2026-2)
+<div align="center">
+
+<img src="https://capsule-render.vercel.app/api?type=waving&color=0:17364F,100:0A7C66&height=180&section=header&text=Passe%20%C2%B7%20API&fontSize=46&fontColor=ffffff&fontAlignY=38&desc=Backend%20do%20controle%20de%20acesso%20%7C%20ABP%202026-2&descAlignY=60&descSize=16&animation=fadeIn" width="100%" />
+
+<br/>
 
 [![Backend CI](https://github.com/prjDevflow/prj_4dsm/actions/workflows/ci.yml/badge.svg?branch=develop)](https://github.com/prjDevflow/prj_4dsm/actions/workflows/ci.yml)
 [![Deploy em homologação](https://img.shields.io/github/deployments/prjDevflow/prj_4dsm/homologacao?label=homologa%C3%A7%C3%A3o)](https://github.com/prjDevflow/prj_4dsm/deployments/homologacao)
+[![API no ar](https://img.shields.io/badge/API-homologa%C3%A7%C3%A3o-0A7C66?style=for-the-badge&logo=microsoftazure&logoColor=white)](https://api-acesso.blackfield-72312729.chilecentral.azurecontainerapps.io/docs)
+[![Node.js](https://img.shields.io/badge/Node.js-24-339933?style=for-the-badge&logo=node.js&logoColor=white)](https://nodejs.org/)
+[![Express](https://img.shields.io/badge/Express-5-000000?style=for-the-badge&logo=express&logoColor=white)](https://expressjs.com/)
+[![Prisma](https://img.shields.io/badge/Prisma-7-2D3748?style=for-the-badge&logo=prisma&logoColor=white)](https://www.prisma.io/)
+[![PostgreSQL](https://img.shields.io/badge/PostgreSQL-17-4169E1?style=for-the-badge&logo=postgresql&logoColor=white)](https://www.postgresql.org/)
 
-API em Node.js + Express 5 + TypeScript (`strict`) que atende o app mobile (JWT) e o terminal de acesso (ESP32 ou simulador).
+</div>
 
-Contexto para quem usa IA e documentação técnica: [AGENTS.md](AGENTS.md) e [docs/ai/](docs/ai/).
+---
 
-## Pré-requisitos
+## Sobre a API
 
-**Só para rodar a API e o banco:**
+> A API é o centro do **Passe**. Ela atende o app mobile e o terminal de acesso.
 
-- Docker Desktop (ou Docker Engine + Compose v2). Não precisa de Node nem de npm: a imagem da API traz o próprio Node 24.
+A API gera o QR Code de cada terminal. Ela valida cada tentativa de acesso, por QR Code ou por tag NFC. Ela consome os usos da autorização numa transação. Ela grava um evento por tentativa. Depois, ela manda o terminal abrir ou negar.
 
-**Para desenvolver e rodar os testes** (além do Docker, que fornece o banco):
+- **App mobile:** usa um token JWT.
+- **Terminal de acesso** (ESP32 ou simulador): usa os cabeçalhos `X-Terminal-Id` e `X-Terminal-Key`.
 
-- Node.js 22.18 ou superior (exigência do Prisma 7)
-- npm 10 ou superior
+Stack: Node.js, Express 5, TypeScript (`strict`), Prisma 7 e PostgreSQL 17.
 
-## Instalar
+Contexto para IA e documentação técnica: [AGENTS.md](AGENTS.md) e [docs/ai/](docs/ai/).
+
+---
+
+## API em homologação
+
+A API de homologação está no ar desde 17/11/2026. Use esta API para testar o app e o terminal.
+
+<div align="center">
+
+| Recurso            | Endereço                                                                                                  |
+| :----------------- | :-------------------------------------------------------------------------------------------------------- |
+| Base da API        | `https://api-acesso.blackfield-72312729.chilecentral.azurecontainerapps.io/api/v1`                        |
+| Swagger (contrato) | [/docs](https://api-acesso.blackfield-72312729.chilecentral.azurecontainerapps.io/docs)                   |
+| Saúde              | [/api/v1/health](https://api-acesso.blackfield-72312729.chilecentral.azurecontainerapps.io/api/v1/health) |
+| Prontidão          | [/api/v1/ready](https://api-acesso.blackfield-72312729.chilecentral.azurecontainerapps.io/api/v1/ready)   |
+
+</div>
+
+```bash
+curl https://api-acesso.blackfield-72312729.chilecentral.azurecontainerapps.io/api/v1/health
+# {"status":"ok","version":"0.1.0","time":"...","db":"up"}
+```
+
+**Onde a API roda:**
+
+- Azure Container Apps, região Chile Central, com 1 réplica sempre ligada.
+- A imagem fica no GitHub Container Registry (`ghcr.io/prjdevflow/prj_4dsm/backend`).
+- O banco é o PostgreSQL do Neon. A API usa a URL com pooler. As migrações usam a URL direta.
+- O HTTPS é do Azure. A API confia em 1 proxy (`TRUST_PROXY=1`).
+
+**Como uma versão nova chega à homologação:**
+
+1. Faça o merge de um PR na `develop` que muda o `backend/`.
+2. O CI roda. Se o `backend-ci` falha, o deploy não acontece.
+3. Com o CI verde, o job `deploy` publica a imagem, aplica as migrações e troca a revisão.
+4. O teste de fumaça chama o `/health` por HTTPS. Ele exige `db` igual a `up`.
+
+**Para voltar a uma versão anterior:** abra **Actions → Backend CD → Run workflow**. Informe o SHA completo de uma imagem já publicada. Este caminho não gera imagem e não aplica migrações.
+
+> [!IMPORTANT]
+> Não rode o seed na homologação. As credenciais do seed são públicas. O primeiro administrador da homologação é uma decisão aberta (pergunta #19 do [STATUS](docs/ai/STATUS.md)).
+
+> [!NOTE]
+> O Neon gratuito suspende o banco quando ele fica parado. A primeira requisição depois disso demora mais.
+
+Guia completo (Azure, OIDC, secrets, rollback, cadeia HTTPS para o terminal): [docs/deploy-azure.md](docs/deploy-azure.md).
+
+---
+
+## Começar
+
+<details open>
+<summary><b>Pré-requisitos</b></summary>
+<br>
+
+**Para rodar só a API e o banco:**
+
+- Docker Desktop, ou Docker Engine com Compose v2.
+- Não é necessário Node. A imagem da API tem o Node 24.
+
+**Para desenvolver e rodar os testes** (o Docker fornece o banco):
+
+- Node.js 22.18 ou superior. O Prisma 7 exige esta versão.
+- npm 10 ou superior.
+
+</details>
+
+<details open>
+<summary><b>Instalar</b></summary>
+<br>
 
 ```bash
 cd backend
-cp .env.example .env   # no PowerShell: Copy-Item .env.example .env (necessário também para o Docker)
+cp .env.example .env   # no PowerShell: Copy-Item .env.example .env (também é necessário para o Docker)
 npm ci                 # só para desenvolver e testar (precisa de Node)
 ```
 
-**Antes de subir a API, defina o `JWT_SECRET` no `.env`** (mínimo 32 caracteres; o valor do exemplo é curto de
-propósito e a API não sobe com ele). Gere um com `openssl rand -base64 48` (no PowerShell, qualquer texto
-aleatório com 32 caracteres ou mais serve para desenvolvimento).
+**Defina o `JWT_SECRET` no `.env` antes de subir a API.** O mínimo é 32 caracteres. O valor do exemplo é curto de propósito, e a API não sobe com ele. Gere um valor com `openssl rand -base64 48`. No PowerShell, um texto aleatório com 32 caracteres ou mais serve para desenvolvimento.
 
-Variáveis do `.env`:
+Depois do `npm ci`, gere o client do Prisma. O código usa os tipos dele.
+
+```bash
+npm run db:generate
+```
+
+</details>
+
+<details>
+<summary><b>Variáveis do <code>.env</code></b></summary>
+<br>
 
 | Variável                                               | Padrão                  | Uso                                                        |
 | ------------------------------------------------------ | ----------------------- | ---------------------------------------------------------- |
@@ -65,101 +152,101 @@ Variáveis do `.env`:
 | `TRUST_PROXY`                                          | `0`                     | proxies na frente da API (um número, nunca `true`)         |
 | `SEED_*`                                               | ver `.env.example`      | credenciais e local do seed de desenvolvimento             |
 
-O `.env` nunca vai para o Git nem para a imagem Docker. Troque a senha do exemplo no seu `.env`.
-A senha e a porta da `DATABASE_URL` precisam ser as mesmas de `POSTGRES_PASSWORD` e `DB_PORT`. Se a
-porta 5432 já estiver ocupada no seu computador, use outra (ex.: `DB_PORT=5433` e `...@localhost:5433/access`).
-Dentro do `docker compose` a API e as migrações recebem a URL do serviço `db` automaticamente; para
-rodar só com Docker, basta ajustar `POSTGRES_PASSWORD` (e `DB_PORT`, se precisar).
+- O `.env` nunca vai para o Git nem para a imagem Docker.
+- Troque a senha do exemplo no seu `.env`.
+- A senha e a porta da `DATABASE_URL` devem ser iguais a `POSTGRES_PASSWORD` e `DB_PORT`.
+- Se a porta 5432 está ocupada, use outra. Exemplo: `DB_PORT=5433` e `...@localhost:5433/access`.
+- Dentro do `docker compose`, a API e as migrações recebem a URL do serviço `db` automaticamente. Para usar só o Docker, ajuste `POSTGRES_PASSWORD` (e `DB_PORT`, se necessário).
 
-Para desenvolver, depois do `npm ci`, gere o client do Prisma (os tipos usados pelo código):
+</details>
 
-```bash
-npm run db:generate
-```
+---
 
-## Subir com Docker (API + PostgreSQL)
+## Subir com Docker
 
 ```bash
 cd backend
-cp .env.example .env         # se ainda não tiver
+cp .env.example .env              # se ainda não tem
 docker compose up --build -d
-docker compose run --rm migrate   # aplica as migrações, dentro do Docker (sem Node no seu computador)
+docker compose run --rm migrate   # aplica as migrações dentro do Docker (sem Node no seu computador)
 docker compose run --rm seed      # dados de desenvolvimento: usuários, catraca, terminal (ver docs/ambiente-dev.md)
-docker compose ps            # db "healthy" e api "running"
+docker compose ps                 # db "healthy" e api "running"
 curl http://localhost:3000/api/v1/health
 # {"status":"ok","version":"0.1.0","time":"...","db":"up"}
 ```
 
-Com o banco parado (`docker compose stop db`) o `/health` continua respondendo 200, com `"db":"down"`, e o
-`/ready` responde **503** (é ele que serve para alertas; ver [Segurança e monitoramento](#segurança-e-monitoramento)):
+Com o banco parado (`docker compose stop db`), o `/health` ainda responde 200, com `"db":"down"`. O `/ready` responde **503**. Use o `/ready` para alertas (ver [Segurança e monitoramento](#segurança-e-monitoramento)).
 
 ```bash
 curl -i http://localhost:3000/api/v1/ready
 # 200 {"status":"ready","db":"up","time":"..."}  |  503 {"status":"unavailable","db":"down","time":"..."}
 ```
 
-O que sobe:
+**Serviços:**
 
-- `db`: PostgreSQL 17 com os bancos `access` (desenvolvimento) e `access_test` (testes de integração), dados no volume `pgdata`.
-- `api`: a imagem de produção do backend, que só inicia depois que o banco responde ao `healthcheck`.
+- `db`: PostgreSQL 17 com os bancos `access` (desenvolvimento) e `access_test` (testes de integração). Os dados ficam no volume `pgdata`.
+- `api`: a imagem de produção do backend. Ela inicia só depois que o banco passa no `healthcheck`.
 
-Comandos úteis:
+<details>
+<summary><b>Comandos úteis do Docker</b></summary>
+<br>
 
 | Comando                                    | O que faz                                                                   |
 | ------------------------------------------ | --------------------------------------------------------------------------- |
-| `docker compose logs -f api`               | acompanha os logs da API                                                    |
+| `docker compose logs -f api`               | mostra os logs da API                                                       |
 | `docker compose stop db`                   | para só o banco (a API continua de pé)                                      |
 | `docker compose down`                      | para tudo e mantém os dados                                                 |
 | `docker compose down -v`                   | para tudo e **apaga o banco**; na próxima subida o `access_test` é recriado |
 | `docker compose exec db psql -U access -l` | lista os bancos                                                             |
 | `docker compose exec api whoami`           | mostra o usuário da API (`node`, não root)                                  |
 
-O script `docker/postgres/init/01-create-test-db.sql` só roda quando o volume está vazio. Se o volume foi criado antes dele, use `docker compose down -v`.
+O script `docker/postgres/init/01-create-test-db.sql` roda só com o volume vazio. Se o volume é mais antigo que o script, use `docker compose down -v`.
+
+</details>
 
 ### Banco de dados (Prisma)
 
-| Comando                           | O que faz                                                                                           |
-| --------------------------------- | --------------------------------------------------------------------------------------------------- |
-| `docker compose run --rm migrate` | aplica as migrações existentes no banco do compose, só com Docker                                   |
-| `npm run db:migrate`              | cria uma nova migração a partir do `prisma/schema.prisma` e aplica (desenvolvimento)                |
-| `npm run db:deploy`               | aplica as migrações existentes usando a `DATABASE_URL` do `.env` (inclui banco na nuvem)            |
-| `docker compose run --rm seed`    | semeia o banco do compose com os dados de desenvolvimento, só com Docker                            |
-| `npm run db:reset`                | **apaga** o banco `access`, reaplica as migrações e semeia em seguida (pede confirmação)            |
-| `npm run db:seed`                 | roda `prisma/seed.ts` com as variáveis `SEED_*` do `.env`                                           |
-| `npm run db:erd`                  | regenera `docs/modelo-de-dados.md` (diagrama ER) a partir do `schema.prisma`                        |
-| `npm run db:generate`             | gera o client do Prisma em `src/generated/` (não versionado)                                        |
-| `npm run dev:qr`                  | emite um QR para o terminal de desenvolvimento e imprime o `payload` (recusa `NODE_ENV=production`) |
+| Comando                           | O que faz                                                                                          |
+| --------------------------------- | -------------------------------------------------------------------------------------------------- |
+| `docker compose run --rm migrate` | aplica as migrações existentes no banco do compose, só com Docker                                  |
+| `npm run db:migrate`              | cria uma migração nova a partir do `prisma/schema.prisma` e aplica (desenvolvimento)               |
+| `npm run db:deploy`               | aplica as migrações existentes com a `DATABASE_URL` do `.env` (também banco na nuvem)              |
+| `docker compose run --rm seed`    | semeia o banco do compose com os dados de desenvolvimento, só com Docker                           |
+| `npm run db:reset`                | **apaga** o banco `access`, aplica as migrações de novo e semeia (pede confirmação)                |
+| `npm run db:seed`                 | roda `prisma/seed.ts` com as variáveis `SEED_*` do `.env`                                          |
+| `npm run db:erd`                  | gera de novo `docs/modelo-de-dados.md` (diagrama ER) a partir do `schema.prisma`                   |
+| `npm run db:generate`             | gera o client do Prisma em `src/generated/` (fora do Git)                                          |
+| `npm run dev:qr`                  | emite um QR para o terminal de desenvolvimento e mostra o `payload` (recusa `NODE_ENV=production`) |
 
-Para que os testes de integração tenham as tabelas, aplique as migrações no banco de testes uma vez:
+Aplique as migrações no banco de testes uma vez. Os testes de integração precisam das tabelas.
 
 ```bash
 MIGRATE_DB=access_test docker compose run --rm migrate
 ```
 
-Para recomeçar do zero, apagando tudo: `docker compose down -v && docker compose up -d && docker compose run --rm migrate && docker compose run --rm seed`.
-O banco de testes volta vazio (`access_test`): migre-o de novo com `MIGRATE_DB=access_test docker compose run --rm migrate` antes do `npm run test:int`.
+Para começar do zero e apagar tudo: `docker compose down -v && docker compose up -d && docker compose run --rm migrate && docker compose run --rm seed`. O banco `access_test` volta vazio. Migre-o de novo com `MIGRATE_DB=access_test docker compose run --rm migrate` antes do `npm run test:int`.
 
-Os serviços `migrate` e `seed` usam imagens próprias (estágios do Dockerfile), não sobem com `docker compose up`
-e se reconstroem a cada execução, para nunca aplicarem migrações velhas (`--quiet-build` silencia o log do build).
+- Os serviços `migrate` e `seed` usam imagens próprias (estágios do Dockerfile).
+- Eles não sobem com `docker compose up`.
+- Eles fazem o build a cada execução. Assim, nunca aplicam migrações velhas. O `--quiet-build` silencia o log do build.
 
-O seed é **idempotente** (pode rodar quantas vezes quiser) e cria o administrador, um condômino, um visitante,
-um edifício, uma catraca, um terminal e uma autorização do visitante. As credenciais, o id e a chave do terminal
-estão em [docs/ambiente-dev.md](docs/ambiente-dev.md) e são **só para desenvolvimento** (públicas). O seed se
-recusa a rodar com `NODE_ENV=production`. O modelo de dados (9 tabelas) está em
-[docs/modelo-de-dados.md](docs/modelo-de-dados.md).
+**O seed é idempotente.** Você pode rodá-lo muitas vezes. Ele cria o administrador, um condômino, um visitante, um edifício, uma catraca, um terminal e uma autorização do visitante.
+
+- As credenciais, o id e a chave do terminal estão em [docs/ambiente-dev.md](docs/ambiente-dev.md).
+- Estes dados são **só para desenvolvimento**. Eles são públicos.
+- O seed recusa `NODE_ENV=production`.
+- O modelo de dados (9 tabelas) está em [docs/modelo-de-dados.md](docs/modelo-de-dados.md).
 
 ### Banco em nuvem (Neon)
 
-O banco de homologação é um PostgreSQL gerenciado no [Neon](https://neon.tech). A string de conexão é **segredo**:
-nunca a coloque em arquivo versionado, em issue, em PR ou em log. Quem precisa dela pede ao responsável pelo backend.
+O banco de homologação é um PostgreSQL gerenciado no [Neon](https://neon.tech). **A string de conexão é segredo.** Não a coloque em arquivo versionado, issue, PR ou log. Peça a string ao responsável pelo backend.
 
-O Neon entrega duas strings para o mesmo banco, e cada uma serve a um uso:
+O Neon fornece duas strings para o mesmo banco. Cada uma tem um uso:
 
-- **Direta** (host sem `-pooler`): use para **migrar** (`db:deploy`). O Prisma Migrate usa travas de sessão que o pooler pode não repassar.
-- **Pooled** (host com `-pooler`): use para a **API** rodando em homologação (B10), que abre várias conexões curtas.
+- **Direta** (host sem `-pooler`): use para **migrar** (`db:deploy`). O Prisma Migrate usa travas de sessão. O pooler pode não passar estas travas.
+- **Pooled** (host com `-pooler`): use para a **API** em homologação. A API abre muitas conexões curtas.
 
-As duas incluem `sslmode=require`. Para aplicar as migrações na nuvem, passe a URL direta só para esse comando,
-sem gravá-la no `.env` (o `read -s` não mostra o que você digita nem guarda no histórico; é do bash, e no zsh e no PowerShell o comando muda):
+As duas têm `sslmode=require`. Para migrar a nuvem, passe a URL direta só para o comando. Não grave a URL no `.env`. O `read -s` não mostra o texto e não grava no histórico. Ele é do bash; no zsh e no PowerShell, o comando é diferente.
 
 ```bash
 read -rs -p "DATABASE_URL direta do Neon: " NEON_URL; echo
@@ -168,10 +255,12 @@ DATABASE_URL="$NEON_URL" npx prisma migrate status   # deve dizer "Database sche
 unset NEON_URL
 ```
 
-**Não rode `db:seed`, `db:reset` nem `db:migrate` contra a nuvem.** O seed usa credenciais públicas e só se recusa a rodar com
-`NODE_ENV=production`; sem essa variável a trava não protege e ele roda contra a URL que estiver na sessão. Além disso, `reset` e `migrate dev` apagam ou alteram dados. Para a nuvem existe só `db:deploy`.
+> [!WARNING]
+> **Não rode `db:seed`, `db:reset` nem `db:migrate` na nuvem.** O seed usa credenciais públicas. Ele só recusa `NODE_ENV=production`. Sem esta variável, a trava não protege. O `reset` e o `migrate dev` apagam ou alteram dados. Na nuvem, use só o `db:deploy`. O CD já faz isso a cada deploy.
 
-O plano gratuito do Neon suspende o banco quando fica ocioso; a primeira conexão depois disso demora mais.
+O Neon gratuito suspende o banco quando ele fica parado. A primeira conexão depois disso demora mais.
+
+---
 
 ## Rodar sem Docker
 
@@ -181,28 +270,40 @@ npm run build    # compila para dist/
 npm start        # roda dist/main/server.js
 ```
 
-A API fica em `http://localhost:3000/api/v1`. Para conferir se subiu:
+A API fica em `http://localhost:3000/api/v1`. Para verificar:
 
 ```bash
 curl http://localhost:3000/api/v1/health
 # {"status":"ok","version":"0.1.0","time":"2026-10-16T12:00:00.000Z"}
 ```
 
-Se faltar uma variável obrigatória (`CORS_ORIGINS`, `DATABASE_URL`, `JWT_SECRET`), o servidor não sobe e mostra qual é:
+Se falta uma variável obrigatória (`CORS_ORIGINS`, `DATABASE_URL`, `JWT_SECRET`), o servidor não sobe. Ele mostra o nome da variável:
 
 ```text
 Configuração inválida:
 - JWT_SECRET: deve ter no mínimo 32 caracteres
 ```
 
-O contrato da API está em [openapi.yaml](openapi.yaml). Erros seguem sempre o formato
-`{ "error": { "code", "message", "details?" } }`.
+O servidor para de forma ordenada com `SIGTERM` ou `SIGINT`. Ele para os jobs, termina as requisições abertas e fecha o banco. O prazo é 20 s.
 
-## Autenticação e Swagger
+O contrato da API está em [openapi.yaml](openapi.yaml). Todo erro tem o formato `{ "error": { "code", "message", "details?" } }`.
 
-O Swagger UI fica em **<http://localhost:3000/docs>** e lê o próprio `openapi.yaml`. Para testar uma rota protegida:
-faça `POST /auth/login` com um usuário do seed (ver [docs/ambiente-dev.md](docs/ambiente-dev.md)), copie o
-`accessToken`, clique em **Authorize** e cole só o token.
+---
+
+## Rotas da API
+
+O Swagger mostra o contrato completo, com exemplos. Localmente, ele fica em **<http://localhost:3000/docs>**. Na homologação, ele fica em [/docs](https://api-acesso.blackfield-72312729.chilecentral.azurecontainerapps.io/docs). As seções abaixo resumem cada grupo de rotas.
+
+<details>
+<summary><b>Autenticação e Swagger</b></summary>
+<br>
+
+Para testar uma rota protegida no Swagger:
+
+1. Faça `POST /auth/login` com um usuário do seed (ver [docs/ambiente-dev.md](docs/ambiente-dev.md)).
+2. Copie o `accessToken`.
+3. Clique em **Authorize**.
+4. Cole só o token.
 
 ```bash
 curl -X POST http://localhost:3000/api/v1/auth/login -H 'content-type: application/json' \
@@ -212,21 +313,33 @@ curl http://localhost:3000/api/v1/auth/me -H "Authorization: Bearer <accessToken
 ```
 
 - E-mail inexistente e senha errada dão o mesmo `401 CREDENCIAIS_INVALIDAS`. Conta inativa com a senha certa dá `403 USUARIO_INATIVO`.
-- Token ausente, expirado, adulterado ou de usuário desativado dá `401 UNAUTHORIZED`. A cada requisição o usuário é recarregado do banco, então desativar uma conta ou mudar o perfil vale na hora.
-- Mais de `LOGIN_MAX_PER_MINUTE` tentativas por minuto para o mesmo IP e e-mail dão `429 RATE_LIMITED`. O contador fica na memória do processo (um reinício o zera).
+- Token ausente, expirado, alterado ou de usuário desativado dá `401 UNAUTHORIZED`.
+- A API lê o usuário do banco a cada requisição. Assim, desativar uma conta ou mudar o perfil tem efeito imediato.
+- Mais de `LOGIN_MAX_PER_MINUTE` tentativas por minuto, para o mesmo IP e e-mail, dão `429 RATE_LIMITED`. O contador fica na memória do processo. Um reinício zera o contador.
 - Rotas protegidas usam `authenticate()` e `authorize('ADMIN', ...)` de `src/main/middlewares.ts`.
 
-## Locais e terminais
+</details>
 
-Só `ADMIN` (rotas em `/buildings`, `/access-points` e `/terminals`; contrato no Swagger).
+<details>
+<summary><b>Locais e terminais</b></summary>
+<br>
 
-- Nada é apagado: desativa-se com `PATCH` `ativo: false`. Desativar um **ponto de acesso** dá `409 LOCAL_COM_AUTORIZACOES_ATIVAS` se ele ainda tem autorização ativa e não expirada; desativar um **edifício** faz o mesmo teste nos pontos dele e, se passar, desativa todos eles junto (reativar o edifício não reativa os pontos).
-- `POST /terminals` e `POST /terminals/{id}/rotate-key` devolvem a `apiKey` **uma única vez**; o banco guarda só o SHA-256. `rotate-key` invalida a chave antiga na hora.
-- O terminal se identifica com os cabeçalhos `X-Terminal-Id` e `X-Terminal-Key` (middleware `authenticateTerminal`, em `src/main/middlewares.ts`): chave errada ou ausente dá `401`, terminal inativo dá `403`. O log oculta a chave. Teste com o terminal do seed em [docs/ambiente-dev.md](docs/ambiente-dev.md).
+Só `ADMIN` (rotas em `/buildings`, `/access-points` e `/terminals`).
 
-## Canal do terminal
+- A API não apaga nada. Para desativar, use `PATCH` com `ativo: false`.
+- Desativar um **ponto de acesso** com autorização ativa e não expirada dá `409 LOCAL_COM_AUTORIZACOES_ATIVAS`.
+- Desativar um **edifício** faz o mesmo teste nos pontos dele. Se o teste passa, a API desativa todos os pontos. Reativar o edifício não reativa os pontos.
+- `POST /terminals` e `POST /terminals/{id}/rotate-key` devolvem a `apiKey` **uma única vez**. O banco guarda só o SHA-256. O `rotate-key` invalida a chave antiga imediatamente.
+- O terminal envia os cabeçalhos `X-Terminal-Id` e `X-Terminal-Key` (middleware `authenticateTerminal`, em `src/main/middlewares.ts`). Chave errada ou ausente dá `401`. Terminal inativo dá `403`. O log oculta a chave.
+- Para testar, use o terminal do seed em [docs/ambiente-dev.md](docs/ambiente-dev.md).
 
-Rotas que o terminal chama com os cabeçalhos `X-Terminal-Id` e `X-Terminal-Key` (contrato no Swagger).
+</details>
+
+<details>
+<summary><b>Canal do terminal (heartbeat e QR)</b></summary>
+<br>
+
+O terminal chama estas rotas com os cabeçalhos `X-Terminal-Id` e `X-Terminal-Key`.
 
 | Rota                       | O que faz                                                                       |
 | -------------------------- | ------------------------------------------------------------------------------- |
@@ -240,12 +353,16 @@ curl -X POST http://localhost:3000/api/v1/terminal/heartbeat \
   -d '{"latitude":-23.30512,"longitude":-45.96551,"gpsFix":true,"gpsSimulado":false,"firmware":"0.3.0","wifiRssi":-61}'
 ```
 
-- O instante do contato é o relógio do servidor. Depois do heartbeat, `GET /terminals` mostra o terminal `online` (contato com menos de `TERMINAL_ONLINE_WINDOW_S`), com posição e hora do contato.
-- Com `gpsFix: false` a latitude e a longitude enviadas são ignoradas e a última posição conhecida continua gravada; com `gpsFix: true` elas são obrigatórias (`422`). `wifiRssi` vira `rssi`; `uptimeS` e `eventosPendentes` são aceitos e não guardados.
-- No máximo um heartbeat a cada `HEARTBEAT_MIN_INTERVAL_S` por terminal: antes disso `429 RATE_LIMITED`, sem gravar nada. A checagem é um `UPDATE` condicional, então heartbeats simultâneos não passam todos.
-- `config` (`qrRefreshMs`, `commandPollMs`, `aberturaMs`) vem do ambiente do servidor, para ajustar o terminal sem reprogramá-lo.
+**Heartbeat:**
 
-`POST /terminal/qr` (sem corpo) devolve o texto que o terminal desenha como QR Code:
+- O instante do contato é o relógio do servidor.
+- Depois do heartbeat, `GET /terminals` mostra o terminal `online`, com posição e hora do contato. "Online" é um contato com menos de `TERMINAL_ONLINE_WINDOW_S`.
+- Com `gpsFix: false`, a API ignora a latitude e a longitude e mantém a última posição. Com `gpsFix: true`, elas são obrigatórias (`422`).
+- `wifiRssi` é gravado como `rssi`. A API aceita `uptimeS` e `eventosPendentes`, mas não os grava.
+- O máximo é um heartbeat a cada `HEARTBEAT_MIN_INTERVAL_S` por terminal. Antes disso, a resposta é `429 RATE_LIMITED`, e nada é gravado. A checagem é um `UPDATE` condicional. Assim, heartbeats simultâneos não passam todos.
+- O `config` (`qrRefreshMs`, `commandPollMs`, `aberturaMs`) vem do ambiente do servidor. Com ele, você ajusta o terminal sem programá-lo de novo.
+
+**QR Code:** `POST /terminal/qr` (sem corpo) devolve o texto que o terminal mostra como QR Code.
 
 ```bash
 curl -X POST http://localhost:3000/api/v1/terminal/qr \
@@ -254,14 +371,21 @@ curl -X POST http://localhost:3000/api/v1/terminal/qr \
 # {"payload":"ACS1:q3F8k2Zr1pLw9XbTn0YhVA","emitidoEm":"...","expiraEm":"...","renovarEmMs":10000}
 ```
 
-- O token tem 16 bytes aleatórios (22 caracteres em base64url) e o banco guarda só o SHA-256 dele. O QR vale `QR_TTL_SECONDS` + `QR_TOLERANCE_SECONDS` (15 s) e é de uso único; o anterior continua válido até a própria expiração, então dois QRs valem juntos por poucos segundos (de propósito).
-- No máximo um QR a cada `QR_ISSUE_MIN_INTERVAL_S` por terminal: antes disso `429 RATE_LIMITED`. A conferência e a gravação acontecem numa transação com trava consultiva por terminal (`pg_advisory_xact_lock`), então pedidos simultâneos emitem um só.
-- Um job a cada minuto (iniciado em `server.ts`, nunca em `app.ts`) apaga as credenciais vencidas há mais de `QR_PURGE_AFTER_HOURS`.
-- Sem terminal físico: `npm run dev:qr` emite um QR para o terminal do seed e imprime o `payload` (veja [docs/ambiente-dev.md](docs/ambiente-dev.md)).
+- O token tem 16 bytes aleatórios (22 caracteres em base64url). O banco guarda só o SHA-256.
+- O QR vale `QR_TTL_SECONDS` + `QR_TOLERANCE_SECONDS` (15 s) e é de uso único.
+- O QR anterior continua válido até expirar. Assim, dois QRs valem juntos por poucos segundos. Isto é intencional.
+- O máximo é um QR a cada `QR_ISSUE_MIN_INTERVAL_S` por terminal. Antes disso, a resposta é `429 RATE_LIMITED`.
+- A verificação e a gravação ficam numa transação com trava por terminal (`pg_advisory_xact_lock`). Assim, pedidos simultâneos emitem um só QR.
+- Um job apaga a cada minuto as credenciais vencidas há mais de `QR_PURGE_AFTER_HOURS`. O job inicia em `server.ts`, nunca em `app.ts`.
+- Sem terminal físico, use `npm run dev:qr`. Ele emite um QR para o terminal do seed e mostra o `payload` (ver [docs/ambiente-dev.md](docs/ambiente-dev.md)).
 
-## Validação de acesso por QR
+</details>
 
-`POST /access/qr/validate` é a rota que o app chama depois de ler o QR Code do terminal (token do usuário; qualquer perfil, inclusive conta inativa, para a tentativa ficar registrada). Contrato e um exemplo de cada motivo de negação no Swagger.
+<details>
+<summary><b>Validação de acesso por QR</b></summary>
+<br>
+
+O app chama `POST /access/qr/validate` depois de ler o QR Code do terminal. A rota exige o token do usuário. Qualquer perfil pode chamar, também uma conta inativa, para a tentativa ficar registrada. O Swagger tem um exemplo de cada motivo de negação.
 
 ```bash
 curl -X POST http://localhost:3000/api/v1/access/qr/validate \
@@ -271,15 +395,30 @@ curl -X POST http://localhost:3000/api/v1/access/qr/validate \
 # 403 {"error":{"code":"DISTANTE_DO_TERMINAL","message":"Você está longe da catraca. Aproxime-se e tente de novo."}}
 ```
 
-- As 11 verificações seguem a ordem da seção 5.1 do contrato; a primeira que falhar define o motivo (`403` com o código como `error.code`). Um `payload` fora do padrão `ACS1:` mais 22 caracteres e coordenadas fora da faixa dão `422`; coordenadas ausentes dão `LOCALIZACAO_INVALIDA`; sem token é `401`, sem gerar evento.
-- **Toda tentativa gera exatamente um evento**, aprovada ou negada. Na aprovação, uma única transação consome a credencial (`consumidoEm IS NULL`), consome um uso (`situacao = 'ATIVA'` e `usosRealizados < usosPermitidos`), grava o evento e cria o comando `ABRIR`; se o evento falhar, nada é consumido e a resposta é `500`. Na negação, o evento e o comando `NEGAR` são gravados e o QR **não** é consumido.
-- Duas leituras simultâneas do mesmo QR, ou de dois QRs com um uso restante, aprovam só uma: a outra recebe `CREDENCIAL_REUTILIZADA` ou `USOS_ESGOTADOS`. Isso é provado contra o PostgreSQL real.
-- A distância é medida até a posição do terminal (`TERMINAL_POSITION_SOURCE`): o GPS recente do heartbeat ou as coordenadas do ponto. Vale até `MAX_DISTANCE_M` (100 m), com a ponta incluída.
-- No máximo `QR_VALIDATE_MAX_PER_MINUTE` validações por minuto por usuário; as seguintes dão `429`. Roteiro de teste com o `dev:qr`: [docs/ambiente-dev.md](docs/ambiente-dev.md).
+- As 11 verificações seguem a ordem da seção 5.1 do contrato. A primeira que falha define o motivo (`403`, com o código em `error.code`).
+- Um `payload` fora do padrão (`ACS1:` mais 22 caracteres) dá `422`. Coordenadas fora da faixa também dão `422`. Coordenadas ausentes dão `LOCALIZACAO_INVALIDA`. Sem token, a resposta é `401`, e não há evento.
+- **Toda tentativa grava exatamente um evento**, aprovada ou negada.
+- Na aprovação, uma única transação:
+  1. consome a credencial (`consumidoEm IS NULL`);
+  2. consome um uso (`situacao = 'ATIVA'` e `usosRealizados < usosPermitidos`);
+  3. grava o evento;
+  4. cria o comando `ABRIR`.
 
-## Tags NFC
+  Se o evento falha, nada é consumido, e a resposta é `500`.
 
-Só `ADMIN` (contrato no Swagger). O administrador vincula a tag a um usuário digitando o UID, ou liga o modo de cadastro no terminal e encosta a tag. A leitura em si é `POST /terminal/nfc`, chamada pelo terminal (última subseção).
+- Na negação, a API grava o evento e o comando `NEGAR`. O QR **não** é consumido.
+- Duas leituras simultâneas do mesmo QR aprovam só uma. Dois QRs com um uso restante também aprovam só um. A outra leitura recebe `CREDENCIAL_REUTILIZADA` ou `USOS_ESGOTADOS`. Os testes provam isso contra o PostgreSQL real.
+- A distância é medida até a posição do terminal (`TERMINAL_POSITION_SOURCE`): o GPS recente do heartbeat ou as coordenadas do ponto. O limite é `MAX_DISTANCE_M` (100 m), incluído.
+- O máximo é `QR_VALIDATE_MAX_PER_MINUTE` validações por minuto por usuário. As seguintes dão `429`.
+- Roteiro de teste com o `dev:qr`: [docs/ambiente-dev.md](docs/ambiente-dev.md).
+
+</details>
+
+<details>
+<summary><b>Tags NFC</b></summary>
+<br>
+
+Só `ADMIN`. O administrador vincula a tag a um usuário de duas formas: ele digita o UID, ou ele liga o modo de cadastro no terminal e aproxima a tag. A leitura da tag é `POST /terminal/nfc`, que o terminal chama (subseção seguinte).
 
 | Rota                                                     | O que faz                                                                       |
 | -------------------------------------------------------- | ------------------------------------------------------------------------------- |
@@ -295,14 +434,16 @@ curl -X POST http://localhost:3000/api/v1/nfc-tags \
 # 201 {"id":"...","usuarioId":"5eed0000-0000-4000-8000-000000000003","uid":"04A1B2C3","descricao":"Cartão azul","ativa":true,"criadaEm":"..."}
 ```
 
-- O UID é normalizado: `:`, `-` e espaços saem e as letras ficam maiúsculas, então `04:a1:b2:c3` e `04A1B2C3` são a mesma tag. Só hexadecimal, de 8 a 20 caracteres (`422` no campo `uid`).
-- O UID é único no sistema, de qualquer usuário: repetir dá `409 TAG_JA_CADASTRADA`, também com pedidos simultâneos (quem decide é o índice único do banco). O usuário precisa existir (`404`) e estar ativo (`422` em `usuarioId`).
-- Desativar a tag (`ativa: false`) é o que a impede de abrir a catraca: a próxima leitura dela dá `NEGADO` com `TAG_INATIVA` (pode levar até `NFC_DEBOUNCE_SECONDS` para valer se a mesma tag acabou de ser lida no mesmo terminal). O `PATCH` só muda `ativa`: enviar `uid`, `usuarioId` ou outro campo dá `422`.
-- O modo de cadastro grava só o usuário e o prazo no terminal. A próxima tag lida por ele nesse prazo é vinculada ao usuário, sem abrir a catraca e sem gastar uso (a leitura responde `CADASTRADA`). O prazo ainda vale no instante exato do `expiraEm`; depois dele o modo acaba sozinho, sem job. Ligar de novo substitui o anterior.
+- A API normaliza o UID. Ela remove `:`, `-` e espaços, e muda as letras para maiúsculas. Assim, `04:a1:b2:c3` e `04A1B2C3` são a mesma tag.
+- O UID aceita só hexadecimal, de 8 a 20 caracteres (`422` no campo `uid`).
+- O UID é único no sistema. Repetir dá `409 TAG_JA_CADASTRADA`, também com pedidos simultâneos. O índice único do banco decide.
+- O usuário deve existir (`404`) e estar ativo (`422` em `usuarioId`).
+- Desativar a tag (`ativa: false`) impede que ela abra a catraca. A próxima leitura dá `NEGADO` com `TAG_INATIVA`. Se a mesma tag foi lida há pouco no mesmo terminal, a mudança pode levar até `NFC_DEBOUNCE_SECONDS`.
+- O `PATCH` muda só `ativa`. Outro campo (`uid`, `usuarioId` etc.) dá `422`.
+- O modo de cadastro grava só o usuário e o prazo no terminal. A próxima tag lida no prazo é vinculada ao usuário. A catraca não abre, e nenhum uso é gasto. A leitura responde `CADASTRADA`.
+- O prazo ainda vale no instante exato do `expiraEm`. Depois, o modo termina sem job. Ligar o modo de novo substitui o anterior.
 
-### Leitura da tag no terminal
-
-O terminal chama `POST /api/v1/terminal/nfc` com `X-Terminal-Id`, `X-Terminal-Key` e um `Idempotency-Key` novo (UUID) a cada leitura. A decisão vem na resposta, sempre `200` (contrato e exemplos no Swagger):
+**Leitura da tag no terminal.** O terminal chama `POST /api/v1/terminal/nfc` com `X-Terminal-Id`, `X-Terminal-Key` e um `Idempotency-Key` novo (UUID) a cada leitura. A decisão vem na resposta, sempre com `200`.
 
 ```bash
 curl -s -X POST http://localhost:3000/api/v1/terminal/nfc \
@@ -313,14 +454,20 @@ curl -s -X POST http://localhost:3000/api/v1/terminal/nfc \
 # {"resultado":"AUTORIZADO","aberturaMs":5000}  |  {"resultado":"NEGADO","motivo":"TAG_INATIVA"}  |  {"resultado":"CADASTRADA"}
 ```
 
-- Ordem: chave já vista, modo de cadastro, repetição rápida, tag, tag ativa, usuário ativo e as verificações de autorização do QR, **sem a distância**. Aprovar grava o evento `NFC` e consome um uso na mesma transação; toda tentativa, aprovada ou negada, gera exatamente um evento. Não cria comando: o terminal abre ou nega pela resposta.
-- Repetir a mesma `Idempotency-Key` devolve a decisão anterior, sem novo uso nem novo evento. A chave de outro terminal dá `409 CONFLICT`; chave ausente ou fora do formato de UUID dá `422`.
-- A mesma tag lida de novo no mesmo terminal em menos de `NFC_DEBOUNCE_SECONDS` (3 s) recebe a decisão anterior; em 3 s exatos é uma nova tentativa.
-- Com o modo de cadastro ligado e vigente, a leitura vincula a tag ao usuário combinado e responde `CADASTRADA`: não consome uso e não grava evento. UID que já existe dá `409 TAG_JA_CADASTRADA`.
+- Ordem das verificações: chave já vista, modo de cadastro, repetição rápida, tag, tag ativa, usuário ativo e as verificações de autorização do QR, **sem a distância**.
+- A aprovação grava o evento `NFC` e consome um uso na mesma transação. Toda tentativa grava exatamente um evento.
+- A leitura não cria comando. O terminal abre ou nega pela resposta.
+- A mesma `Idempotency-Key` devolve a decisão anterior, sem novo uso e sem novo evento. A chave de outro terminal dá `409 CONFLICT`. Chave ausente ou fora do formato UUID dá `422`.
+- A mesma tag no mesmo terminal em menos de `NFC_DEBOUNCE_SECONDS` (3 s) recebe a decisão anterior. Com 3 s exatos, é uma tentativa nova.
+- Com o modo de cadastro ligado, a leitura vincula a tag ao usuário e responde `CADASTRADA`. Ela não consome uso e não grava evento. Um UID que já existe dá `409 TAG_JA_CADASTRADA`.
 
-### Eventos guardados sem conexão
+</details>
 
-Sem rede, o terminal **nega** as leituras e as guarda. Ao reconectar, envia tudo de uma vez em `POST /api/v1/terminal/events/batch`, com os mesmos cabeçalhos do terminal (contrato no Swagger):
+<details>
+<summary><b>Eventos guardados sem conexão</b></summary>
+<br>
+
+Sem rede, o terminal **nega** as leituras e as guarda. Quando a rede volta, ele envia tudo em `POST /api/v1/terminal/events/batch`, com os cabeçalhos do terminal.
 
 ```bash
 curl -s -X POST http://localhost:3000/api/v1/terminal/events/batch \
@@ -330,14 +477,21 @@ curl -s -X POST http://localhost:3000/api/v1/terminal/events/batch \
 # {"aceitos":1,"duplicados":0}
 ```
 
-- **Só negações.** Um evento `AUTORIZADO`, um `metodo` que não seja `NFC` ou um `motivo` que não seja `TERMINAL_OFFLINE` rejeita o lote inteiro com `422`, e o `details` aponta o índice (`events.1.resultado`). Nada é gravado, nenhum uso é consumido e nenhum comando é criado.
-- **Idempotência.** Cada evento tem uma `clientEventId` (UUID do terminal). Uma chave que já está guardada não é gravada de novo e não é erro: entra em `duplicados`. O terminal pode reenviar o mesmo lote quantas vezes precisar e deve guardar os eventos até receber o `200`; um `500` significa que nada foi confirmado.
-- **Limites.** De 1 a 50 eventos e corpo de até 64 kb (acima disso, `413 PAYLOAD_TOO_LARGE`; o limite geral da API é 100 kb). `ocorridoEm` é o relógio do terminal e vale de 7 dias atrás até 5 minutos à frente do servidor, as pontas inclusive.
-- Cada evento vira uma linha do histórico com o `motivo` `TERMINAL_OFFLINE`, no instante em que ocorreu (não no do envio). Se a tag é conhecida, a linha traz a pessoa dela; senão, `usuario: null`. As leituras ao vivo da mesma tag não são afetadas: a repetição rápida só olha leituras ao vivo.
+- **Só negações.** Um evento `AUTORIZADO`, um `metodo` diferente de `NFC` ou um `motivo` diferente de `TERMINAL_OFFLINE` recusa o lote inteiro com `422`. O `details` mostra o índice (`events.1.resultado`). Nada é gravado, nenhum uso é consumido e nenhum comando é criado.
+- **Idempotência.** Cada evento tem uma `clientEventId` (UUID do terminal). Uma chave já guardada não é gravada de novo e não é erro: ela entra em `duplicados`.
+- O terminal pode enviar o mesmo lote muitas vezes. Ele deve guardar os eventos até receber o `200`. Um `500` significa que nada foi confirmado.
+- **Limites.** De 1 a 50 eventos. Corpo de até 64 kb (acima disso, `413 PAYLOAD_TOO_LARGE`). O limite geral da API é 100 kb.
+- `ocorridoEm` é o relógio do terminal. Ele vale de 7 dias atrás até 5 minutos à frente do servidor, com as pontas incluídas.
+- Cada evento é uma linha do histórico com o `motivo` `TERMINAL_OFFLINE`, no instante da leitura (não do envio). Se a tag é conhecida, a linha tem a pessoa. Se não, `usuario: null`.
+- As leituras ao vivo da mesma tag não mudam. A repetição rápida verifica só leituras ao vivo.
 
-## Autorizações
+</details>
 
-Criar, listar e cancelar: só `ADMIN`. Ler uma e listar "as minhas": cada usuário, as próprias (contrato no Swagger).
+<details>
+<summary><b>Autorizações</b></summary>
+<br>
+
+Criar, listar e cancelar: só `ADMIN`. Ler uma autorização e listar "as minhas": cada usuário vê só as próprias.
 
 | Rota                                                                                                    | Quem                                                                            |
 | ------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------- |
@@ -353,11 +507,15 @@ curl -X POST http://localhost:3000/api/v1/authorizations \
   -d '{"usuarioId":"<id do visitante>","accessPointId":"<id do ponto>","dataInicio":"2026-10-20","dataFim":"2026-10-25","horaInicio":"08:00","horaFim":"18:00","usosPermitidos":3}'
 ```
 
-- Usuário ou ponto inexistente dá `404`; inativo dá `422` no campo `usuarioId` ou `accessPointId`. `dataFim` não pode ser anterior a `dataInicio` nem ao dia de hoje em São Paulo, e `horaFim` tem de ser depois de `horaInicio` (sem virada de meia-noite).
-- A resposta traz `usosRestantes` e `situacaoEfetiva` (`ATIVA`, `CANCELADA`, `EXPIRADA` ou `ESGOTADA`), calculadas na hora.
-- A criação trava o usuário e o ponto (`FOR SHARE`) até gravar: desativar qualquer um dos dois ao mesmo tempo espera, ou já foi confirmado e a criação é recusada.
-- O filtro `situacao` usa a situação **efetiva** e é aplicado na consulta. `dataDe` e `dataAte` mantêm as autorizações cujo período se sobrepõe ao intervalo (as pontas valem). A lista do admin vem das mais recentes para as mais antigas; `/me/authorizations` vem por `dataFim`, as que terminam primeiro à frente.
-- Cancelar é idempotente: cancelar de novo devolve `200` com o estado atual e não muda quem cancelou, quando nem o motivo (`motivo` opcional, até 200 caracteres).
+- Usuário ou ponto inexistente dá `404`. Inativo dá `422` no campo `usuarioId` ou `accessPointId`.
+- `dataFim` não pode ser antes de `dataInicio` nem antes de hoje em São Paulo.
+- `horaFim` deve ser depois de `horaInicio`. A autorização não passa da meia-noite.
+- A resposta tem `usosRestantes` e `situacaoEfetiva` (`ATIVA`, `CANCELADA`, `EXPIRADA` ou `ESGOTADA`). A API calcula os dois no momento.
+- A criação trava o usuário e o ponto (`FOR SHARE`) até gravar. Uma desativação simultânea espera. Se a desativação já terminou, a criação é recusada.
+- O filtro `situacao` usa a situação **efetiva** e está na consulta.
+- `dataDe` e `dataAte` mantêm as autorizações com período sobreposto ao intervalo. As pontas estão incluídas.
+- A lista do admin começa pelas mais recentes. `/me/authorizations` ordena por `dataFim`: as que terminam primeiro vêm antes.
+- Cancelar é idempotente. Cancelar de novo devolve `200` com o estado atual. A API não muda quem cancelou nem o motivo (`motivo` opcional, até 200 caracteres).
 
 ```bash
 curl -X PATCH http://localhost:3000/api/v1/authorizations/<id>/cancel \
@@ -365,9 +523,13 @@ curl -X PATCH http://localhost:3000/api/v1/authorizations/<id>/cancel \
   -d '{"motivo":"Pedido da moradora"}'
 ```
 
-## Histórico de acessos
+</details>
 
-As tentativas de acesso, aprovadas e negadas, da mais recente para a mais antiga (contrato no Swagger, tag `AccessEvents`). Só leitura: um evento nunca é editado nem apagado, e não existe rota para isso.
+<details>
+<summary><b>Histórico de acessos</b></summary>
+<br>
+
+As tentativas de acesso, aprovadas e negadas, da mais recente para a mais antiga (tag `AccessEvents` no Swagger). As rotas são só de leitura. Ninguém edita nem apaga um evento.
 
 | Rota                                                                                                                              | Quem                            |
 | --------------------------------------------------------------------------------------------------------------------------------- | ------------------------------- |
@@ -379,42 +541,123 @@ curl "http://localhost:3000/api/v1/access-events?resultado=NEGADO&metodo=NFC&pag
   -H "Authorization: Bearer <accessToken do admin>"
 ```
 
-- Cada evento já traz a pessoa, o local com o edifício e o terminal (`usuario`, `local`, `terminal`), para o app não fazer várias chamadas. Os três são `null` quando a tentativa não os identificou: uma tag NFC desconhecida não tem pessoa, e um QR que não existe não chega a um terminal. O UID da tag, o prefixo do hash da credencial e a `Idempotency-Key` ficam no registro e **não** saem na resposta.
-- Os filtros se combinam. `de` e `ate` são **instantes** ISO 8601 (`2026-10-20T14:00:00Z` ou com fuso, `-03:00`), com as duas pontas **inclusivas**; uma data sem hora dá `422`, e `ate` anterior a `de` também. Na URL, o `+` de um fuso positivo vai como `%2B`. `motivo` aceita só os códigos do contrato (seção 4.4), `TERMINAL_OFFLINE` inclusive.
-- Em `/me/access-events` o dono é sempre o do token: um `usuarioId` na query é ignorado. Usuário desativado leva `401`, como em `/me/authorizations`.
-- A ordem é por `ocorridoEm` e, no mesmo instante, por `id`, então uma página nunca repete nem pula um evento. Com 10 mil eventos uma página volta em cerca de 20 ms (a meta é 300 ms); os índices da B04 bastam por enquanto (ver o STATUS).
+- Cada evento tem a pessoa, o local com o edifício e o terminal (`usuario`, `local`, `terminal`). Assim, o app faz uma só chamada.
+- Os três campos são `null` quando a tentativa não os identifica. Exemplo: uma tag NFC desconhecida não tem pessoa.
+- O UID da tag, o prefixo do hash da credencial e a `Idempotency-Key` ficam no registro. Eles **não** aparecem na resposta.
+- Os filtros se combinam. `de` e `ate` são **instantes** ISO 8601 (`2026-10-20T14:00:00Z` ou com fuso, `-03:00`). As duas pontas estão **incluídas**.
+- Uma data sem hora dá `422`. Um `ate` antes de `de` também dá `422`. Na URL, envie o `+` de um fuso positivo como `%2B`.
+- `motivo` aceita só os códigos do contrato (seção 4.4), também `TERMINAL_OFFLINE`.
+- Em `/me/access-events`, o dono é sempre o do token. A API ignora um `usuarioId` na query. Um usuário desativado recebe `401`.
+- A ordem é por `ocorridoEm` e, no mesmo instante, por `id`. Assim, uma página nunca repete nem pula um evento.
+- Com 10 mil eventos, uma página volta em cerca de 20 ms (a meta é 300 ms).
+
+</details>
+
+---
 
 ## Segurança e monitoramento
 
-Checklist completo, com a evidência de cada item e os procedimentos de troca de segredos: [docs/seguranca.md](docs/seguranca.md).
+Checklist completo, com a evidência de cada item e a troca de segredos: [docs/seguranca.md](docs/seguranca.md).
 
-- **Prontidão.** `GET /api/v1/ready` (pública) dá `200` com o banco no ar e `503` com ele fora; o `/health` sempre dá `200`. Use o `/ready` num monitor de disponibilidade.
-- **Cabeçalhos.** `helmet` em todas as respostas e `Strict-Transport-Security` de um ano só em produção (`NODE_ENV=production`). O HTTPS em si é do provedor de hospedagem. CORS só para as origens de `CORS_ORIGINS`.
-- **Limites de requisição** (`429 RATE_LIMITED`; os limites por minuto trazem `Retry-After`, o intervalo mínimo do heartbeat e do QR não): login, validação de QR, cada terminal, falhas de autenticação do terminal por IP e as rotas públicas. Atrás de um proxy, configure `TRUST_PROXY` (o número de proxies), senão todos os clientes parecem ter o mesmo IP.
-- **Validação.** Toda entrada passa pelo `zod`; um teste percorre as rotas registradas e falha se alguma não for classificada e validada.
-- **Erros e logs.** O `500` não mostra `stack` em produção. Os logs ocultam `authorization`, `cookie` e `x-terminal-key`, e nunca registram corpos de requisição.
-- **Segredos e dependências.** O job **Segurança** do CI roda `npm audit --omit=dev --audit-level=high` e uma varredura de segredos (gitleaks) em todo o histórico.
+- **Prontidão.** `GET /api/v1/ready` (pública) dá `200` com o banco no ar e `503` sem o banco. O `/health` sempre dá `200`. Use o `/ready` num monitor de disponibilidade.
+- **Cabeçalhos.** `helmet` em todas as respostas. `Strict-Transport-Security` de um ano só em produção (`NODE_ENV=production`). O provedor de hospedagem fornece o HTTPS. O CORS aceita só as origens de `CORS_ORIGINS`.
+- **Limites de requisição** (`429 RATE_LIMITED`): login, validação de QR, cada terminal, falhas de autenticação do terminal por IP e rotas públicas. Os limites por minuto enviam `Retry-After`. O intervalo mínimo do heartbeat e do QR não envia.
+- **Proxy.** Atrás de um proxy, configure `TRUST_PROXY` com o número de proxies. Sem isso, todos os clientes têm o mesmo IP. Na homologação, o valor é `1`.
+- **Validação.** O `zod` valida toda entrada. Um teste verifica todas as rotas registradas. Ele falha se uma rota não tem classificação e validação.
+- **Erros e logs.** O `500` não mostra `stack` em produção. Os logs ocultam `authorization`, `cookie` e `x-terminal-key`. Os logs nunca gravam corpos de requisição.
+- **Segredos e dependências.** O job **Segurança** do CI roda `npm audit --omit=dev --audit-level=high` e uma busca de segredos (gitleaks) em todo o histórico.
 - **Trocar o `JWT_SECRET` ou a chave de um terminal:** [docs/seguranca.md](docs/seguranca.md#6-troca-de-segredos).
 
-## Documentação
+---
 
-| Documento                                                    | O que tem                                                          |
-| ------------------------------------------------------------ | ------------------------------------------------------------------ |
-| [openapi.yaml](openapi.yaml) (Swagger em `/docs`)            | contrato de todas as rotas, com exemplos de cada resposta          |
-| [docs/arquitetura-backend.md](docs/arquitetura-backend.md)   | camadas, decisões, segurança e operação                            |
-| [docs/sequencias.md](docs/sequencias.md)                     | diagramas de sequência do acesso por QR, por NFC e do lote offline |
-| [docs/comunicacao.md](docs/comunicacao.md)                   | como o app e o terminal falam com a API                            |
-| [docs/modelo-de-dados.md](docs/modelo-de-dados.md)           | diagrama ER (gerado do schema)                                     |
-| [docs/seguranca.md](docs/seguranca.md)                       | checklist de segurança, limites, troca de segredos e monitoramento |
-| [docs/plano-de-testes.md](docs/plano-de-testes.md)           | estratégia de testes e relatório de execução                       |
-| [docs/backup-e-restauracao.md](docs/backup-e-restauracao.md) | copiar e restaurar o banco                                         |
-| [docs/ambiente-dev.md](docs/ambiente-dev.md)                 | dados de desenvolvimento e roteiro com `curl`                      |
-| [docs/eventos-campos.md](docs/eventos-campos.md)             | o que cada campo do histórico significa                            |
+## Testes e qualidade
+
+```bash
+npm test             # unitários (sem banco), rápidos
+npm run test:watch   # unitários em modo watch (ciclo TDD)
+npm run test:int     # integração (supertest + PostgreSQL de testes)
+npm run test:cov     # unitários com cobertura (mínimo 80% de linhas, 75% de branches)
+npm run lint         # ESLint, também a regra de fronteira de camadas
+npm run typecheck    # tsc sem emitir arquivos (src e test)
+npm run format       # Prettier
+```
+
+- Os testes unitários ficam ao lado do código (`src/**/*.spec.ts`).
+- Os testes de integração ficam em `test/integration/**/*.test.ts`.
+- Antes de abrir um PR, rode `typecheck`, `lint`, `test` e `test:int`. Os quatro devem passar.
+
+---
+
+## Integração e entrega contínuas
+
+<details>
+<summary><b>CI: o que roda em cada push e PR</b></summary>
+<br>
+
+O workflow [`.github/workflows/ci.yml`](../.github/workflows/ci.yml) ("Backend CI") roda em **todo push e todo pull request**. Quando `backend/**` muda, ele executa nesta ordem:
+
+1. instala as dependências (`npm ci`, com cache) e gera o client do Prisma;
+2. roda o lint (também a regra de fronteira de camadas) e o typecheck;
+3. faz o build;
+4. migra o banco de teste (PostgreSQL 17 como serviço do job);
+5. roda os testes unitários com cobertura (mínimo 80% de linhas e 75% de branches) e publica o relatório como artefato `backend-coverage` (aba **Actions** do run);
+6. roda os testes de integração.
+
+Em paralelo, o job **Segurança** roda `npm audit --omit=dev --audit-level=high` e a busca de segredos (gitleaks, versão e checksum fixos, configuração em [`.gitleaks.toml`](../.gitleaks.toml)). Este job **não** faz parte do `backend-ci` obrigatório. Assim, uma vulnerabilidade nova fica visível e não trava os outros PRs.
+
+O job final **`backend-ci`** é o único check obrigatório na proteção de `develop` e `main`. Ele passa quando o backend passou na validação ou quando o PR não muda o backend. Assim, PRs só de `mobile/` ou `terminal/` não esperam um check que não rodou.
+
+A regra de proteção está em [`.github/rulesets/protecao-develop-main.json`](../.github/rulesets/protecao-develop-main.json): PR obrigatório, 1 aprovação, check `backend-ci` obrigatório, sem force-push e sem exclusão. Um admin do repositório a aplica em **Settings > Rules > Rulesets > New ruleset > Import a ruleset**.
+
+Para receber um aviso quando um run falha, ligue **GitHub > Settings > Notifications > Actions**.
+
+Para reproduzir o CI no seu computador (com o banco do compose de pé e migrado):
+
+```bash
+npm run db:generate && npm run lint && npm run typecheck && npm run build
+npm run test:cov && npm run test:int
+```
+
+</details>
+
+<details>
+<summary><b>CD: deploy em homologação</b></summary>
+<br>
+
+O job `deploy` do `ci.yml` chama o [`.github/workflows/cd.yml`](../.github/workflows/cd.yml) ("Backend CD"). Ele roda só num push na `develop` que muda o backend, e só depois do `backend-ci` verde.
+
+1. Verifica os secrets e as variáveis do ambiente `homologacao`.
+2. Faz o build da imagem `runtime` e a publica no GHCR com a tag do SHA.
+3. Aplica as migrações no Neon com a URL direta.
+4. Entra no Azure por OIDC (sem senha guardada no GitHub).
+5. Publica a nova revisão no Container App.
+6. Espera a revisão ficar pronta com a imagem nova.
+7. Roda o teste de fumaça do `/health` por HTTPS.
+
+Um passo com falha deixa o pipeline vermelho. Configuração, secrets e rollback: [docs/deploy-azure.md](docs/deploy-azure.md).
+
+</details>
+
+<details>
+<summary><b>CI de outra parte do repositório (mobile, terminal)</b></summary>
+<br>
+
+Não edite o `ci.yml`. Crie um arquivo novo em `.github/workflows/` (exemplo: `mobile-ci.yml`):
+
+1. Dê um `name` próprio.
+2. Rode em `push` e `pull_request`.
+3. Use o mesmo padrão de detecção de mudanças, com a sua pasta.
+4. Termine com um job de passagem de nome único (exemplo: `mobile-ci`). Ele é o check obrigatório da sua parte.
+
+O [`mobile-ci.yml`](../.github/workflows/mobile-ci.yml) ("Mobile CI") é diferente. Ele filtra por `paths` (`mobile/**` e `docs/app-mobile/**`). Assim, o workflow não começa em PRs que não mudam o app. Mas, se o `mobile-ci` ficar obrigatório, um PR fora desses caminhos espera um check que nunca roda. Neste caso, troque o `paths` pela detecção de mudanças do `ci.yml`.
+
+</details>
+
+---
 
 ## Estrutura
 
-Clean Architecture, um use case por pasta. Detalhes e regra de dependência em
-[docs/ai/01-architecture.md](docs/ai/01-architecture.md).
+Clean Architecture, com um use case por pasta. Detalhes e regra de dependência: [docs/ai/01-architecture.md](docs/ai/01-architecture.md).
 
 ```text
 src/
@@ -424,82 +667,19 @@ src/
   repositories/   ports de repositório
   providers/      ports de serviços (IClock, ILogger, ...)
   useCases/       <Módulo>/<UseCase>/ com UseCase, Controller, DTO, spec e index
-  infra/          implementações: http (middlewares), providers, database, repositories, jobs
-  main/           container, app (sem listen), server (listen), routes
+  infra/          implementações: http (middlewares, desligamento), providers, database, repositories, jobs
+  main/           container, app (sem listen), server (listen e sinais), routes
 prisma/           schema.prisma, migrations/ (com os CHECK em SQL) e seed.ts
-scripts/          ferramentas de desenvolvimento (gerador do diagrama ER)
+scripts/          ferramentas: diagrama ER, QR de desenvolvimento, teste de fumaça do deploy
 test/
   doubles/        fakes para testes unitários (FakeClock, InMemoryUserRepository, FakeHashProvider, ...)
   factories/      makeUser(), makeAuthorization(), ...
   integration/    supertest + PostgreSQL (schema, seed, health, auth)
 ```
 
-## Testar
-
-```bash
-npm test             # unitários (sem banco), rápidos
-npm run test:watch   # unitários em modo watch (ciclo TDD)
-npm run test:int     # integração (supertest + PostgreSQL de testes)
-npm run test:cov     # unitários com cobertura (mínimo 80% linhas, 75% branches)
-```
-
-Unitários ficam ao lado do código (`src/**/*.spec.ts`); integração em `test/integration/**/*.test.ts`.
-
-## Qualidade
-
-```bash
-npm run lint        # ESLint, inclui a regra de fronteira de camadas
-npm run typecheck   # tsc sem emitir arquivos (src e test)
-npm run format      # Prettier
-```
-
-Antes de abrir um PR: `typecheck`, `lint`, `test` e `test:int` precisam passar.
-
-## Integração contínua (CI)
-
-O workflow [`.github/workflows/ci.yml`](../.github/workflows/ci.yml) ("Backend CI") roda em **todo push e
-em todo pull request**. Quando `backend/**` mudou, ele executa, nesta ordem:
-
-1. instalar dependências (`npm ci`, com cache) e gerar o client do Prisma;
-2. lint (inclui a regra de fronteira de camadas) e typecheck;
-3. build;
-4. migrar o banco de teste (PostgreSQL 17 como serviço do job);
-5. testes unitários com cobertura (mínimo 80% de linhas e 75% de branches), com o relatório publicado
-   como artefato `backend-coverage` (aba **Actions** do run);
-6. testes de integração.
-
-Em paralelo roda o job **Segurança**: `npm audit --omit=dev --audit-level=high` e a varredura de segredos
-(gitleaks, versão e checksum fixos, configuração em [`.gitleaks.toml`](../.gitleaks.toml)). Ele **não** faz parte
-do `backend-ci` obrigatório, para uma vulnerabilidade nova ficar visível sem travar os outros PRs.
-
-O job final **`backend-ci`** é o único check a exigir na proteção de `develop` e `main`. Ele passa quando
-o backend foi validado ou quando o PR não mexe no backend, então PRs só de `mobile/` ou `terminal/` não
-ficam presos esperando um check que não rodou.
-
-A regra de proteção está pronta em [`.github/rulesets/protecao-develop-main.json`](../.github/rulesets/protecao-develop-main.json)
-(PR obrigatório, 1 aprovação, check `backend-ci` obrigatório, sem force-push nem exclusão). Quem é admin do
-repositório a aplica em **Settings > Rules > Rulesets > New ruleset > Import a ruleset**.
-
-Para ser avisado quando um run falhar, ligue **GitHub > Settings > Notifications > Actions**.
-
-Reproduzir o CI na sua máquina (com o banco do compose de pé e migrado):
-
-```bash
-npm run db:generate && npm run lint && npm run typecheck && npm run build
-npm run test:cov && npm run test:int
-```
-
-**Adicionar o CI de outra parte do repositório (mobile, terminal):** não edite o `ci.yml`. Crie um arquivo
-novo em `.github/workflows/` (ex.: `mobile-ci.yml`) com `name` próprio, rode em `push` e `pull_request`,
-use o mesmo padrão de detecção de mudanças da sua pasta e termine com um job de passagem de nome único
-(ex.: `mobile-ci`) para ser o check obrigatório da sua parte.
-
-O [`mobile-ci.yml`](../.github/workflows/mobile-ci.yml) ("Mobile CI") segue outro caminho: filtra por
-`paths` (`mobile/**` e `docs/app-mobile/**`), então o workflow nem começa em PRs que não mexem no app. O
-preço é que, se o `mobile-ci` virar check obrigatório, um PR fora desses caminhos ficaria esperando um
-check que nunca roda; nesse caso, troque o `paths` pela detecção de mudanças do `ci.yml`.
-
-## Scripts
+<details>
+<summary><b>Scripts do <code>package.json</code></b></summary>
+<br>
 
 | Script       | O que faz                                                                    |
 | ------------ | ---------------------------------------------------------------------------- |
@@ -515,3 +695,37 @@ check que nunca roda; nesse caso, troque o `paths` pela detecção de mudanças 
 | `test:cov`   | `vitest run --coverage`                                                      |
 | `db:*`       | Prisma: `generate`, `migrate`, `deploy`, `reset`, `seed`, e `erd` (diagrama) |
 | `dev:qr`     | `tsx scripts/dev-qr.ts`: QR de teste do terminal de desenvolvimento          |
+
+</details>
+
+---
+
+## Documentação
+
+<div align="center">
+
+| Documento                                                    | Conteúdo                                                           |
+| :----------------------------------------------------------- | :----------------------------------------------------------------- |
+| [openapi.yaml](openapi.yaml) (Swagger em `/docs`)            | contrato de todas as rotas, com exemplos de cada resposta          |
+| [docs/deploy-azure.md](docs/deploy-azure.md)                 | deploy em homologação: Azure, OIDC, secrets, rollback e HTTPS      |
+| [docs/arquitetura-backend.md](docs/arquitetura-backend.md)   | camadas, decisões, segurança e operação                            |
+| [docs/sequencias.md](docs/sequencias.md)                     | diagramas de sequência do acesso por QR, por NFC e do lote offline |
+| [docs/comunicacao.md](docs/comunicacao.md)                   | como o app e o terminal falam com a API                            |
+| [docs/modelo-de-dados.md](docs/modelo-de-dados.md)           | diagrama ER (gerado do schema)                                     |
+| [docs/seguranca.md](docs/seguranca.md)                       | checklist de segurança, limites, troca de segredos e monitoramento |
+| [docs/plano-de-testes.md](docs/plano-de-testes.md)           | estratégia de testes e relatório de execução                       |
+| [docs/backup-e-restauracao.md](docs/backup-e-restauracao.md) | copiar e restaurar o banco                                         |
+| [docs/ambiente-dev.md](docs/ambiente-dev.md)                 | dados de desenvolvimento e roteiro com `curl`                      |
+| [docs/eventos-campos.md](docs/eventos-campos.md)             | o significado de cada campo do histórico                           |
+
+</div>
+
+---
+
+<img src="https://capsule-render.vercel.app/api?type=waving&color=0:0A7C66,100:17364F&height=120&section=footer" width="100%" />
+
+<div align="center">
+
+Backend do **Passe** · equipe **DevFlow** · FATEC Jacareí · ABP 2026-2
+
+</div>
