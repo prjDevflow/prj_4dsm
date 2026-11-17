@@ -9,6 +9,7 @@
 <br/>
 
 [![Backend CI](https://github.com/prjDevflow/prj_4dsm/actions/workflows/ci.yml/badge.svg?branch=develop)](https://github.com/prjDevflow/prj_4dsm/actions/workflows/ci.yml)
+[![Deploy em homologação](https://img.shields.io/github/deployments/prjDevflow/prj_4dsm/homologacao?label=homologa%C3%A7%C3%A3o)](https://github.com/prjDevflow/prj_4dsm/deployments/homologacao)
 [![TypeScript](https://img.shields.io/badge/TypeScript-5-3178C6?style=for-the-badge&logo=typescript&logoColor=white)](https://www.typescriptlang.org/)
 [![Node.js](https://img.shields.io/badge/Node.js-22-339933?style=for-the-badge&logo=node.js&logoColor=white)](https://nodejs.org/)
 [![React Native](https://img.shields.io/badge/React%20Native-Expo-61DAFB?style=for-the-badge&logo=react&logoColor=white)](https://expo.dev/)

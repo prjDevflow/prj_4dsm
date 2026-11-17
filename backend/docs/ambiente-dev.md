@@ -303,4 +303,10 @@ No pgAdmin: host `localhost`, porta `DB_PORT` do `.env`, banco `access`, usuári
 
 ## Homologação
 
-A URL de homologação (B10) será publicada aqui. Ela **não** usa estas credenciais.
+A API de homologação roda no Azure Container Apps e é publicada a cada merge na `develop` com o CI verde
+(B10). Como configurar, verificar e voltar uma versão: [deploy-azure.md](deploy-azure.md).
+
+- **URL:** `https://<fqdn>` (preencher depois do primeiro deploy)
+- **Saúde:** `https://<fqdn>/api/v1/health` · **Swagger:** `https://<fqdn>/docs`
+
+Ela **não** usa estas credenciais: o seed nunca roda na nuvem.

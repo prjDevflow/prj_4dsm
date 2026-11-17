@@ -1,0 +1,171 @@
+# Backend CD (B10): publishes the API to the homologation environment on Azure Container Apps.
+#
+# It is not triggered by itself on push: ci.yml calls it as the job "deploy", only on pushes to develop
+# that changed the backend and only after the required check `backend-ci` passed. A red CI never deploys.
+# (`workflow_run` would be simpler, but it only fires for workflows on the default branch, which is main.)
+#
+# Steps: build the runtime image → push it to GHCR (free; no Azure registry) → `prisma migrate deploy`
+# with the DIRECT Neon URL → `az containerapp update` → wait for the new revision → smoke test of /health
+# over HTTPS. Any failing step turns the pipeline red.
+#
+# Rollback: run this workflow by hand (Actions → Backend CD → Run workflow) with the SHA of an earlier
+# image in `tag`. It skips the build and the migrations and only redeploys that image.
+# Setup and secrets: backend/docs/deploy-azure.md.
+name: Backend CD
+
+on:
+  workflow_call:
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: SHA completo de uma imagem já publicada (rollback). Pula o build e as migrações.
+        required: true
+        type: string
+
+permissions:
+  contents: read
+  packages: write
+  id-token: write
+
+# One deploy at a time; a newer one waits instead of cancelling a deploy halfway through a migration.
+concurrency:
+  group: backend-cd
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    name: Publicar em homologação
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    environment:
+      name: homologacao
+      url: ${{ steps.revision.outputs.url }}
+    env:
+      ROLLBACK: ${{ github.event_name == 'workflow_dispatch' }}
+      TAG: ${{ inputs.tag || github.sha }}
+      RESOURCE_GROUP: ${{ vars.AZURE_RESOURCE_GROUP }}
+      CONTAINER_APP: ${{ vars.AZURE_CONTAINERAPP_NAME }}
+    steps:
+      - name: Baixar o repositório
+        uses: actions/checkout@v7
+
+      - name: Conferir a configuração do ambiente
+        env:
+          CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
+          TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
+          SUBSCRIPTION_ID: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+          DIRECT_URL: ${{ secrets.DATABASE_URL_DIRECT }}
+        run: |
+          set -euo pipefail
+          missing=""
+          for name in CLIENT_ID TENANT_ID SUBSCRIPTION_ID DIRECT_URL RESOURCE_GROUP CONTAINER_APP; do
+            if [ -z "${!name}" ]; then missing="$missing $name"; fi
+          done
+          if [ -n "$missing" ]; then
+            echo "::error::Faltam secrets ou variáveis do ambiente homologacao:$missing (veja backend/docs/deploy-azure.md)."
+            exit 1
+          fi
+          if ! [[ "$TAG" =~ ^[0-9a-f]{40}$ ]]; then
+            echo "::error::A tag precisa ser o SHA completo (40 caracteres) de um commit já publicado."
+            exit 1
+          fi
+
+      - name: Nome da imagem (GHCR exige minúsculas)
+        run: echo "IMAGE=ghcr.io/${GITHUB_REPOSITORY,,}/backend" >> "$GITHUB_ENV"
+
+      - name: Entrar no GitHub Container Registry
+        if: env.ROLLBACK != 'true'
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Preparar o Buildx
+        if: env.ROLLBACK != 'true'
+        uses: docker/setup-buildx-action@v3
+
+      - name: Gerar e publicar a imagem
+        if: env.ROLLBACK != 'true'
+        uses: docker/build-push-action@v6
+        with:
+          context: backend
+          target: runtime
+          push: true
+          tags: |
+            ${{ env.IMAGE }}:${{ env.TAG }}
+            ${{ env.IMAGE }}:develop
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Preparar o Node
+        uses: actions/setup-node@v7
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: backend/package-lock.json
+
+      - name: Instalar pacotes (npm ci)
+        working-directory: backend
+        run: npm ci
+
+      # The direct URL (host without -pooler): Prisma Migrate needs session locks the pooler may drop.
+      - name: Aplicar as migrações no Neon
+        if: env.ROLLBACK != 'true'
+        working-directory: backend
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL_DIRECT }}
+        run: npm run db:deploy
+
+      # OIDC with a user-assigned managed identity: no password stored in GitHub.
+      - name: Entrar no Azure
+        uses: azure/login@v2
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Publicar a nova revisão
+        run: |
+          set -euo pipefail
+          az containerapp update \
+            --name "$CONTAINER_APP" \
+            --resource-group "$RESOURCE_GROUP" \
+            --image "$IMAGE:$TAG" \
+            --revision-suffix "r${TAG:0:7}-${GITHUB_RUN_ATTEMPT}" \
+            --output none
+
+      # If the new revision fails to start, the old one keeps the traffic and /health would still pass.
+      # So the deploy only counts when the latest revision is the ready one and runs the new image.
+      - name: Esperar a nova revisão ficar pronta
+        id: revision
+        run: |
+          set -euo pipefail
+          for attempt in $(seq 1 30); do
+            read -r latest ready image fqdn < <(az containerapp show \
+              --name "$CONTAINER_APP" --resource-group "$RESOURCE_GROUP" \
+              --query "[properties.latestRevisionName, properties.latestReadyRevisionName, properties.template.containers[0].image, properties.configuration.ingress.fqdn]" \
+              --output tsv | tr '\n' ' ')
+            echo "Tentativa $attempt/30: última=$latest pronta=$ready imagem=$image"
+            if [ "$latest" = "$ready" ] && [ "$image" = "$IMAGE:$TAG" ]; then
+              echo "url=https://$fqdn" >> "$GITHUB_OUTPUT"
+              exit 0
+            fi
+            sleep 10
+          done
+          echo "::error::A revisão $latest não ficou pronta em 5 minutos. Veja os logs do Container App."
+          exit 1
+
+      - name: Teste de fumaça (/health por HTTPS com db up)
+        working-directory: backend
+        run: npx tsx scripts/smoke-health.ts "${{ steps.revision.outputs.url }}/api/v1/health"
+
+      - name: Resumo
+        if: always()
+        run: |
+          {
+            echo "### Deploy em homologação"
+            echo "- Imagem: \`$IMAGE:$TAG\`"
+            echo "- Rollback: ${ROLLBACK}"
+            echo "- URL: ${{ steps.revision.outputs.url || 'não publicada' }}"
+          } >> "$GITHUB_STEP_SUMMARY"
