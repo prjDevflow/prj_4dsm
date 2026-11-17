@@ -129,6 +129,13 @@ jobs:
       - name: Publicar a nova revisão
         run: |
           set -euo pipefail
+          # The API listens on 3000 (PORT default). Keeping this here means a portal that created the
+          # app with port 80 cannot break the deploy; it is a no-op when the port is already right.
+          az containerapp ingress update \
+            --name "$CONTAINER_APP" \
+            --resource-group "$RESOURCE_GROUP" \
+            --target-port 3000 \
+            --output none
           az containerapp update \
             --name "$CONTAINER_APP" \
             --resource-group "$RESOURCE_GROUP" \

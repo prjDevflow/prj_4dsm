@@ -69,7 +69,7 @@ o app e a identidade do passo 5 ficam **todos na mesma região**.
 
 - **Basics:** grupo `rg-abp-acesso`, nome `api-acesso`, região **Chile Central** (ou a alternativa do passo 3). Em *Container Apps environment*, **Create new**: nome `cae-abp-acesso`, plano **Consumption only**. Na aba *Monitoring* do ambiente, o Log Analytics pode ficar (o volume de log é pequeno).
 - **Container:** deixe marcado **Use quickstart image** (a imagem real ainda não existe; o primeiro deploy a troca).
-- **Ingress:** *Enabled*, tráfego **Accepting traffic from anywhere**, *Ingress type* HTTP, **Target port `3000`**. (A imagem de exemplo escuta na 80, então a primeira revisão fica não saudável. É esperado.)
+- **Ingress:** *Enabled*, tráfego **Accepting traffic from anywhere**, *Ingress type* HTTP, **Target port `3000`** (se o formulário não deixar mudar, tudo bem: o `cd.yml` ajusta a porta para 3000 a cada deploy). (A imagem de exemplo escuta na 80, então a primeira revisão fica não saudável. É esperado.)
 - **Review + create**.
 
 Depois de criado, ajuste:
