@@ -57,7 +57,7 @@ jobs:
           echo "Arquivos alterados:"
           echo "$changed"
 
-          if echo "$changed" | grep -qE '^(backend/|\.github/workflows/ci\.yml$)'; then
+          if echo "$changed" | grep -qE '^(backend/|\.github/workflows/(ci|cd)\.yml$)'; then
             echo "backend=true" >> "$GITHUB_OUTPUT"
           else
             echo "Nada do backend mudou; os passos pesados serão pulados."
@@ -163,6 +163,21 @@ jobs:
             skipped) echo "Backend sem mudanças; nada a validar." ;;
             *) echo "Backend: $BACKEND_RESULT."; exit 1 ;;
           esac
+
+  # CD (B10): publishes to homologation on Azure. Only on pushes to develop that changed the backend, and
+  # only when `backend-ci` passed, so a red CI never deploys. The steps live in cd.yml.
+  deploy:
+    name: Deploy em homologação
+    needs: [changes, backend-ci]
+    if: >-
+      github.event_name == 'push' && github.ref == 'refs/heads/develop' &&
+      needs.changes.outputs.backend == 'true' && needs.backend-ci.result == 'success'
+    permissions:
+      contents: read
+      packages: write
+      id-token: write
+    uses: ./.github/workflows/cd.yml
+    secrets: inherit
 
   # Security checks (B20). Separate from `backend-ci` on purpose: a CVE published tomorrow should turn this
   # job red and get noticed, not block the merge of unrelated pull requests. Runs on every push and pull
