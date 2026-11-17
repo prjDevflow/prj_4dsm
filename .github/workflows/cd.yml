@@ -145,11 +145,19 @@ jobs:
             # One value per line; `read` on a line without a trailing newline returns 1 and `set -e` would stop here.
             mapfile -t fields < <(az containerapp show \
               --name "$CONTAINER_APP" --resource-group "$RESOURCE_GROUP" \
-              --query "[properties.latestRevisionName, properties.latestReadyRevisionName, properties.template.containers[0].image, properties.configuration.ingress.fqdn]" \
+              --query "[properties.latestRevisionName, properties.latestReadyRevisionName, properties.template.containers[0].image, properties.configuration.ingress.fqdn, properties.runningStatus]" \
               --output tsv)
-            latest="${fields[0]:-}"; ready="${fields[1]:-}"; image="${fields[2]:-}"; fqdn="${fields[3]:-}"
-            echo "Tentativa $attempt/30: última=$latest pronta=$ready imagem=$image"
-            if [ "$latest" = "$ready" ] && [ "$image" = "$IMAGE:$TAG" ]; then
+            latest="${fields[0]:-}"; ready="${fields[1]:-}"; image="${fields[2]:-}"; fqdn="${fields[3]:-}"; running="${fields[4]:-}"
+            echo "Tentativa $attempt/30: última=$latest pronta=$ready imagem=$image estado=$running"
+            # Express environments keep a single revision (`<app>--latest`) and leave latestReadyRevisionName
+            # empty ("None"); there, the app's runningStatus says whether the container is up.
+            revision_ok=false
+            if [ "$latest" = "$ready" ]; then
+              revision_ok=true
+            elif { [ -z "$ready" ] || [ "$ready" = "None" ]; } && [ "$running" = "Running" ]; then
+              revision_ok=true
+            fi
+            if [ "$revision_ok" = true ] && [ "$image" = "$IMAGE:$TAG" ]; then
               echo "url=https://$fqdn" >> "$GITHUB_OUTPUT"
               exit 0
             fi
