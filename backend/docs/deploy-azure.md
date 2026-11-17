@@ -100,8 +100,20 @@ Depois de criado, ajuste:
 **Managed Identities → Create**: grupo `rg-abp-acesso`, mesma região do Container App, nome `id-github-deploy`. Na identidade:
 
 - **Overview:** anote o **Client ID** (`AZURE_CLIENT_ID`).
-- **Federated credentials → Add credential:** cenário **GitHub Actions deploying Azure resources**; organização `prjDevflow`,
-  repositório `prj_4dsm`, *Entity* **Environment**, nome do ambiente `homologacao`; nome da credencial `github-homologacao`.
+- **Federated credentials → Add credential:** cenário **GitHub Actions deploying Azure resources**, com:
+
+  | Campo | Valor |
+  |---|---|
+  | Issuer URL | `https://token.actions.githubusercontent.com` |
+  | Organization / Organization ID | `prjDevflow` / `202716861` |
+  | Repository / Repository ID | `prj_4dsm` / `1421434373` |
+  | Entity / Environment | Environment / `homologacao` |
+  | Audience | o padrão (`api://AzureADTokenExchange`) |
+
+  O formulário gera o subject no formato com IDs (`repo:prjDevflow@202716861/prj_4dsm@1421434373:environment:homologacao`),
+  mas o GitHub, por padrão, manda o formato clássico. Crie **duas credenciais**: `homologacao` como o formulário gera e
+  `homologacao-classico` com **Edit (optional)** no *Subject identifier* = `repo:prjDevflow/prj_4dsm:environment:homologacao`.
+  Depois do primeiro deploy, a que não foi usada pode ser apagada (o erro `AADSTS700213` no `azure/login` mostra o subject recebido).
 
 No grupo `rg-abp-acesso`: **Access control (IAM) → Add role assignment → Contributor →** *Managed identity* `id-github-deploy`.
 O papel vale só para o grupo, não para a assinatura inteira.
