@@ -12,7 +12,7 @@ imagem Docker do `backend/Dockerfile` (estágio `runtime`). A imagem fica no **G
 | Banco | Neon (plano gratuito) | grátis, com cota de computação (veja [Cuidados](#cuidados)) |
 | HTTPS | certificado gerenciado do Azure no domínio `*.azurecontainerapps.io` | grátis |
 
-**URL de homologação:** `https://<fqdn>` (preencher depois do primeiro deploy; também em [ambiente-dev.md](ambiente-dev.md#homologação)).
+**URL de homologação:** `https://api-acesso.blackfield-72312729.chilecentral.azurecontainerapps.io` (primeiro deploy verde em 2026-11-17, [run 44160571344](https://github.com/prjDevflow/prj_4dsm/actions/runs/44160571344); também em [ambiente-dev.md](ambiente-dev.md#homologação)).
 
 ## Como o pipeline funciona
 
@@ -144,11 +144,11 @@ Pronto: a partir daí cada merge na `develop` publica sozinho.
 ## Verificar
 
 ```bash
-curl -s https://<fqdn>/api/v1/health    # {"status":"ok", ..., "db":"up"}
-curl -s https://<fqdn>/api/v1/ready     # 200 com o banco no ar
+curl -s https://api-acesso.blackfield-72312729.chilecentral.azurecontainerapps.io/api/v1/health    # {"status":"ok", ..., "db":"up"}
+curl -s https://api-acesso.blackfield-72312729.chilecentral.azurecontainerapps.io/api/v1/ready     # 200 com o banco no ar
 ```
 
-O Swagger fica em `https://<fqdn>/docs`.
+O Swagger fica em `https://api-acesso.blackfield-72312729.chilecentral.azurecontainerapps.io/docs`.
 
 ## Rollback
 
@@ -168,7 +168,7 @@ O certificado do `*.azurecontainerapps.io` é emitido e renovado pela Microsoft.
 cadeia, não do certificado do site (que troca a cada renovação). Para ver a cadeia real depois do primeiro deploy:
 
 ```bash
-openssl s_client -connect <fqdn>:443 -servername <fqdn> -showcerts </dev/null 2>/dev/null | grep -E '^ *[0-9] s:|i:'
+openssl s_client -connect api-acesso.blackfield-72312729.chilecentral.azurecontainerapps.io:443 -servername api-acesso.blackfield-72312729.chilecentral.azurecontainerapps.io -showcerts </dev/null 2>/dev/null | grep -E '^ *[0-9] s:|i:'
 ```
 
 Mande ao Matheus o nome da raiz que aparecer no último `i:` (hoje a Microsoft usa raízes da DigiCert, mas confira
