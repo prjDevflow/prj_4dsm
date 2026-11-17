@@ -120,3 +120,11 @@ describe('checkHealth', () => {
     ).rejects.toThrow('tentativas');
   });
 });
+
+// B10: deliberately red test. This pull request exists only to prove that a red CI never deploys.
+// It must never be merged.
+describe('B10 — prova de CI vermelho', () => {
+  it('deve falhar de propósito para provar que CI vermelho não publica', () => {
+    expect(1).toBe(2);
+  });
+});
