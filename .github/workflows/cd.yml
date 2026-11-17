@@ -125,6 +125,7 @@ jobs:
           tenant-id: ${{ secrets.AZURE_TENANT_ID }}
           subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
 
+      # No --revision-suffix: express environments reject it (ExpressRevisionSuffixNotSupported).
       - name: Publicar a nova revisão
         run: |
           set -euo pipefail
@@ -132,7 +133,6 @@ jobs:
             --name "$CONTAINER_APP" \
             --resource-group "$RESOURCE_GROUP" \
             --image "$IMAGE:$TAG" \
-            --revision-suffix "r${TAG:0:7}-${GITHUB_RUN_ATTEMPT}" \
             --output none
 
       # If the new revision fails to start, the old one keeps the traffic and /health would still pass.
