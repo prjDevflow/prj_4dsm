@@ -1,0 +1,75 @@
+@startuml casos-de-uso
+' Diagrama de casos de uso do Passe (G04).
+' Fonte da verdade: backend/openapi.yaml e backend/docs/ai/03-domain-and-contract.md.
+' Gere a imagem com: plantuml -tsvg docs/arquitetura/casos-de-uso.puml
+
+left to right direction
+skinparam shadowing false
+skinparam packageStyle rectangle
+skinparam actorStyle awesome
+skinparam defaultFontName Arial
+skinparam usecase {
+  BackgroundColor #F5F8FF
+  BorderColor #3B5BA9
+}
+skinparam rectangle {
+  BorderColor #555555
+}
+
+actor "Usuário" as Usuario
+actor "Condômino\n(CONDOMINO)" as Condomino
+actor "Visitante\n(VISITANTE)" as Visitante
+actor "Administrador\n(ADMIN)" as Admin
+actor "Terminal de acesso\n<<sistema>>" as Terminal
+
+' Especializações do Usuário. O administrador herda os casos do Usuário.
+Condomino -up-|> Usuario
+Visitante -up-|> Usuario
+Admin -up-|> Usuario
+
+rectangle "Passe (app + API)" {
+  ' Qualquer perfil
+  usecase "UC01 Autenticar" as UC01
+  usecase "UC09 Consultar minhas\nautorizações" as UC09
+  usecase "UC10 Consultar histórico" as UC10
+  usecase "UC11 Acessar por QR Code" as UC11
+  usecase "UC12 Acessar por NFC\n(sem a regra dos 100 m)" as UC12
+  ' Só ADMIN
+  usecase "UC02 Manter usuários" as UC02
+  usecase "UC03 Manter locais" as UC03
+  usecase "UC04 Manter terminais" as UC04
+  usecase "UC05 Criar autorização" as UC05
+  usecase "UC06 Consultar autorizações" as UC06
+  usecase "UC07 Cancelar autorização" as UC07
+  usecase "UC08 Vincular tag NFC" as UC08
+  ' Terminal de acesso
+  usecase "UC13 Exibir QR Code" as UC13
+  usecase "UC14 Enviar eventos offline" as UC14
+  usecase "UC15 Informar posição\ne estado" as UC15
+}
+
+Usuario --> UC01
+Usuario --> UC09
+Usuario --> UC10
+Usuario --> UC11
+Usuario --> UC12
+
+Admin --> UC02
+Admin --> UC03
+Admin --> UC04
+Admin --> UC05
+Admin --> UC06
+Admin --> UC07
+Admin --> UC08
+
+UC07 .> UC06 : <<extend>>
+
+' Terminal de acesso: ator secundário em UC08, UC11 e UC12; principal em UC13 a UC15
+UC11 --> Terminal
+UC12 --> Terminal
+UC08 --> Terminal
+Terminal --> UC13
+Terminal --> UC14
+Terminal --> UC15
+
+@enduml

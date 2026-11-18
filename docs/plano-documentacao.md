@@ -127,12 +127,14 @@ Siga estas regras em pelo menos 80% das frases. Use a exceção só quando a reg
    - requisitos ligados (RF).
 5. Mostre que o administrador também pode acessar por QR Code. Qualquer perfil valida QR.
 
+> Feito em [arquitetura/casos-de-uso.md](arquitetura/casos-de-uso.md). Entrou o UC15 "Informar posição e estado" para cobrir o RF11.
+
 **Critérios de aceitação**
 
-- [ ] Cada RF de RF01 a RF17 aparece em pelo menos um caso de uso.
-- [ ] Os 13 motivos de negação aparecem nos fluxos alternativos.
-- [ ] O NFC não inclui a regra dos 100 m (decisão 4 do contrato).
-- [ ] O diagrama abre no GitHub sem rolagem lateral na tela de um notebook.
+- [x] Cada RF de RF01 a RF17 aparece em pelo menos um caso de uso.
+- [x] Os 13 motivos de negação aparecem nos fluxos alternativos.
+- [x] O NFC não inclui a regra dos 100 m (decisão 4 do contrato).
+- [x] O diagrama abre no GitHub sem rolagem lateral na tela de um notebook.
 
 **Definição de pronto**
 
@@ -322,7 +324,7 @@ Siga estas regras em pelo menos 80% das frases. Use a exceção só quando a reg
 
 ## 7. Checklist final
 
-- [ ] G04 Casos de uso
+- [x] G04 Casos de uso
 - [ ] G05 Diagrama de componentes
 - [ ] G06 Documento de arquitetura do sistema
 - [ ] G07 Estratégia de Git no README
