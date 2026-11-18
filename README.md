@@ -161,7 +161,6 @@ Cada pasta tem o seu próprio README, com instalação, comandos e documentaçã
 | [backend/](backend/) | API e banco de dados |
 | [mobile/](mobile/) | App mobile |
 | [terminal/](terminal/) | Terminal de acesso (IoT) |
-| [infra/](infra/) | Infraestrutura e deploy |
 | [docs/](docs/README.md) | Documentação geral do projeto e índice de toda a documentação |
 
 ---
