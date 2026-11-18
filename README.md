@@ -156,6 +156,86 @@ Cada pasta tem o seu próprio README, com instalação, comandos e documentaçã
 
 ---
 
+## Como trabalhamos com Git
+
+Esta seção define a estratégia de versionamento do projeto (RNF11). Siga estas regras em toda mudança no repositório.
+
+### Branches
+
+| Branch | Para que serve | Criada a partir de |
+|:---|:---|:---|
+| `main` | Versão entregue nas Reviews. Recebe código só da `develop`. | — |
+| `develop` | Integração do trabalho do time. Cada push com mudança no backend publica a API na homologação. | `main` |
+| `feature/<ID>-<descricao>` | Uma etapa do plano. Exemplo: `feature/B08-create-authorization`. | `develop` atualizada |
+| `docs/<assunto>` | Documentação que não pertence a uma etapa. Exemplo: `docs/readme-raiz`. | `develop` atualizada |
+
+- Use uma etapa por branch. Não junte o trabalho de duas etapas.
+- Escreva a descrição da branch em kebab-case, sem acentos.
+- Se o PR da etapa anterior ainda está aberto, crie a branch a partir da branch dessa etapa. Leve a branch para a `develop` depois que o PR anterior entrar.
+
+### IDs das etapas
+
+Cada etapa tem um ID com uma letra e dois dígitos. A letra diz a parte do sistema.
+
+| Letra | Parte | Plano das etapas |
+|:---|:---|:---|
+| `B` | Backend (API e banco) | [backend/docs/ai/](backend/docs/ai/) |
+| `F` | App mobile | [mobile/.claude/](mobile/.claude/) |
+| `I` | Terminal de acesso (IoT) | [terminal/docs/guia-firmware.md](terminal/docs/guia-firmware.md) |
+| `G` | Geral (documentação e integração) | [docs/plano-documentacao.md](docs/plano-documentacao.md) |
+
+### Commits
+
+Use o padrão [Conventional Commits](https://www.conventionalcommits.org/pt-br/v1.0.0/), com o ID da etapa como escopo:
+
+```text
+<tipo>(<ID>): <descrição em português, no presente, sem ponto final>
+```
+
+| Tipo | Quando usar | Exemplo |
+|:---|:---|:---|
+| `test` | Teste novo. Use `(red)` no fim se o teste falha antes do código. | `test(B06): CreateUser rejeita e-mail repetido (red)` |
+| `feat` | Comportamento novo. Use `(green)` no fim se o commit faz um teste passar. | `feat(B06): CreateUser recusa e-mail repetido (green)` |
+| `fix` | Correção de um comportamento. | `fix(B05): JwtTokenProvider exige exp no token (green)` |
+| `refactor` | Mudança de estrutura com todos os testes verdes. | `refactor(B06): extrai a proteção do administrador` |
+| `docs` | README, plano, contrato e `openapi.yaml`. | `docs(G05): diagrama de componentes` |
+| `ci`, `build`, `chore` | Workflow, dependências e ferramentas. | `ci(F01): adiciona o job mobile ao workflow de CI` |
+
+- Faça commits pequenos. Um commit tem uma mudança.
+- Adicione os arquivos pelo nome (`git add <arquivo>`). Nunca envie `.env` ou segredos.
+- Sem etapa, omita o escopo: `docs: adiciona README geral do projeto`.
+
+### Pull requests
+
+- Abra o PR da etapa para a `develop`. O título é `[<ID>] <nome da etapa>`, por exemplo `[G04] Casos de uso`.
+- Preencha o corpo com resumo, como testar, critérios de aceitação e definição de pronto.
+- Peça a revisão de 1 pessoa do time. Quem abre o PR não aprova o próprio PR.
+- Faça o merge com merge commit. Não use squash: o histórico de commits é a evidência do TDD.
+- Depois do merge, apague a branch da etapa.
+
+### Proteções da `main` e da `develop`
+
+O ruleset [Proteger develop e main](.github/rulesets/protecao-develop-main.json) está ativo no GitHub. Ninguém tem permissão para ignorar as regras. As duas branches têm estas proteções:
+
+- Nenhum push direto. Toda mudança entra por PR.
+- O PR precisa de 1 aprovação.
+- O check `backend-ci` ([ci.yml](.github/workflows/ci.yml)) precisa passar.
+- Nenhum force push e nenhuma exclusão da branch.
+
+O `mobile-ci` e o `terminal-ci` rodam só quando o PR muda `mobile/` ou `terminal/`. Eles não bloqueiam o merge, mas o revisor confere o resultado deles.
+
+### Da `develop` para a `main`
+
+1. Confira que o CI da `develop` está verde.
+2. Abra um PR da `develop` para a `main`, antes de cada Review.
+3. Peça a revisão de 1 pessoa do time.
+4. Faça o merge com merge commit.
+5. Confira que a `main` e a `develop` têm o mesmo conteúdo.
+
+O [histórico de PRs](https://github.com/prjDevflow/prj_4dsm/pulls?q=is%3Apr+is%3Amerged) mostra estas regras em uso.
+
+---
+
 ## Equipe
 
 Projeto desenvolvido pela equipe **DevFlow** — FATEC Jacareí.
