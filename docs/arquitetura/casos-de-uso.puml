@@ -1,0 +1,77 @@
+@startuml casos-de-uso
+' Diagrama de casos de uso do sistema Passe (etapa G04).
+' Gere a imagem com: plantuml -tsvg docs/arquitetura/casos-de-uso.puml
+' Os nomes seguem o contrato: backend/openapi.yaml e backend/docs/ai/03-domain-and-contract.md.
+
+left to right direction
+skinparam shadowing false
+skinparam packageStyle rectangle
+skinparam usecase {
+  BackgroundColor #FFFFFF
+  BorderColor #273336
+}
+skinparam actorBorderColor #273336
+skinparam rectangleBorderColor #273336
+
+actor "Usuário" as Usuario
+actor "Condômino" as Condomino
+actor "Visitante" as Visitante
+actor "Administrador" as Admin
+actor "Terminal de acesso\n(ESP32)" as Terminal <<sistema>>
+
+Condomino -|> Usuario
+Visitante -|> Usuario
+Admin -|> Usuario
+
+rectangle "Sistema Passe (app mobile + API)" {
+  usecase "UC01 Autenticar\n(RF07)" as UC01
+  usecase "UC09 Consultar minhas\nautorizações (RF08)" as UC09
+  usecase "UC10 Consultar histórico\nde acessos (RF06)" as UC10
+  usecase "UC11 Acessar por QR Code\n(RF09, RF13, RF15, RF16)" as UC11
+  usecase "UC12 Acessar por NFC\n(RF10, RF14, RF15, RF16)" as UC12
+
+  usecase "UC02 Manter usuários\n(RF01)" as UC02
+  usecase "UC03 Manter locais\n(RF02)" as UC03
+  usecase "UC04 Manter terminais\n(RF02, RF11)" as UC04
+  usecase "UC05 Criar autorização\n(RF03)" as UC05
+  usecase "UC06 Consultar autorizações\n(RF04)" as UC06
+  usecase "UC07 Cancelar autorização\n(RF05)" as UC07
+  usecase "UC08 Vincular tag NFC\n(RF10)" as UC08
+
+  usecase "UC13 Exibir QR Code\n(RF12)" as UC13
+  usecase "UC14 Informar estado\ne posição (RF11)" as UC14
+  usecase "UC15 Enviar eventos\noffline (RNF03)" as UC15
+
+  usecase "UC16 Avaliar autorização\n(RF13, RF14)" as UC16
+  usecase "UC17 Registrar evento\nde acesso (RF17)" as UC17
+}
+
+Usuario --> UC01
+Usuario --> UC09
+Usuario --> UC10
+Usuario --> UC11
+Usuario --> UC12
+
+Admin --> UC02
+Admin --> UC03
+Admin --> UC04
+Admin --> UC05
+Admin --> UC06
+Admin --> UC08
+
+UC07 .> UC06 : <<extend>>
+
+UC11 ..> UC16 : <<include>>
+UC11 ..> UC17 : <<include>>
+UC12 ..> UC16 : <<include>>
+UC12 ..> UC17 : <<include>>
+UC15 ..> UC17 : <<include>>
+
+UC11 <-- Terminal
+UC12 <-- Terminal
+UC08 <-- Terminal
+UC13 <-- Terminal
+UC14 <-- Terminal
+UC15 <-- Terminal
+
+@enduml
