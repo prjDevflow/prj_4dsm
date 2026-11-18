@@ -231,10 +231,13 @@ Siga estas regras em pelo menos 80% das frases. Use a exceção só quando a reg
    - como a `develop` chega à `main`.
 3. Faça um link para o histórico de PRs como evidência.
 
+> Feito na seção [Como trabalhamos com Git](../README.md#como-trabalhamos-com-git) do README raiz. O texto foi
+> conferido com o ruleset ativo no GitHub (`gh api .../rulesets`), além do arquivo em `.github/rulesets/`.
+
 **Critérios de aceitação**
 
 - [ ] Uma pessoa nova cria a branch e o PR certos só com o README.
-- [ ] O texto bate com os rulesets em `.github/rulesets/`.
+- [x] O texto bate com os rulesets em `.github/rulesets/`.
 
 ---
 
@@ -331,7 +334,7 @@ Siga estas regras em pelo menos 80% das frases. Use a exceção só quando a reg
 - [x] G04 Casos de uso
 - [x] G05 Diagrama de componentes
 - [ ] G06 Documento de arquitetura do sistema
-- [ ] G07 Estratégia de Git no README
+- [x] G07 Estratégia de Git no README
 - [ ] G08 Registro de decisões
 - [ ] G09 Relatório do teste integrado
 - [ ] G10 Revisão final
