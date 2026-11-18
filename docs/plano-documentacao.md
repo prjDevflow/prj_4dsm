@@ -60,8 +60,9 @@ Estes documentos já atendem à RP07. Não faça de novo. Use links para eles.
 ### 5.2 Diagramas
 
 - Use PlantUML para diagramas UML (casos de uso e componentes). O Mermaid não tem a notação UML desses dois.
-- Guarde a fonte (`.puml`) e a imagem (`.svg`) lado a lado em `docs/arquitetura/`.
-- Gere a imagem com o PlantUML local: `plantuml -tsvg docs/arquitetura/*.puml`. Não envie o diagrama para um servidor externo.
+- Crie uma pasta para cada etapa em `docs/arquitetura/<nome>/`, por exemplo `casos-de-uso/`.
+- Guarde o documento (`.md`), a fonte (`.puml`) e a imagem (`.svg`) lado a lado nessa pasta.
+- Gere a imagem com o PlantUML local: `plantuml -tsvg docs/arquitetura/*/*.puml`. Não envie o diagrama para um servidor externo.
 - O contrato manda. Use os nomes do `openapi.yaml` e do `03-domain-and-contract.md`: `ADMIN`, `QR`, `AUTORIZADO`, `ABRIR`, `NEGAR`.
 
 ### 5.3 Escrita (ASD-STE100, rigidez de 80%)
@@ -118,8 +119,8 @@ Siga estas regras em pelo menos 80% das frases. Use a exceção só quando a reg
    - acessar por NFC;
    - exibir QR Code;
    - enviar eventos offline.
-3. Desenhe o diagrama em `docs/arquitetura/casos-de-uso.puml`. Gere o `.svg`.
-4. Escreva `docs/arquitetura/casos-de-uso.md`. Para cada caso, faça uma ficha com:
+3. Desenhe o diagrama em `docs/arquitetura/casos-de-uso/casos-de-uso.puml`. Gere o `.svg`.
+4. Escreva `docs/arquitetura/casos-de-uso/casos-de-uso.md`. Para cada caso, faça uma ficha com:
    - ator principal;
    - pré-condição;
    - fluxo principal;
@@ -127,7 +128,7 @@ Siga estas regras em pelo menos 80% das frases. Use a exceção só quando a reg
    - requisitos ligados (RF).
 5. Mostre que o administrador também pode acessar por QR Code. Qualquer perfil valida QR.
 
-> Feito em [arquitetura/casos-de-uso.md](arquitetura/casos-de-uso.md). Entrou o UC15 "Informar posição e estado" para cobrir o RF11.
+> Feito em [arquitetura/casos-de-uso/casos-de-uso.md](arquitetura/casos-de-uso/casos-de-uso.md). Entrou o UC15 "Informar posição e estado" para cobrir o RF11.
 
 **Critérios de aceitação**
 
@@ -160,17 +161,20 @@ Siga estas regras em pelo menos 80% das frases. Use a exceção só quando a reg
    - app → API: HTTPS e JWT;
    - terminal → API: HTTPS e chave do terminal;
    - API → banco: Prisma.
-3. Grave a fonte em `docs/arquitetura/componentes.puml`. Gere o `.svg`.
+3. Grave a fonte em `docs/arquitetura/componentes/componentes.puml`. Gere o `.svg`.
 4. Faça uma tabela com o que cada componente faz e a pasta dele no repositório.
+
+> Feito em [arquitetura/componentes/componentes.md](arquitetura/componentes/componentes.md). O diagrama mostra as interfaces da API como
+> duas interfaces UML: API do app e API do terminal. Ele também mostra os barramentos do ESP32 e o caminho do CD.
 
 **Critérios de aceitação**
 
-- [ ] Cada interface do diagrama tem uma rota ou um grupo de rotas do `openapi.yaml`.
-- [ ] O diagrama não mostra MQTT. O projeto usa HTTP com polling.
+- [x] Cada interface do diagrama tem uma rota ou um grupo de rotas do `openapi.yaml`.
+- [x] O diagrama não mostra MQTT. O projeto usa HTTP com polling.
 
 **Definição de pronto**
 
-- [ ] O README raiz usa a imagem nova no lugar do Mermaid simples.
+- [x] O README raiz usa a imagem nova no lugar do Mermaid simples.
 
 ---
 
@@ -182,7 +186,7 @@ Siga estas regras em pelo menos 80% das frases. Use a exceção só quando a reg
 
 **Tarefas**
 
-1. Escreva `docs/arquitetura/arquitetura-sistema.md` com estas seções:
+1. Escreva `docs/arquitetura/arquitetura-sistema/arquitetura-sistema.md` com estas seções:
    1. visão geral e problema;
    2. componentes (diagrama da G05);
    3. casos de uso (link para a G04);
@@ -242,7 +246,7 @@ Siga estas regras em pelo menos 80% das frases. Use a exceção só quando a reg
 
 **Tarefas**
 
-1. Crie `docs/arquitetura/decisoes.md`.
+1. Crie `docs/arquitetura/decisoes/decisoes.md`.
 2. Para cada decisão, escreva: contexto, decisão, alternativas e consequência. Use até 6 frases.
 3. Registre no mínimo:
    - HTTP com polling, e não MQTT;
@@ -325,7 +329,7 @@ Siga estas regras em pelo menos 80% das frases. Use a exceção só quando a reg
 ## 7. Checklist final
 
 - [x] G04 Casos de uso
-- [ ] G05 Diagrama de componentes
+- [x] G05 Diagrama de componentes
 - [ ] G06 Documento de arquitetura do sistema
 - [ ] G07 Estratégia de Git no README
 - [ ] G08 Registro de decisões
