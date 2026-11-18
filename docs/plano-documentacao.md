@@ -262,9 +262,13 @@ Siga estas regras em pelo menos 80% das frases. Use a exceção só quando a reg
    - UID da tag NFC clonável como risco aceito.
 4. Faça um link para a seção do contrato de onde cada decisão saiu.
 
+> Feito em [arquitetura/decisoes/decisoes.md](arquitetura/decisoes/decisoes.md). Entraram também o ADR-09 (NFC
+> sem comando) e o ADR-10 (um evento por tentativa). O ADR-01 e o ADR-07 citam o `STATUS.md` e o `comunicacao.md`,
+> porque o contrato não tem uma seção para essas decisões.
+
 **Critérios de aceitação**
 
-- [ ] Cada decisão tem uma origem que dá para conferir.
+- [x] Cada decisão tem uma origem que dá para conferir.
 
 ---
 
@@ -335,7 +339,7 @@ Siga estas regras em pelo menos 80% das frases. Use a exceção só quando a reg
 - [x] G05 Diagrama de componentes
 - [x] G06 Documento de arquitetura do sistema
 - [ ] G07 Estratégia de Git no README
-- [ ] G08 Registro de decisões
+- [x] G08 Registro de decisões
 - [ ] G09 Relatório do teste integrado
 - [ ] G10 Revisão final
 - [ ] I13 `energia.md` (Matheus)
