@@ -40,7 +40,8 @@ A solução é formada por três partes que conversam entre si:
 
 O app e o terminal falam com a API por HTTPS: o app com JWT e o terminal com a chave dele, por polling.
 A API grava no PostgreSQL pelo Prisma. O papel de cada componente e as rotas de cada interface estão em
-[docs/arquitetura/componentes/componentes.md](docs/arquitetura/componentes/componentes.md).
+[docs/arquitetura/componentes/componentes.md](docs/arquitetura/componentes/componentes.md). A visão do
+sistema inteiro está em [docs/arquitetura/arquitetura-sistema/arquitetura-sistema.md](docs/arquitetura/arquitetura-sistema/arquitetura-sistema.md).
 
 ---
 

@@ -201,11 +201,14 @@ Siga estas regras em pelo menos 80% das frases. Use a exceção só quando a reg
 3. Ligue cada seção aos RNF que ela atende.
 4. Faça links para `terminal/docs/energia.md` (I13) e para o manual do usuário (F15).
 
+> Feito em [arquitetura/arquitetura-sistema/arquitetura-sistema.md](arquitetura/arquitetura-sistema/arquitetura-sistema.md). O `energia.md`
+> (I13) e o manual (F15) ainda não existem: o documento cita os dois sem link. A G10 troca o texto pelo link.
+
 **Critérios de aceitação**
 
 - [ ] Uma pessoa de fora entende o sistema em até 10 minutos de leitura.
-- [ ] Cada RNF (RNF01 a RNF12) aparece em pelo menos uma seção.
-- [ ] Nenhuma informação contradiz o contrato.
+- [x] Cada RNF (RNF01 a RNF12) aparece em pelo menos uma seção.
+- [x] Nenhuma informação contradiz o contrato.
 
 **Definição de pronto**
 
@@ -330,7 +333,7 @@ Siga estas regras em pelo menos 80% das frases. Use a exceção só quando a reg
 
 - [x] G04 Casos de uso
 - [x] G05 Diagrama de componentes
-- [ ] G06 Documento de arquitetura do sistema
+- [x] G06 Documento de arquitetura do sistema
 - [ ] G07 Estratégia de Git no README
 - [ ] G08 Registro de decisões
 - [ ] G09 Relatório do teste integrado
