@@ -1,12 +1,12 @@
 # Casos de uso
 
 Este documento mostra quem usa o Passe e o que cada ator faz. Ele atende à RP07 (diagrama de casos de uso).
-Os nomes seguem o contrato: [openapi.yaml](../../backend/openapi.yaml) e
-[03-domain-and-contract.md](../../backend/docs/ai/03-domain-and-contract.md). Se este documento diverge do
+Os nomes seguem o contrato: [openapi.yaml](../../../backend/openapi.yaml) e
+[03-domain-and-contract.md](../../../backend/docs/ai/03-domain-and-contract.md). Se este documento diverge do
 contrato, o contrato vale.
 
 - Fonte do diagrama: [casos-de-uso.puml](casos-de-uso.puml)
-- Gere a imagem com `plantuml -tsvg docs/arquitetura/casos-de-uso.puml`.
+- Gere a imagem com `plantuml -tsvg docs/arquitetura/casos-de-uso/casos-de-uso.puml`.
 
 ## 1. Diagrama
 
@@ -48,7 +48,7 @@ chama a API.
 | [UC14](#uc14--enviar-eventos-offline) | Enviar eventos offline | Terminal de acesso | `POST /terminal/events/batch` | RF17 |
 | [UC15](#uc15--informar-posição-e-estado) | Informar posição e estado | Terminal de acesso | `POST /terminal/heartbeat` | RF11 |
 
-O UC15 não está na lista da G04 do [plano](../plano-documentacao.md). Ele entrou para cobrir o RF11
+O UC15 não está na lista da G04 do [plano](../../plano-documentacao.md). Ele entrou para cobrir o RF11
 (o terminal informa posição e estado).
 
 ## 4. Regras comuns a todas as fichas
@@ -479,6 +479,6 @@ Os 13 motivos da seção 4.4 do contrato aparecem nestes fluxos:
 
 ## 7. Documentos relacionados
 
-- [Diagramas de sequência](../../backend/docs/sequencias.md): QR, NFC e eventos offline, passo a passo.
-- [Comunicação entre os elementos](../../backend/docs/comunicacao.md): protocolos e autenticação.
-- [Campos dos eventos](../../backend/docs/eventos-campos.md): o que cada evento guarda.
+- [Diagramas de sequência](../../../backend/docs/sequencias.md): QR, NFC e eventos offline, passo a passo.
+- [Comunicação entre os elementos](../../../backend/docs/comunicacao.md): protocolos e autenticação.
+- [Campos dos eventos](../../../backend/docs/eventos-campos.md): o que cada evento guarda.

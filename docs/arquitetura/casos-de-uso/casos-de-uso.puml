@@ -1,7 +1,7 @@
 @startuml casos-de-uso
 ' Diagrama de casos de uso do Passe (G04).
 ' Fonte da verdade: backend/openapi.yaml e backend/docs/ai/03-domain-and-contract.md.
-' Gere a imagem com: plantuml -tsvg docs/arquitetura/casos-de-uso.puml
+' Gere a imagem com: plantuml -tsvg docs/arquitetura/casos-de-uso/casos-de-uso.puml
 
 left to right direction
 skinparam shadowing false

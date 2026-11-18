@@ -36,21 +36,11 @@ A solução é formada por três partes que conversam entre si:
 
 ## Arquitetura
 
-```mermaid
-graph TD
-    Admin([👤 Administrador]) --> App
-    User([👤 Condômino / Visitante]) --> App
+![Diagrama de componentes do Passe](docs/arquitetura/componentes/componentes.svg)
 
-    App["📱 App mobile\nReact Native"]
-    API["⚙ API\nNode.js + Express"]
-    DB[("🗄 PostgreSQL")]
-    Term["📟 Terminal de acesso\nESP32 ou simulador"]
-
-    App -- "HTTPS + JWT" --> API
-    Term -- "HTTP (polling) + chave do terminal" --> API
-    API -- "Prisma ORM" --> DB
-    User -. "lê o QR Code / aproxima a tag NFC" .-> Term
-```
+O app e o terminal falam com a API por HTTPS: o app com JWT e o terminal com a chave dele, por polling.
+A API grava no PostgreSQL pelo Prisma. O papel de cada componente e as rotas de cada interface estão em
+[docs/arquitetura/componentes/componentes.md](docs/arquitetura/componentes/componentes.md).
 
 ---
 
