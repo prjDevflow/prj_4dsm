@@ -247,6 +247,7 @@ Formato: data · decisão · motivo.
 - 2026-11-17 · B10: `TRUST_PROXY=1` na homologação · o ingress do Azure é um proxy na frente da API.
 - 2026-11-17 · B10: no ambiente *express* do Azure o deploy não usa `--revision-suffix` (recusado), lê a revisão pronta pelo `runningStatus` (o `latestReadyRevisionName` vem vazio) e ajusta o `--target-port 3000` a cada publicação (o portal criou o app com a 80) · PRs #58, #60 e #61.
 - 2026-11-17 · B10: **usuários iniciais da homologação** (pergunta #19) por um script local, `npm run usuarios:iniciais`, que cria 2 usuários de cada perfil pelo caso de uso `CreateUser`, gera uma senha aleatória para cada um e a mostra uma única vez · resposta do Eduardo. O seed continua só de desenvolvimento; o script pede confirmação com o host do banco, não guarda senha e pula o e-mail que já existe.
+- 2026-11-17 · B10: as senhas das 6 contas da homologação ficam **publicadas** no `backend/README.md` · decisão do Eduardo (projeto acadêmico, sem dados reais), mesmo com o repositório público: qualquer pessoa entra como admin na homologação. Para fechar, basta trocar as senhas com `PATCH /users/{id}` e tirá-las do README.
 
 ## Perguntas em aberto
 
