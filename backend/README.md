@@ -68,7 +68,7 @@ curl https://api-acesso.blackfield-72312729.chilecentral.azurecontainerapps.io/a
 **Para voltar a uma versão anterior:** abra **Actions → Backend CD → Run workflow**. Informe o SHA completo de uma imagem já publicada. Este caminho não gera imagem e não aplica migrações.
 
 > [!IMPORTANT]
-> Não rode o seed na homologação. As credenciais do seed são públicas. Para criar os usuários da homologação, use o `npm run usuarios:iniciais` (ver [Usuários da homologação](#usuários-da-homologação)).
+> Não rode o seed na homologação. Para entrar na homologação, use as contas de [Usuários da homologação](#usuários-da-homologação).
 
 > [!NOTE]
 > O Neon gratuito suspende o banco quando ele fica parado. A primeira requisição depois disso demora mais.
@@ -262,13 +262,21 @@ O Neon gratuito suspende o banco quando ele fica parado. A primeira conexão dep
 
 ### Usuários da homologação
 
-O script `npm run usuarios:iniciais` cria 2 usuários de cada perfil no banco da `DATABASE_URL`. Use-o uma vez na homologação, no seu computador.
+As contas abaixo já existem na homologação (criadas em 17/11/2026). Use-as para testar o app e o Swagger.
 
-| Perfil      | E-mails                                          |
-| ----------- | ------------------------------------------------ |
-| `ADMIN`     | `admin1@passe.test`, `admin2@passe.test`         |
-| `CONDOMINO` | `condomino1@passe.test`, `condomino2@passe.test` |
-| `VISITANTE` | `visitante1@passe.test`, `visitante2@passe.test` |
+| Perfil      | E-mail                  | Senha                  |
+| ----------- | ----------------------- | ---------------------- |
+| `ADMIN`     | `admin1@passe.test`     | `MJR1vIEIZFPIFKGvNeHg` |
+| `ADMIN`     | `admin2@passe.test`     | `U9xODKDtOC2-H1kCTmf6` |
+| `CONDOMINO` | `condomino1@passe.test` | `_niArIlp3o52mbSXekN4` |
+| `CONDOMINO` | `condomino2@passe.test` | `UmJqtXkvr4082bNgWkfP` |
+| `VISITANTE` | `visitante1@passe.test` | `Iij03mlWNx2JZOjkAkCj` |
+| `VISITANTE` | `visitante2@passe.test` | `3sKeXDKwdKglVS9OmkIx` |
+
+> [!WARNING]
+> Estas senhas são **públicas**, porque o repositório é público. Qualquer pessoa pode entrar como administrador na homologação. Elas são só para o projeto acadêmico. Nunca use estas senhas, nem esta abordagem, num ambiente com dados reais.
+
+Para criar as contas num banco novo, use o script `npm run usuarios:iniciais` no seu computador. Ele cria 2 usuários de cada perfil no banco da `DATABASE_URL`:
 
 ```bash
 read -rs -p "DATABASE_URL do Neon: " NEON_URL; echo
@@ -277,7 +285,7 @@ unset NEON_URL
 ```
 
 - O script mostra o host e o banco e pede `sim` antes de criar.
-- Ele gera uma senha aleatória de 20 caracteres para cada usuário. A senha aparece **uma única vez**, no terminal. Guarde as senhas num gerenciador de senhas. Não as coloque no Git, em issue, em PR ou no chat.
+- Ele gera uma senha aleatória de 20 caracteres para cada usuário. A senha aparece **uma única vez**, no terminal. Num banco novo, as senhas são outras: atualize a tabela acima.
 - Um e-mail que já existe é pulado, e a senha dele não muda. Assim, rodar o script de novo é seguro.
 - Para mudar nomes ou e-mails, edite `INITIAL_USERS` em `scripts/initialUsers.ts`.
 - Para trocar uma senha perdida, um administrador envia `PATCH /users/{id}` com uma `senha` nova.
