@@ -126,6 +126,8 @@ Todos contra o PostgreSQL real, porque só ele decide quem ganha a corrida:
 | M6 | Teste com o terminal físico (QR, NFC, lote offline) | ⬜ com o Matheus |
 | M7 | `docker compose up` do zero e demonstração pelo Swagger | ⬜ a ser repetido na revisão do PR |
 
+M5 e M6 são executados com as três partes juntas, na homologação, pelo [roteiro de teste integrado](../../docs/testes/roteiro-teste-integrado.md) (casos IT-41 e IT-20 a IT-72).
+
 ## 7. Relatório de execução
 
 Última execução completa: **2026-11-08**, branch `feature/B20-security-monitoring-docs`, ao fechar a etapa (`/close-step`), depois da revisão independente. Depois dessa execução só mudaram os números deste documento e do `STATUS.md`.
