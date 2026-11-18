@@ -68,7 +68,7 @@ curl https://api-acesso.blackfield-72312729.chilecentral.azurecontainerapps.io/a
 **Para voltar a uma versão anterior:** abra **Actions → Backend CD → Run workflow**. Informe o SHA completo de uma imagem já publicada. Este caminho não gera imagem e não aplica migrações.
 
 > [!IMPORTANT]
-> Não rode o seed na homologação. As credenciais do seed são públicas. O primeiro administrador da homologação é uma decisão aberta (pergunta #19 do [STATUS](docs/ai/STATUS.md)).
+> Não rode o seed na homologação. As credenciais do seed são públicas. Para criar os usuários da homologação, use o `npm run usuarios:iniciais` (ver [Usuários da homologação](#usuários-da-homologação)).
 
 > [!NOTE]
 > O Neon gratuito suspende o banco quando ele fica parado. A primeira requisição depois disso demora mais.
@@ -259,6 +259,28 @@ unset NEON_URL
 > **Não rode `db:seed`, `db:reset` nem `db:migrate` na nuvem.** O seed usa credenciais públicas. Ele só recusa `NODE_ENV=production`. Sem esta variável, a trava não protege. O `reset` e o `migrate dev` apagam ou alteram dados. Na nuvem, use só o `db:deploy`. O CD já faz isso a cada deploy.
 
 O Neon gratuito suspende o banco quando ele fica parado. A primeira conexão depois disso demora mais.
+
+### Usuários da homologação
+
+O script `npm run usuarios:iniciais` cria 2 usuários de cada perfil no banco da `DATABASE_URL`. Use-o uma vez na homologação, no seu computador.
+
+| Perfil      | E-mails                                          |
+| ----------- | ------------------------------------------------ |
+| `ADMIN`     | `admin1@passe.test`, `admin2@passe.test`         |
+| `CONDOMINO` | `condomino1@passe.test`, `condomino2@passe.test` |
+| `VISITANTE` | `visitante1@passe.test`, `visitante2@passe.test` |
+
+```bash
+read -rs -p "DATABASE_URL do Neon: " NEON_URL; echo
+DATABASE_URL="$NEON_URL" npm run usuarios:iniciais
+unset NEON_URL
+```
+
+- O script mostra o host e o banco e pede `sim` antes de criar.
+- Ele gera uma senha aleatória de 20 caracteres para cada usuário. A senha aparece **uma única vez**, no terminal. Guarde as senhas num gerenciador de senhas. Não as coloque no Git, em issue, em PR ou no chat.
+- Um e-mail que já existe é pulado, e a senha dele não muda. Assim, rodar o script de novo é seguro.
+- Para mudar nomes ou e-mails, edite `INITIAL_USERS` em `scripts/initialUsers.ts`.
+- Para trocar uma senha perdida, um administrador envia `PATCH /users/{id}` com uma `senha` nova.
 
 ---
 
