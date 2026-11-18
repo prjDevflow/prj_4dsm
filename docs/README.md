@@ -10,7 +10,7 @@ a descrição da comunicação entre os elementos. A coluna **RP07** marca o que
 
 | Pasta | Conteúdo |
 |---|---|
-| `arquitetura/` | arquitetura do sistema inteiro, diagrama de componentes e casos de uso (em construção, etapas G04 a G08 do [plano](plano-documentacao.md)) |
+| [arquitetura/](arquitetura/) | casos de uso (G04); diagrama de componentes e arquitetura do sistema em construção (etapas G05 a G08 do [plano](plano-documentacao.md)) |
 | [testes/](testes/) | roteiro de teste integrado, com as três partes juntas |
 | [app-mobile/](app-mobile/) | design do app (telas, decisões, tokens) e usabilidade |
 | [apresentacoes/](apresentacoes/) | apresentações das Sprint Reviews |
@@ -21,6 +21,7 @@ a descrição da comunicação entre os elementos. A coluna **RP07** marca o que
 |---|---|---|
 | [plano-documentacao.md](plano-documentacao.md) | plano das etapas G04 a G10: os documentos que faltam e a regra de escrita (ASD-STE100) | |
 | [README do repositório](../README.md) | visão geral, requisitos, stack e diagrama simples da arquitetura | desenho da arquitetura (parcial) |
+| [arquitetura/casos-de-uso.md](arquitetura/casos-de-uso.md) | atores, diagrama UML e fichas dos 15 casos de uso, com a ligação aos RF e aos motivos de negação (G04) | diagramas (casos de uso) |
 | [testes/roteiro-teste-integrado.md](testes/roteiro-teste-integrado.md) | teste manual ponta a ponta: API em homologação, app e terminal (G02) | |
 | [apresentacoes/review-2-sprint-2.pdf](apresentacoes/review-2-sprint-2.pdf) | apresentação da Review 2 (11/11) ([.pptx](apresentacoes/review-2-sprint-2.pptx)) | |
 
