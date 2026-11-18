@@ -47,6 +47,7 @@ a descrição da comunicação entre os elementos. A coluna **RP07** marca o que
 | Documento | O que é |
 |---|---|
 | [mobile/README.md](../mobile/README.md) | download do `.apk` (só Android), como rodar no celular, estrutura e comandos |
+| [app-mobile/build-apk.md](app-mobile/build-apk.md) | refazer o `.apk` apontando para a API de homologação, verificar e publicar |
 | [app-mobile/design/](app-mobile/design/README.md) | telas, decisões de design e tokens do Figma |
 | [app-mobile/usabilidade/](app-mobile/usabilidade/relatorio-F14.md) | relatório de acessibilidade (F14) e roteiro do teste com pessoas |
 
