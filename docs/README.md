@@ -10,7 +10,7 @@ a descrição da comunicação entre os elementos. A coluna **RP07** marca o que
 
 | Pasta | Conteúdo |
 |---|---|
-| [arquitetura/](arquitetura/) | arquitetura do sistema (G06), casos de uso (G04) e diagrama de componentes (G05); registro de decisões em construção (G08 do [plano](plano-documentacao.md)) |
+| [arquitetura/](arquitetura/) | arquitetura do sistema (G06), casos de uso (G04), diagrama de componentes (G05) e registro de decisões (G08) |
 | [testes/](testes/) | roteiro de teste integrado, com as três partes juntas |
 | [app-mobile/](app-mobile/) | design do app (telas, decisões, tokens) e usabilidade |
 | [apresentacoes/](apresentacoes/) | apresentações das Sprint Reviews |
@@ -24,6 +24,7 @@ a descrição da comunicação entre os elementos. A coluna **RP07** marca o que
 | [arquitetura/arquitetura-sistema/arquitetura-sistema.md](arquitetura/arquitetura-sistema/arquitetura-sistema.md) | visão do sistema inteiro (app, API e terminal) em 10 seções curtas, com links para o detalhe e a ligação de cada seção aos RNF01 a RNF12 (G06) | documentação e desenho da arquitetura |
 | [arquitetura/casos-de-uso/casos-de-uso.md](arquitetura/casos-de-uso/casos-de-uso.md) | atores, diagrama UML e fichas dos 15 casos de uso, com a ligação aos RF e aos motivos de negação (G04) | diagramas (casos de uso) |
 | [arquitetura/componentes/componentes.md](arquitetura/componentes/componentes.md) | diagrama UML de componentes, com o papel e a pasta de cada parte e as interfaces (protocolo, autenticação e rotas) (G05) | diagramas (componentes) e comunicação entre os elementos |
+| [arquitetura/decisoes/decisoes.md](arquitetura/decisoes/decisoes.md) | 10 decisões de arquitetura (ADR-01 a ADR-10), cada uma com contexto, decisão, alternativas, consequência e link para a origem (G08) | documentação da arquitetura |
 | [testes/roteiro-teste-integrado.md](testes/roteiro-teste-integrado.md) | teste manual ponta a ponta: API em homologação, app e terminal (G02) | |
 | [apresentacoes/review-2-sprint-2.pdf](apresentacoes/review-2-sprint-2.pdf) | apresentação da Review 2 (11/11) ([.pptx](apresentacoes/review-2-sprint-2.pptx)) | |
 
