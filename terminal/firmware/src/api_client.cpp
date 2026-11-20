@@ -2,10 +2,14 @@
 
 #include <HTTPClient.h>
 #include <WiFiClient.h>
+#include <WiFiClientSecure.h>
+
+#include "ca_cert.h"
 
 namespace {
 constexpr int32_t kConnectTimeoutMs = 5000;
 constexpr uint16_t kReadTimeoutMs = 5000;
+constexpr unsigned long kTlsHandshakeTimeoutS = 5;
 const char* kCollectedHeaders[] = {"Retry-After"};
 }  // namespace
 
@@ -20,7 +24,16 @@ ApiResponse ApiClient::post(const char* path, const char* jsonBody, const char* 
 
 ApiResponse ApiClient::send(const char* method, const char* path, const char* body, const char* idempotencyKey) {
   ApiResponse response;
-  WiFiClient client;
+  // https (I14): TLS validated against the root CA in ca_cert.h. http: plain client, for the local backend.
+  WiFiClient plainClient;
+  WiFiClientSecure secureClient;
+  const bool useTls = strncmp(baseUrl_, "https", 5) == 0;
+  if (useTls) {
+    secureClient.setCACert(kApiRootCa);
+    secureClient.setHandshakeTimeout(kTlsHandshakeTimeoutS);
+  }
+  WiFiClient& client = useTls ? static_cast<WiFiClient&>(secureClient) : plainClient;
+
   HTTPClient http;
   http.setConnectTimeout(kConnectTimeoutMs);
   http.setTimeout(kReadTimeoutMs);
