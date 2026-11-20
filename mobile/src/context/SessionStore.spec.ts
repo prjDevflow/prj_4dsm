@@ -48,4 +48,10 @@ describe('useSessionStore', () => {
     expect(useSessionStore.getState()).toMatchObject({ token: null, usuario: null, expired: true });
     expect(await SecureStore.getItemAsync(TOKEN_KEY)).toBeNull();
   });
+
+  it('resume põe o token salvo na sessão, sem usuário, para o /auth/me usar', () => {
+    useSessionStore.getState().resume('token-salvo');
+
+    expect(useSessionStore.getState()).toMatchObject({ token: 'token-salvo', usuario: null });
+  });
 });

@@ -196,21 +196,22 @@ Legenda: 📄 exigência do documento oficial do desafio · 💡 decisão ou sug
 
 **Lista de testes**
 
-- [ ] U splash model: sem token → sem usuário e sem chamar `/auth/me`.
-- [ ] U splash model: token válido → chama `/auth/me` e guarda o usuário.
-- [ ] U splash model: `/auth/me` com 401 → apaga o token; sem rede → mantém o token e mostra erro.
-- [ ] U home: primeiro nome na saudação ("Maria Souza" → "Olá, Maria").
-- [ ] U home admin: os cinco blocos e o "Abrir catraca" aparecem; home da pessoa não mostra blocos de administração.
-- [ ] U logout model: só sai depois de confirmar; limpa o token e o cache.
-- [ ] U tela: faixa "Sem internet" aparece quando o `netinfo` diz offline.
+- [x] U splash model: sem token → sem usuário e sem chamar `/auth/me`.
+- [x] U splash model: token válido → chama `/auth/me` e guarda o usuário.
+- [x] U splash model: `/auth/me` com 401 → apaga o token; sem rede → mantém o token e mostra erro.
+- [x] U home: primeiro nome na saudação ("Maria Souza" → "Olá, Maria").
+- [x] U home admin: os cinco blocos e o "Abrir catraca" aparecem; home da pessoa não mostra blocos de administração.
+- [x] U logout model: só sai depois de confirmar; limpa o token e o cache.
+- [x] U tela: faixa "Sem internet" aparece quando o `netinfo` diz offline.
+- [x] U navegação (`renderRouter` com as rotas de verdade): abrir já logado, token vencido, `/admin` bloqueado para condômino, "Sair" com e sem confirmação, troca de usuário, 401 em tela protegida e os atalhos "Em breve".
 
 **Critérios de aceitação**
 
-- [ ] Abrir o app já logado leva direto ao início certo, sem pedir senha.
-- [ ] Token expirado ou conta desativada leva ao login (com o aviso de sessão expirada quando veio de um 401).
-- [ ] Condômino e visitante nunca veem os blocos de administração.
-- [ ] Depois de "Sair", o "voltar" do Android não volta ao início.
-- [ ] Trocar de usuário (admin → visitante) no mesmo celular não deixa dados do anterior.
+- [x] Abrir o app já logado leva direto ao início certo, sem pedir senha (emulador: Expo Go encerrado e aberto de novo).
+- [x] Token expirado ou conta desativada leva ao login (com o aviso de sessão expirada quando veio de um 401).
+- [x] Condômino e visitante nunca veem os blocos de administração.
+- [x] Depois de "Sair", o "voltar" do Android não volta ao início.
+- [x] Trocar de usuário (admin → visitante) no mesmo celular não deixa dados do anterior (emulador e teste).
 
 **Definição de pronto**
 

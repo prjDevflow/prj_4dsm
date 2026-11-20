@@ -1,7 +1,7 @@
 import { render, screen } from '@testing-library/react-native';
 import { Text } from 'react-native';
 import { polarPath } from './paths';
-import { Arch, Circle, Clover4, Cookie12, Sun8 } from '.';
+import { Arch, Circle, Clover4, Cookie12, SpinningCookie, Sun8 } from '.';
 
 describe('formas', () => {
   it('desenha a forma polar no viewBox 0 0 100 100, começando à direita do centro', () => {
@@ -26,5 +26,14 @@ describe('formas', () => {
 
     expect(screen.getByTestId('forma')).toHaveStyle({ width: 56, height: 56 });
     expect(screen.getByText('✓')).toBeOnTheScreen();
+  });
+});
+
+describe('SpinningCookie', () => {
+  it('gira em torno do próprio centro: a caixa tem o tamanho do selo em qualquer layout', async () => {
+    await render(<SpinningCookie color="#FFFFFF" size={88} />);
+
+    const box = screen.getByTestId('spinning-cookie', { includeHiddenElements: true });
+    expect(box).toHaveStyle({ width: 88, height: 88 });
   });
 });

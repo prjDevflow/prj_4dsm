@@ -244,6 +244,29 @@ describe('rotas /api/v1/terminals', () => {
       expect(saved.apiKeyHash).toBe(sha256(res.body.apiKey));
     });
 
+    it('a chave antiga deixa de valer na hora e a nova passa a valer no canal do terminal', async () => {
+      const admin = await asAdmin();
+      const created = await post(admin, {
+        accessPointId: (await insertAccessPoint()).id,
+        nome: 'Terminal Social',
+      });
+      const callWith = (apiKey: string) =>
+        request(app)
+          .get('/api/v1/terminal/commands')
+          .set({ 'X-Terminal-Id': created.body.id, 'X-Terminal-Key': apiKey });
+      expect((await callWith(created.body.apiKey)).status).toBe(200);
+
+      const rotated = await request(app)
+        .post(`/api/v1/terminals/${created.body.id}/rotate-key`)
+        .set('Authorization', bearer(admin));
+
+      const withOld = await callWith(created.body.apiKey);
+      const withNew = await callWith(rotated.body.apiKey);
+      expect(withOld.status).toBe(401);
+      expect(withOld.body.error.code).toBe('UNAUTHORIZED');
+      expect(withNew.status).toBe(200);
+    });
+
     it('404 para terminal inexistente e id malformado', async () => {
       const admin = await asAdmin();
 

@@ -6,7 +6,18 @@ import { useTheme, type ColorName, type Scale } from '@/theme';
 import { Text } from './Text';
 
 export type ButtonVariant =
-  'principal' | 'tonal' | 'contorno' | 'texto' | 'perigo' | 'perigoContorno' | 'catraca';
+  | 'principal'
+  | 'tonal'
+  | 'contorno'
+  | 'texto'
+  | 'perigo'
+  | 'perigoContorno'
+  | 'catraca'
+  | 'resultadoAutorizado'
+  | 'resultadoNegado'
+  | 'resultadoNegadoContorno'
+  | 'resultadoTente'
+  | 'resultadoTenteContorno';
 
 // tokens.md, "Cores de cada tipo de botão"
 const palette: Record<
@@ -20,6 +31,12 @@ const palette: Record<
   perigo: { background: 'erro', text: 'erroSobre' },
   perigoContorno: { text: 'erro', border: 'erro' },
   catraca: { background: 'acao', text: 'acaoSobre' },
+  // Over the full colors of T10 and T11.
+  resultadoAutorizado: { background: 'branco', text: 'resultadoAutorizado' },
+  resultadoNegado: { background: 'branco', text: 'resultadoNegado' },
+  resultadoNegadoContorno: { text: 'branco', border: 'branco' },
+  resultadoTente: { background: 'acaoSobre', text: 'resultadoTente' },
+  resultadoTenteContorno: { text: 'acaoSobre', border: 'acaoSobre' },
 };
 
 export type ButtonProps = {
@@ -34,6 +51,8 @@ export type ButtonProps = {
   loadingLabel?: string;
   disabled?: boolean;
   icon?: IconName;
+  /** Big "Abrir catraca" of the home (T03): 100 tall, corner 28 and a larger text. */
+  hero?: boolean;
   fullWidth?: boolean;
   accessibilityHint?: string;
   testID?: string;
@@ -48,6 +67,7 @@ export const Button = ({
   loadingLabel,
   disabled = false,
   icon,
+  hero = false,
   fullWidth = true,
   accessibilityHint,
   testID,
@@ -55,7 +75,12 @@ export const Button = ({
   const theme = useTheme();
   const pending = useRef(false);
   const scale = size ?? theme.scale;
-  const height = scale === 'admin' ? theme.sizes.buttonAdmin : theme.sizes.buttonPessoa;
+  const height = hero
+    ? theme.sizes.catracaInicio
+    : scale === 'admin'
+      ? theme.sizes.buttonAdmin
+      : theme.sizes.buttonPessoa;
+  const iconSize = hero ? 36 : scale === 'admin' ? 18 : 22;
   const colors = palette[variant];
   const textColor = theme.colors[colors.text];
   const shownLabel = loading ? (loadingLabel ?? label) : label;
@@ -88,7 +113,7 @@ export const Button = ({
         styles.base,
         {
           minHeight: height,
-          borderRadius: height / 2,
+          borderRadius: hero ? theme.radius.cartaoGrande : height / 2,
           paddingHorizontal: scale === 'admin' ? 20 : 24,
           backgroundColor: colors.background ? theme.colors[colors.background] : 'transparent',
           borderColor: colors.border ? theme.colors[colors.border] : undefined,
@@ -100,12 +125,12 @@ export const Button = ({
       ]}
     >
       {loading ? (
-        <SpinningCookie color={textColor} size={scale === 'admin' ? 18 : 22} />
+        <SpinningCookie color={textColor} size={iconSize} />
       ) : icon ? (
-        <Icon name={icon} size={scale === 'admin' ? 18 : 22} color={textColor} />
+        <Icon name={icon} size={iconSize} color={textColor} />
       ) : null}
       <Text
-        variant={scale === 'admin' ? 'adminBotao' : 'pessoaBotao'}
+        variant={hero ? 'pessoaLocal' : scale === 'admin' ? 'adminBotao' : 'pessoaBotao'}
         color={colors.text}
         style={styles.label}
       >

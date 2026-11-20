@@ -1,4 +1,4 @@
-import { firstName, perfilLabel } from './perfil';
+import { firstName, initials, perfilLabel } from './perfil';
 
 describe('perfil', () => {
   it.each([
@@ -16,5 +16,15 @@ describe('perfil', () => {
     ['Ana', 'Ana'],
   ])('o primeiro nome de "%s" é "%s"', (nome, primeiro) => {
     expect(firstName(nome)).toBe(primeiro);
+  });
+
+  it.each([
+    ['Maria Souza', 'MS'],
+    ['carla mendes da silva', 'CS'],
+    ['Ana', 'A'],
+    ['  João  Pereira ', 'JP'],
+    ['Administrador (dev)', 'AD'],
+  ])('as iniciais de "%s" são "%s"', (nome, letras) => {
+    expect(initials(nome)).toBe(letras);
   });
 });

@@ -1,3 +1,5 @@
+import type { DenialReason } from './DenialReason';
+
 export type AccessMethod = 'QR' | 'NFC';
 export type AccessResult = 'AUTORIZADO' | 'NEGADO';
 
@@ -17,3 +19,81 @@ export interface AccessEvent {
   clientEventId: string | null;
   detalhes: Record<string, unknown> | null;
 }
+
+/** What the caller knows about the attempt. `detalhes` is built from the last three fields only. */
+export interface NewAccessEventBase {
+  id: string;
+  ocorridoEm: Date;
+  metodo: AccessMethod;
+  terminalId?: string | null;
+  accessPointId?: string | null;
+  usuarioId?: string | null;
+  authorizationId?: string | null;
+  distanciaM?: number | null;
+  /** The `Idempotency-Key` of an NFC read: the unique column that makes a retry find this event. */
+  clientEventId?: string | null;
+  /** GPS accuracy reported by the phone, in meters. */
+  precisaoMetros?: number | null;
+  /** SHA-256 of an unknown credential. Only a short prefix is kept. */
+  credencialHash?: string | null;
+  /** UID of the tag read (normalized). Whole, because the NFC debounce must match the exact tag. */
+  uid?: string | null;
+}
+
+/** An approval always knows who, where, through which terminal and under which authorization. */
+export interface NewApprovedEvent extends Pick<
+  NewAccessEventBase,
+  'id' | 'ocorridoEm' | 'metodo' | 'distanciaM' | 'clientEventId' | 'precisaoMetros' | 'uid'
+> {
+  terminalId: string;
+  accessPointId: string;
+  usuarioId: string;
+  authorizationId: string;
+}
+
+export interface NewDeniedEvent extends NewAccessEventBase {
+  motivo: DenialReason;
+}
+
+/** How much of an unknown credential's hash is kept: enough to correlate attempts, not to look it up. */
+export const CREDENTIAL_HASH_PREFIX_LENGTH = 8;
+
+/** Built from named fields only, so nothing else the caller holds (token, key, password) can leak in. */
+function buildDetails(input: NewAccessEventBase): Record<string, unknown> | null {
+  const details: Record<string, unknown> = {};
+  if (input.precisaoMetros != null) details.precisaoMetros = input.precisaoMetros;
+  if (input.credencialHash != null) {
+    details.credencialHashPrefixo = input.credencialHash.slice(0, CREDENTIAL_HASH_PREFIX_LENGTH);
+  }
+  if (input.uid != null) details.uid = input.uid;
+  return Object.keys(details).length > 0 ? details : null;
+}
+
+function build(
+  input: NewAccessEventBase,
+  outcome: Pick<AccessEvent, 'resultado' | 'motivo'>,
+): AccessEvent {
+  return {
+    id: input.id,
+    ocorridoEm: input.ocorridoEm,
+    terminalId: input.terminalId ?? null,
+    accessPointId: input.accessPointId ?? null,
+    usuarioId: input.usuarioId ?? null,
+    authorizationId: input.authorizationId ?? null,
+    metodo: input.metodo,
+    ...outcome,
+    distanciaM: input.distanciaM ?? null,
+    clientEventId: input.clientEventId ?? null,
+    detalhes: buildDetails(input),
+  };
+}
+
+export const AccessEvent = {
+  approved(input: NewApprovedEvent): AccessEvent {
+    return build(input, { resultado: 'AUTORIZADO', motivo: null });
+  },
+
+  denied(input: NewDeniedEvent): AccessEvent {
+    return build(input, { resultado: 'NEGADO', motivo: input.motivo });
+  },
+};

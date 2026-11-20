@@ -216,7 +216,7 @@ Padrões montados direto nas telas:
 
 ## Bibliotecas sugeridas
 
-Esta lista é só uma sugestão do design e ainda precisa ser validada pelo Lucas.
+Esta lista é só uma sugestão do design e ainda precisa ser validada pelo Pedro.
 
 | Para quê | Sugestão |
 | --- | --- |

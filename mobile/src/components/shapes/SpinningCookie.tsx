@@ -31,7 +31,8 @@ export const SpinningCookie = ({ color, size = 24 }: SpinningCookieProps) => {
 
   return (
     <Animated.View
-      style={{ transform: [{ rotate }] }}
+      testID="spinning-cookie"
+      style={{ width: size, height: size, transform: [{ rotate }] }}
       accessibilityElementsHidden
       importantForAccessibility="no-hide-descendants"
     >

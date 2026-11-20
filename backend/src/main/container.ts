@@ -1,10 +1,15 @@
 import { env } from '../config/env';
 import { appVersion } from '../config/version';
 import { createPrismaClient } from '../infra/database/prisma';
+import { PrismaAccessGrantRepository } from '../infra/repositories/PrismaAccessGrantRepository';
+import { PrismaAccessEventRepository } from '../infra/repositories/PrismaAccessEventRepository';
 import { PrismaAccessPointRepository } from '../infra/repositories/PrismaAccessPointRepository';
 import { PrismaAuthorizationRepository } from '../infra/repositories/PrismaAuthorizationRepository';
 import { PrismaBuildingRepository } from '../infra/repositories/PrismaBuildingRepository';
 import { PrismaLocationUnitOfWork } from '../infra/repositories/PrismaLocationUnitOfWork';
+import { PrismaNfcTagRepository } from '../infra/repositories/PrismaNfcTagRepository';
+import { PrismaQrCredentialRepository } from '../infra/repositories/PrismaQrCredentialRepository';
+import { PrismaTerminalCommandRepository } from '../infra/repositories/PrismaTerminalCommandRepository';
 import { PrismaTerminalRepository } from '../infra/repositories/PrismaTerminalRepository';
 import { PrismaUserRepository } from '../infra/repositories/PrismaUserRepository';
 import { BcryptHashProvider } from '../infra/providers/BcryptHashProvider';
@@ -21,10 +26,15 @@ import type { IIdGenerator } from '../providers/IIdGenerator';
 import type { ILogger } from '../providers/ILogger';
 import type { ITokenProvider } from '../providers/ITokenProvider';
 import type { ISecureRandom } from '../providers/ISecureRandom';
+import type { IAccessEventRepository } from '../repositories/IAccessEventRepository';
+import type { IAccessGrantRepository } from '../repositories/IAccessGrantRepository';
 import type { IAccessPointRepository } from '../repositories/IAccessPointRepository';
 import type { IAuthorizationRepository } from '../repositories/IAuthorizationRepository';
 import type { IBuildingRepository } from '../repositories/IBuildingRepository';
 import type { ILocationUnitOfWork } from '../repositories/ILocationUnitOfWork';
+import type { INfcTagRepository } from '../repositories/INfcTagRepository';
+import type { IQrCredentialRepository } from '../repositories/IQrCredentialRepository';
+import type { ITerminalCommandRepository } from '../repositories/ITerminalCommandRepository';
 import type { ITerminalRepository } from '../repositories/ITerminalRepository';
 import type { IUserRepository } from '../repositories/IUserRepository';
 
@@ -47,8 +57,13 @@ export const container = {
   tokens: new JwtTokenProvider(env.JWT_SECRET, env.JWT_EXPIRES_IN, clock) as ITokenProvider,
   users: new PrismaUserRepository(prisma) as IUserRepository,
   buildings: new PrismaBuildingRepository(prisma) as IBuildingRepository,
+  accessEvents: new PrismaAccessEventRepository(prisma) as IAccessEventRepository,
+  accessGrants: new PrismaAccessGrantRepository(prisma) as IAccessGrantRepository,
   accessPoints: new PrismaAccessPointRepository(prisma) as IAccessPointRepository,
   terminals: new PrismaTerminalRepository(prisma) as ITerminalRepository,
+  terminalCommands: new PrismaTerminalCommandRepository(prisma) as ITerminalCommandRepository,
   authorizations: new PrismaAuthorizationRepository(prisma) as IAuthorizationRepository,
+  qrCredentials: new PrismaQrCredentialRepository(prisma) as IQrCredentialRepository,
+  nfcTags: new PrismaNfcTagRepository(prisma) as INfcTagRepository,
   locationUnitOfWork: new PrismaLocationUnitOfWork(prisma) as ILocationUnitOfWork,
 };

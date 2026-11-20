@@ -29,7 +29,7 @@ Fonte da verdade: `backend/docs/ai/03-domain-and-contract.md` (seções 4 e 6) e
 | `/buildings`, `/access-points`, `/terminals`, `POST /terminals/:id/rotate-key` | F06, F07 | B07 | ⬜ próxima do Eduardo |
 | `POST /authorizations`, `GET /authorizations/:id` | F07, F08, F09 | B08 | ⬜ |
 | `GET /authorizations`, `PATCH /authorizations/:id/cancel`, `GET /me/authorizations` | F08, F09 | B09 | ⬜ |
-| `POST /access/qr/validate` | F11 | B15 | ⬜ (o núcleo do sistema) |
+| `POST /access/qr/validate` | F11 | B15 | ✅ integrada em `develop` (o núcleo do sistema) |
 | `POST/GET/PATCH /nfc-tags`, `POST /terminals/:id/enroll-mode` | F13 | B16 | ⬜ |
 | `GET /access-events`, `GET /me/access-events` | F12 | B18 | ⬜ |
 

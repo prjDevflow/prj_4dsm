@@ -1,7 +1,12 @@
 import type { NextFunction, Request, Response } from 'express';
 import { ZodError } from 'zod';
 import type { ILogger } from '../../providers/ILogger';
-import { AppError, ValidationError, type ErrorDetails } from '../../shared/errors/AppError';
+import {
+  AppError,
+  PayloadTooLargeError,
+  ValidationError,
+  type ErrorDetails,
+} from '../../shared/errors/AppError';
 
 interface ErrorHandlerOptions {
   logger: ILogger;
@@ -11,6 +16,10 @@ interface ErrorHandlerOptions {
 // body-parser marks malformed JSON with this type.
 const isMalformedJson = (error: unknown) =>
   error instanceof SyntaxError && (error as { type?: string }).type === 'entity.parse.failed';
+
+// body-parser marks a body above its limit with this type (and status 413).
+const isBodyTooLarge = (error: unknown) =>
+  error instanceof Error && (error as { type?: string }).type === 'entity.too.large';
 
 function toAppError(error: unknown): AppError | undefined {
   if (error instanceof AppError) return error;
@@ -22,6 +31,7 @@ function toAppError(error: unknown): AppError | undefined {
     return new ValidationError('Dados inválidos', details);
   }
   if (isMalformedJson(error)) return new ValidationError('JSON malformado no corpo da requisição');
+  if (isBodyTooLarge(error)) return new PayloadTooLargeError();
   return undefined;
 }
 

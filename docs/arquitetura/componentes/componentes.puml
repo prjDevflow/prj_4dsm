@@ -1,0 +1,111 @@
+@startuml componentes
+' Diagrama de componentes do Passe (G05).
+' Fonte da verdade: backend/openapi.yaml e backend/docs/ai/03-domain-and-contract.md.
+' Gere a imagem com: plantuml -tsvg docs/arquitetura/componentes/componentes.puml
+' O projeto usa HTTP com polling. Não existe MQTT nem conexão direta entre o app e o terminal.
+
+top to bottom direction
+skinparam shadowing false
+skinparam defaultFontName Arial
+skinparam defaultFontSize 12
+skinparam componentStyle uml2
+skinparam nodesep 30
+skinparam ranksep 45
+skinparam component {
+  BackgroundColor #F5F8FF
+  BorderColor #3B5BA9
+}
+skinparam node {
+  BackgroundColor #FFFFFF
+  BorderColor #555555
+}
+skinparam cloud {
+  BackgroundColor #FFFFFF
+  BorderColor #555555
+}
+skinparam database {
+  BackgroundColor #F5F8FF
+  BorderColor #3B5BA9
+}
+skinparam interface {
+  BackgroundColor #FFFFFF
+  BorderColor #3B5BA9
+}
+
+' ---------------------------------------------------------------- celular
+node "Celular (Android / iOS)" as Celular {
+  component "App mobile\nReact Native + Expo\n<<mobile/>>" as App {
+    component "Telas\nexpo-router" as Telas
+    component "Serviços\nAxios" as Servicos
+    component "Câmera e GPS\ndo celular" as Sensores
+  }
+}
+
+' ---------------------------------------------------------------- terminal
+node "Terminal de acesso (ESP32 DevKit V1)" as Esp {
+  component "Firmware\nPlatformIO + C++\n<<terminal/firmware/>>" as Firmware
+  component "Display OLED\nSH1106" as Oled
+  component "Leitor NFC\nRC522" as Rc522
+  component "GPS\nNEO-6M" as Gps
+  component "Servo\n(catraca)" as Servo
+  component "Buzzer" as Buzzer
+}
+
+' ---------------------------------------------------------------- interfaces da API
+interface "API do app\n/api/v1" as IApp
+interface "API do terminal\n/api/v1/terminal/*" as ITerm
+
+' ---------------------------------------------------------------- nuvem
+cloud "Azure Container Apps (Chile Central)" as Azure {
+  component "API\nNode.js + Express + TypeScript\n<<backend/>>" as API {
+    component "infra/http\nrotas, JWT, chave,\nlimites, zod" as Http
+    component "useCases\nController + UseCase" as UseCases
+    component "entities\nregras puras" as Entities
+    component "repositories e providers\n(interfaces)" as Portas
+    component "infra\nPrisma, bcrypt, JWT,\nrelógio, PurgeJob" as Infra
+  }
+}
+
+database "PostgreSQL 17\nNeon" as Banco
+
+' ---------------------------------------------------------------- entrega
+cloud "GitHub" as GitHub {
+  component "GitHub Actions\nCI e CD" as Actions
+  component "GitHub Container\nRegistry (GHCR)" as Ghcr
+}
+
+' ---------------------------------------------------------------- dentro do app
+Telas --> Servicos
+Telas --> Sensores
+
+' ---------------------------------------------------------------- periféricos do terminal  (2 linhas)
+Firmware --> Oled : I2C
+Firmware --> Rc522 : SPI
+Firmware --> Gps : UART
+Firmware --> Servo : PWM
+Oled -[hidden]-> Servo
+Rc522 -[hidden]-> Buzzer
+Firmware --> Buzzer : PWM
+
+' ---------------------------------------------------------------- interfaces externas
+Servicos --( IApp : HTTPS + JWT
+Firmware --( ITerm : HTTPS +\nchave do terminal
+IApp -- Http
+ITerm -- Http
+
+' ---------------------------------------------------------------- dentro da API (regra de dependência)
+Http --> UseCases
+UseCases --> Entities
+UseCases --> Portas
+Infra ..|> Portas : implementa
+Infra --> Banco : Prisma 7\n(TLS)
+
+' ---------------------------------------------------------------- uso físico (não é rede)
+Sensores ..> Oled : câmera lê\no QR Code
+
+' ---------------------------------------------------------------- entrega da API
+Actions --> Ghcr : publica\na imagem
+Ghcr ..> API : imagem Docker
+Actions ..> Banco : migrate deploy
+
+@enduml

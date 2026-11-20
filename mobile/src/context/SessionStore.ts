@@ -7,6 +7,8 @@ type SessionStore = {
   usuario: Usuario | null;
   expired: boolean;
   signIn: (token: string, usuario: Usuario) => Promise<void>;
+  /** The token saved on the phone, before GET /auth/me confirms who it belongs to. */
+  resume: (token: string) => void;
   setUsuario: (usuario: Usuario) => void;
   signOut: () => Promise<void>;
   expireSession: () => void;
@@ -20,6 +22,7 @@ export const useSessionStore = create<SessionStore>()((set) => ({
     await tokenStorage.save(token);
     set({ token, usuario, expired: false });
   },
+  resume: (token) => set({ token }),
   setUsuario: (usuario) => set({ usuario }),
   signOut: async () => {
     await tokenStorage.clear();
