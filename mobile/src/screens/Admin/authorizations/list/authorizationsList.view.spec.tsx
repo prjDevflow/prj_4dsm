@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, within } from '@testing-library/react-native';
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/react-native';
 import { FakeAuthorizationDirectory } from '@/service/fakes/FakeAuthorizationDirectory';
 import { FakeListAuthorizationsService } from '@/service/fakes/FakeAuthorizationServices';
 import { FakeLocationDirectory } from '@/service/fakes/FakeLocationDirectory';
@@ -72,7 +72,8 @@ describe('Autorizações (T23)', () => {
       page: 1,
       pageSize: 20,
     });
-    expect(screen.queryByRole('button', { name: /^Maria Souza,/ })).toBeNull();
+    // The list keeps the previous page on screen (keepPreviousData) until the filtered page arrives.
+    await waitFor(() => expect(screen.queryByRole('button', { name: /^Maria Souza,/ })).toBeNull());
   });
 
   it('com o teclado aberto na busca, o toque na opção não é engolido pela lista', async () => {
