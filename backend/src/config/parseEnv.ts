@@ -14,6 +14,15 @@ const positiveInt = (defaultValue: number) =>
     .min(1, positiveIntMessage)
     .default(defaultValue);
 
+const nonNegativeIntMessage = 'deve ser um número inteiro maior ou igual a zero';
+
+const nonNegativeInt = (defaultValue: number) =>
+  z.coerce
+    .number({ error: nonNegativeIntMessage })
+    .int(nonNegativeIntMessage)
+    .min(0, nonNegativeIntMessage)
+    .default(defaultValue);
+
 const SECONDS_PER_UNIT = { s: 1, m: 60, h: 3600, d: 86400 } as const;
 
 function durationToSeconds(value: string) {
@@ -80,6 +89,16 @@ const EnvSchema = z.object({
   QR_REFRESH_MS: positiveInt(10000),
   COMMAND_POLL_MS: positiveInt(1000),
   OPEN_DURATION_MS: positiveInt(5000),
+  // Terminal commands (B14): seconds a command may still be delivered after it was created.
+  COMMAND_TTL_SECONDS: positiveInt(10),
+  // Commands expired for longer than this many hours are deleted by the purge job.
+  COMMAND_PURGE_AFTER_HOURS: positiveInt(1),
+  // QR emission (B12): life of a code is TTL + tolerance; one issue per terminal per interval (seconds);
+  // codes expired for longer than the purge window (hours) are deleted.
+  QR_TTL_SECONDS: positiveInt(10),
+  QR_TOLERANCE_SECONDS: nonNegativeInt(5),
+  QR_ISSUE_MIN_INTERVAL_S: positiveInt(5),
+  QR_PURGE_AFTER_HOURS: positiveInt(1),
   // Where the proximity check takes the terminal position from, and how old a GPS reading may be (minutes).
   TERMINAL_POSITION_SOURCE: z
     .enum(['GPS_COM_FALLBACK', 'CADASTRO', 'GPS'], {
@@ -87,6 +106,22 @@ const EnvSchema = z.object({
     })
     .default('GPS_COM_FALLBACK'),
   GPS_MAX_AGE_MIN: positiveInt(10),
+  // QR validation (B15): validations per minute for each user, and the largest distance in meters
+  // between the phone and the terminal.
+  QR_VALIDATE_MAX_PER_MINUTE: positiveInt(10),
+  MAX_DISTANCE_M: positiveInt(100),
+  // NFC tags (B16): how long a terminal stays in enroll mode, waiting to link the next tag read to a user.
+  ENROLL_MODE_SECONDS: positiveInt(60),
+  // NFC validation (B17): a tag read again on the same terminal within this many seconds gets the previous decision.
+  NFC_DEBOUNCE_SECONDS: positiveInt(3),
+  // Request limits (B20), counted per minute. A terminal is limited after it authenticates; failed
+  // terminal authentications are limited per IP; /health and /ready are limited per IP.
+  TERMINAL_MAX_PER_MINUTE: positiveInt(300),
+  TERMINAL_AUTH_FAIL_MAX_PER_MINUTE: positiveInt(20),
+  PUBLIC_MAX_PER_MINUTE: positiveInt(120),
+  // How many reverse proxies stand in front of the API (Express "trust proxy" as a hop count). 0 trusts
+  // none, so X-Forwarded-For is ignored; a number only, never `true`, which would trust any client's header.
+  TRUST_PROXY: nonNegativeInt(0),
 });
 
 export type Env = z.infer<typeof EnvSchema>;
@@ -107,3 +142,6 @@ export function parseEnv(source: Record<string, string | undefined>): Env {
 
   return result.data;
 }
+
+// Every variable the API reads; the docker-compose test checks that all of them are forwarded.
+export const ENV_KEYS = Object.keys(EnvSchema.shape) as (keyof Env)[];

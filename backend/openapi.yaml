@@ -2,7 +2,23 @@ openapi: 3.1.0
 info:
   title: API de Controle de Acesso
   version: 0.1.0
-  description: Backend do sistema integrado de controle de acesso (ABP 2026-2).
+  description: >-
+    Backend do sistema integrado de controle de acesso (ABP 2026-2).
+
+
+    **Limite de requisições:** cada grupo de rotas tem o seu limite por minuto, e acima dele a resposta é
+    `429` com o código `RATE_LIMITED` e o cabeçalho `Retry-After` (segundos até poder tentar de novo).
+    A exceção é o intervalo mínimo do heartbeat e do QR (2 s e 5 s entre dois pedidos do mesmo
+    terminal): também dá `429 RATE_LIMITED`, mas sem `Retry-After`; o terminal manda o próximo no
+    ritmo normal.
+    O login conta por IP e e-mail; a validação de QR, por usuário; as rotas do terminal, por terminal
+    (o excesso de um terminal não afeta o outro); `/health` e `/ready`, por IP. Errar a chave do terminal
+    muitas vezes seguidas bloqueia o IP por um minuto. Os valores ficam no ambiente do servidor.
+
+
+    **Corpo grande demais:** em qualquer rota, um corpo acima de 100 kb dá `413` com o código
+    `PAYLOAD_TOO_LARGE` (antes era um `500`); o lote offline (`POST /terminal/events/batch`) tem um limite
+    próprio, de 64 kb. Nada é processado.
 servers:
   - url: http://localhost:3000/api/v1
     description: Local
@@ -21,6 +37,10 @@ tags:
     description: Edifícios e pontos de acesso (só ADMIN)
   - name: Terminals
     description: Terminais de acesso e as chaves deles (só ADMIN)
+  - name: NfcTags
+    description: >-
+      Tags NFC vinculadas a usuários e o modo de cadastro do terminal (só ADMIN). O administrador
+      digita o UID da tag, ou liga o modo de cadastro e encosta a tag no terminal.
   - name: Terminal
     description: >-
       Rotas que o próprio terminal chama, autenticadas com `X-Terminal-Id` e `X-Terminal-Key`
@@ -29,6 +49,15 @@ tags:
     description: >-
       Autorizações de acesso. Criar, listar e cancelar: só ADMIN. Ler uma e listar "as minhas":
       cada usuário, as próprias.
+  - name: Access
+    description: >-
+      Validação de acesso pelo app: a pessoa lê o QR Code do terminal e o backend decide.
+      Qualquer perfil, inclusive conta inativa (para a tentativa ficar registrada).
+  - name: AccessEvents
+    description: >-
+      Histórico de acessos: as tentativas aprovadas e as negadas, da mais recente para a mais
+      antiga. Só leitura, porque um evento nunca é editado nem apagado. O ADMIN vê todas; cada
+      usuário, as próprias.
 paths:
   /health:
     get:
@@ -51,8 +80,53 @@ paths:
                 version: 0.1.0
                 time: '2026-10-16T12:00:00.000Z'
                 db: up
+        '429':
+          $ref: '#/components/responses/RateLimited'
         '500':
           $ref: '#/components/responses/InternalError'
+  /ready:
+    get:
+      tags: [Health]
+      summary: A API está pronta para atender?
+      description: >-
+        Para monitores de disponibilidade e balanceadores. Confere o banco: **200** quando ele
+        responde e **503** quando não responde (em até cerca de 2 s). Use esta rota para alertas;
+        o `/health` continua respondendo 200 com o banco fora, só mostrando `db: down`.
+
+
+        O corpo do 503 não é o formato de erro da API: o monitor lê o status, e o corpo só ajuda
+        quem olha. Nunca traz a mensagem do erro do banco.
+      operationId: getReadiness
+      security: []
+      responses:
+        '200':
+          description: API no ar e banco respondendo
+          headers:
+            X-Request-Id:
+              $ref: '#/components/headers/XRequestId'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Readiness'
+              example:
+                status: ready
+                db: up
+                time: '2026-11-08T12:00:00.000Z'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+        '503':
+          description: Banco fora do ar; a API não consegue trabalhar
+          headers:
+            X-Request-Id:
+              $ref: '#/components/headers/XRequestId'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Readiness'
+              example:
+                status: unavailable
+                db: down
+                time: '2026-11-08T12:00:00.000Z'
   /auth/login:
     post:
       tags: [Auth]
@@ -804,6 +878,189 @@ paths:
           $ref: '#/components/responses/ResourceNotFound'
         '500':
           $ref: '#/components/responses/InternalError'
+  /terminals/{id}/enroll-mode:
+    parameters:
+      - $ref: '#/components/parameters/IdPath'
+    post:
+      tags: [NfcTags]
+      summary: Ligar o modo de cadastro do terminal
+      description: >-
+        Só `ADMIN`. Por `ENROLL_MODE_SECONDS` segundos (padrão 60) a próxima tag lida por este
+        terminal é vinculada ao usuário informado, em vez de abrir a catraca (a leitura é a rota do
+        terminal para NFC). O usuário precisa existir (404) e estar ativo (422 em `usuarioId`). Ligar
+        de novo substitui o modo anterior. O modo acaba sozinho: `expiraEm` ainda vale no instante
+        exato, e um milissegundo depois já não vale; não há rota para desligá-lo. Um terminal
+        inativo é aceito (ele nem consegue ler tag). A chave, o contato e o resto do cadastro do
+        terminal não mudam, e `GET /terminals` não mostra o modo.
+      operationId: enableEnrollMode
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LigarModoCadastro'
+            example:
+              usuarioId: 7c9e6679-7425-40de-944b-e07fc1f90ae7
+      responses:
+        '200':
+          description: Modo de cadastro ligado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ModoCadastro'
+              example:
+                terminalId: 5eed0000-0000-4000-8000-000000000006
+                usuarioId: 7c9e6679-7425-40de-944b-e07fc1f90ae7
+                expiraEm: '2026-11-07T14:33:07.000Z'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/EnrollModeNotFound'
+        '422':
+          $ref: '#/components/responses/NfcTagValidationError'
+        '500':
+          $ref: '#/components/responses/InternalError'
+  /nfc-tags:
+    post:
+      tags: [NfcTags]
+      summary: Vincular uma tag a um usuário
+      description: >-
+        Só `ADMIN`. O `uid` é normalizado: `:`, `-` e espaços saem e as letras ficam maiúsculas,
+        então `04:a1:b2:c3` e `04A1B2C3` são a mesma tag. Só hexadecimal, de 8 a 20 caracteres
+        depois de normalizar (422 no campo `uid`). O UID é único no sistema, qualquer que seja o
+        usuário: repetir dá 409 `TAG_JA_CADASTRADA`, mesmo com dois pedidos simultâneos. O usuário
+        precisa existir (404) e estar ativo (422 em `usuarioId`). A tag nasce ativa. `descricao`
+        é opcional, até 120 caracteres; em branco vira `null`.
+      operationId: createNfcTag
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CriarTagNfc'
+            example:
+              usuarioId: 7c9e6679-7425-40de-944b-e07fc1f90ae7
+              uid: 04:a1:b2:c3
+              descricao: Cartão azul
+      responses:
+        '201':
+          description: Tag vinculada
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TagNfc'
+              example:
+                id: 9b2f7a10-3c5d-4e8f-a1b2-c3d4e5f60718
+                usuarioId: 7c9e6679-7425-40de-944b-e07fc1f90ae7
+                uid: 04A1B2C3
+                descricao: Cartão azul
+                ativa: true
+                criadaEm: '2026-11-07T14:32:07.000Z'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/UserNotFound'
+        '409':
+          $ref: '#/components/responses/NfcTagConflict'
+        '422':
+          $ref: '#/components/responses/NfcTagValidationError'
+        '500':
+          $ref: '#/components/responses/InternalError'
+    get:
+      tags: [NfcTags]
+      summary: Listar tags
+      description: >-
+        Só `ADMIN`. Da mais nova para a mais antiga (`criadaEm`, e o `id` desempata). Os filtros
+        se combinam. A lista traz só o `usuarioId`, sem o nome: o nome vem de `GET /users`.
+      operationId: listNfcTags
+      parameters:
+        - name: usuarioId
+          in: query
+          description: Só as tags deste usuário.
+          schema:
+            type: string
+            format: uuid
+        - name: ativa
+          in: query
+          description: Só as tags ativas (`true`) ou só as desativadas (`false`).
+          schema:
+            type: boolean
+        - $ref: '#/components/parameters/Page'
+        - $ref: '#/components/parameters/PageSize'
+      responses:
+        '200':
+          description: Página de tags
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ListaTagsNfc'
+              example:
+                data:
+                  - id: 9b2f7a10-3c5d-4e8f-a1b2-c3d4e5f60718
+                    usuarioId: 7c9e6679-7425-40de-944b-e07fc1f90ae7
+                    uid: 04A1B2C3
+                    descricao: Cartão azul
+                    ativa: true
+                    criadaEm: '2026-11-07T14:32:07.000Z'
+                page: 1
+                pageSize: 20
+                total: 1
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '422':
+          $ref: '#/components/responses/ValidationError'
+        '500':
+          $ref: '#/components/responses/InternalError'
+  /nfc-tags/{id}:
+    parameters:
+      - $ref: '#/components/parameters/IdPath'
+    patch:
+      tags: [NfcTags]
+      summary: Ativar ou desativar uma tag
+      description: >-
+        Só `ADMIN`. O corpo é só `ativa`. O `uid` e o usuário não mudam (enviá-los, ou qualquer
+        outro campo, dá 422). Não existe `DELETE`: desativar é `ativa: false`, e uma tag
+        desativada não abre a catraca. Repetir o estado atual é aceito. Um `id` que não é UUID
+        também devolve 404.
+      operationId: updateNfcTag
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AtualizarTagNfc'
+            example:
+              ativa: false
+      responses:
+        '200':
+          description: A tag depois da mudança
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TagNfc'
+              example:
+                id: 9b2f7a10-3c5d-4e8f-a1b2-c3d4e5f60718
+                usuarioId: 7c9e6679-7425-40de-944b-e07fc1f90ae7
+                uid: 04A1B2C3
+                descricao: Cartão azul
+                ativa: false
+                criadaEm: '2026-11-07T14:32:07.000Z'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NfcTagNotFound'
+        '422':
+          $ref: '#/components/responses/ValidationError'
+        '500':
+          $ref: '#/components/responses/InternalError'
   /authorizations:
     post:
       tags: [Authorizations]
@@ -1164,6 +1421,462 @@ paths:
           $ref: '#/components/responses/AuthorizationQueryError'
         '500':
           $ref: '#/components/responses/InternalError'
+  /access/qr/validate:
+    post:
+      tags: [Access]
+      summary: Validar o QR Code lido pelo app
+      description: >-
+        O app envia o texto do QR Code do terminal e a posição do celular. O backend aplica as 11
+        verificações na ordem (a primeira que falhar define o motivo), e **toda tentativa gera
+        exatamente um evento**, aprovada ou negada.
+
+
+        1. o token existe (`CREDENCIAL_INVALIDA`); 2. ainda não foi usado (`CREDENCIAL_REUTILIZADA`);
+        3. não passou de `expiraEm`, 15 s depois da emissão, inclusive (`CREDENCIAL_EXPIRADA`);
+        4. terminal e ponto de acesso ativos (`CREDENCIAL_INVALIDA`); 5. usuário ativo
+        (`USUARIO_INATIVO`); 6. há autorização para o ponto (`SEM_AUTORIZACAO`); 7. alguma não
+        cancelada (`AUTORIZACAO_CANCELADA`); 8. alguma dentro das datas e do horário, em
+        `America/Sao_Paulo` e com os limites incluídos (`FORA_DO_PERIODO`); 9. alguma com usos
+        restantes (`USOS_ESGOTADOS`); 10. coordenadas presentes (`LOCALIZACAO_INVALIDA`);
+        11. distância até a posição do terminal de no máximo `MAX_DISTANCE_M`, 100 m por padrão
+        (`DISTANTE_DO_TERMINAL`). Com mais de uma autorização elegível vale a de `dataFim` mais
+        próxima.
+
+
+        **Aprovação:** numa só transação consome a credencial, consome um uso, grava o evento
+        `AUTORIZADO` e cria o comando `ABRIR` para o terminal. Se o evento não puder ser gravado,
+        nada é consumido e a resposta é 500. **Negação:** grava o evento `NEGADO` e, se o terminal
+        foi identificado, cria o comando `NEGAR`; o QR **não** é consumido, e a pessoa pode tentar
+        de novo dentro da validade.
+
+
+        Um texto que não segue `ACS1:` mais 22 caracteres é 422 e não conta como tentativa.
+        Coordenadas **ausentes ou nulas** são uma negação (`LOCALIZACAO_INVALIDA`); coordenadas
+        **fora da faixa** são 422. Sem token: 401, também sem evento. Limite de
+        `QR_VALIDATE_MAX_PER_MINUTE` (10) validações por minuto por usuário; as seguintes dão 429.
+      operationId: validateQrAccess
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ValidarQrRequest'
+            example:
+              payload: 'ACS1:q3F8k2Zr1pLw9XbTn0YhVA'
+              latitude: -23.30512
+              longitude: -45.96551
+              precisaoMetros: 12.5
+      responses:
+        '200':
+          description: Acesso autorizado; a catraca recebe o comando `ABRIR`
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AcessoAutorizado'
+              example:
+                resultado: AUTORIZADO
+                mensagem: Acesso autorizado. Pode passar.
+                local:
+                  nome: Catraca Social
+                usosRestantes: 2
+                distanciaM: 14
+                ocorridoEm: '2026-10-20T14:32:07Z'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          description: >-
+            Acesso negado. O `code` é o motivo e o `message` é o texto para mostrar à pessoa (seção
+            4.4 do contrato). Um evento `NEGADO` foi gravado.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              examples:
+                CREDENCIAL_INVALIDA:
+                  summary: CREDENCIAL_INVALIDA — QR adulterado, ou terminal ou ponto de acesso inativo
+                  value:
+                    error:
+                      code: CREDENCIAL_INVALIDA
+                      message: Este QR Code não é válido. Aponte para o QR Code da catraca.
+                CREDENCIAL_EXPIRADA:
+                  summary: CREDENCIAL_EXPIRADA — QR lido depois de 15 s
+                  value:
+                    error:
+                      code: CREDENCIAL_EXPIRADA
+                      message: Este QR Code expirou. Leia o novo QR Code que aparece na tela.
+                CREDENCIAL_REUTILIZADA:
+                  summary: CREDENCIAL_REUTILIZADA — QR já usado (inclusive a segunda de duas leituras simultâneas)
+                  value:
+                    error:
+                      code: CREDENCIAL_REUTILIZADA
+                      message: Este QR Code já foi usado. Aguarde o próximo e leia de novo.
+                USUARIO_INATIVO:
+                  summary: USUARIO_INATIVO — Conta desativada com o token ainda válido
+                  value:
+                    error:
+                      code: USUARIO_INATIVO
+                      message: Seu cadastro está inativo. Procure a administração.
+                SEM_AUTORIZACAO:
+                  summary: SEM_AUTORIZACAO — Nenhuma autorização para este local
+                  value:
+                    error:
+                      code: SEM_AUTORIZACAO
+                      message: Você não tem autorização para este local.
+                AUTORIZACAO_CANCELADA:
+                  summary: AUTORIZACAO_CANCELADA — Só há autorizações canceladas para este local
+                  value:
+                    error:
+                      code: AUTORIZACAO_CANCELADA
+                      message: Sua autorização foi cancelada. Procure a administração.
+                FORA_DO_PERIODO:
+                  summary: FORA_DO_PERIODO — Fora das datas ou do horário (São Paulo, limites incluídos)
+                  value:
+                    error:
+                      code: FORA_DO_PERIODO
+                      message: Sua autorização não vale para esta data ou horário.
+                USOS_ESGOTADOS:
+                  summary: USOS_ESGOTADOS — Nenhuma autorização vigente tem usos restantes
+                  value:
+                    error:
+                      code: USOS_ESGOTADOS
+                      message: Você já usou todas as entradas desta autorização.
+                DISTANTE_DO_TERMINAL:
+                  summary: DISTANTE_DO_TERMINAL — Celular a mais de MAX_DISTANCE_M (100 m) do terminal
+                  value:
+                    error:
+                      code: DISTANTE_DO_TERMINAL
+                      message: Você está longe da catraca. Aproxime-se e tente de novo.
+                LOCALIZACAO_INVALIDA:
+                  summary: LOCALIZACAO_INVALIDA — Coordenadas ausentes (ou sem GPS utilizável no modo GPS)
+                  value:
+                    error:
+                      code: LOCALIZACAO_INVALIDA
+                      message: Não conseguimos confirmar sua localização. Ative o GPS e tente de novo.
+        '422':
+          $ref: '#/components/responses/QrValidateValidationError'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+        '500':
+          $ref: '#/components/responses/InternalError'
+  /access-events:
+    get:
+      tags: [AccessEvents]
+      summary: Histórico de acessos
+      description: >-
+        Só `ADMIN`. As tentativas de acesso, aprovadas e negadas, da mais recente para a mais
+        antiga (`id` desempata eventos do mesmo instante, então a página não repete nem pula
+        evento). Cada evento já traz a pessoa, o local com o edifício e o terminal resolvidos, para
+        o app não fazer várias chamadas. `usuario`, `local` e `terminal` são `null` quando a
+        tentativa não os identificou: uma tag NFC desconhecida não tem pessoa, e um QR que não
+        existe não chega a um terminal. Os filtros se combinam (todos valem ao mesmo tempo). Os
+        eventos são somente leitura: não há rota para alterá-los nem apagá-los.
+      operationId: listAccessEvents
+      parameters:
+        - name: usuarioId
+          in: query
+          description: Só os eventos desta pessoa.
+          schema:
+            type: string
+            format: uuid
+        - name: accessPointId
+          in: query
+          description: Só os eventos deste ponto de acesso.
+          schema:
+            type: string
+            format: uuid
+        - name: terminalId
+          in: query
+          description: Só os eventos deste terminal.
+          schema:
+            type: string
+            format: uuid
+        - name: metodo
+          in: query
+          schema:
+            type: string
+            enum: [QR, NFC]
+        - name: resultado
+          in: query
+          schema:
+            type: string
+            enum: [AUTORIZADO, NEGADO]
+        - name: motivo
+          in: query
+          description: >-
+            Só as negações com este código (seção 4.4 do contrato). `TERMINAL_OFFLINE` é o dos
+            eventos que o terminal envia depois de ficar sem rede.
+          schema:
+            type: string
+            enum:
+              [
+                CREDENCIAL_INVALIDA,
+                CREDENCIAL_EXPIRADA,
+                CREDENCIAL_REUTILIZADA,
+                USUARIO_INATIVO,
+                SEM_AUTORIZACAO,
+                AUTORIZACAO_CANCELADA,
+                FORA_DO_PERIODO,
+                USOS_ESGOTADOS,
+                DISTANTE_DO_TERMINAL,
+                LOCALIZACAO_INVALIDA,
+                TAG_DESCONHECIDA,
+                TAG_INATIVA,
+                TERMINAL_OFFLINE,
+              ]
+        - name: de
+          in: query
+          description: >-
+            Instante ISO 8601, com `Z` ou com fuso (`2026-10-20T14:00:00Z`,
+            `2026-10-20T11:00:00-03:00`). Só os eventos desse instante em diante: o limite é
+            **inclusivo**. Na URL, o `+` de um fuso positivo vai como `%2B`
+            (`2026-10-20T17:00:00%2B03:00`); sem isso ele vira espaço e a resposta é 422. Uma data
+            sem hora (`2026-10-20`) não é aceita.
+          schema:
+            type: string
+            format: date-time
+        - name: ate
+          in: query
+          description: >-
+            Instante ISO 8601, como em `de`. Só os eventos até esse instante: o limite é
+            **inclusivo**. Não pode ser anterior a `de` (igual a `de` vale, e é um instante só).
+          schema:
+            type: string
+            format: date-time
+        - $ref: '#/components/parameters/Page'
+        - $ref: '#/components/parameters/PageSize'
+      responses:
+        '200':
+          description: Página de eventos
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ListaEventosDeAcesso'
+              examples:
+                aprovadoPorQr:
+                  summary: Aprovado pelo QR Code, com a distância medida
+                  value:
+                    data:
+                      - id: 5eed0000-0000-4000-8000-000000000101
+                        ocorridoEm: '2026-10-20T14:32:07.123Z'
+                        metodo: QR
+                        resultado: AUTORIZADO
+                        motivo: null
+                        distanciaM: 14.25
+                        authorizationId: 5eed0000-0000-4000-8000-000000000008
+                        usuario:
+                          id: 5eed0000-0000-4000-8000-000000000002
+                          nome: Maria Souza
+                          perfil: VISITANTE
+                        local:
+                          id: 5eed0000-0000-4000-8000-000000000005
+                          nome: Catraca Social
+                          tipo: CATRACA
+                          edificio:
+                            id: 5eed0000-0000-4000-8000-000000000004
+                            nome: Edifício Central
+                        terminal:
+                          id: 5eed0000-0000-4000-8000-000000000006
+                          nome: Terminal Social
+                    page: 1
+                    pageSize: 20
+                    total: 1
+                negadoPorNfc:
+                  summary: Negado pelo NFC, fora do horário da autorização
+                  value:
+                    data:
+                      - id: 5eed0000-0000-4000-8000-000000000102
+                        ocorridoEm: '2026-10-20T22:05:41.882Z'
+                        metodo: NFC
+                        resultado: NEGADO
+                        motivo: FORA_DO_PERIODO
+                        distanciaM: null
+                        authorizationId: null
+                        usuario:
+                          id: 5eed0000-0000-4000-8000-000000000002
+                          nome: Maria Souza
+                          perfil: VISITANTE
+                        local:
+                          id: 5eed0000-0000-4000-8000-000000000005
+                          nome: Catraca Social
+                          tipo: CATRACA
+                          edificio:
+                            id: 5eed0000-0000-4000-8000-000000000004
+                            nome: Edifício Central
+                        terminal:
+                          id: 5eed0000-0000-4000-8000-000000000006
+                          nome: Terminal Social
+                    page: 1
+                    pageSize: 20
+                    total: 1
+                tagDesconhecida:
+                  summary: 'Tag que ninguém cadastrou: não há pessoa (usuario é null)'
+                  value:
+                    data:
+                      - id: 5eed0000-0000-4000-8000-000000000103
+                        ocorridoEm: '2026-10-20T22:07:12.004Z'
+                        metodo: NFC
+                        resultado: NEGADO
+                        motivo: TAG_DESCONHECIDA
+                        distanciaM: null
+                        authorizationId: null
+                        usuario: null
+                        local:
+                          id: 5eed0000-0000-4000-8000-000000000005
+                          nome: Catraca Social
+                          tipo: CATRACA
+                          edificio:
+                            id: 5eed0000-0000-4000-8000-000000000004
+                            nome: Edifício Central
+                        terminal:
+                          id: 5eed0000-0000-4000-8000-000000000006
+                          nome: Terminal Social
+                    page: 1
+                    pageSize: 20
+                    total: 1
+                credencialDesconhecida:
+                  summary: 'QR que não existe: a pessoa está logada, mas não há ponto nem terminal'
+                  value:
+                    data:
+                      - id: 5eed0000-0000-4000-8000-000000000104
+                        ocorridoEm: '2026-10-20T22:09:30.517Z'
+                        metodo: QR
+                        resultado: NEGADO
+                        motivo: CREDENCIAL_INVALIDA
+                        distanciaM: null
+                        authorizationId: null
+                        usuario:
+                          id: 5eed0000-0000-4000-8000-000000000002
+                          nome: Maria Souza
+                          perfil: VISITANTE
+                        local: null
+                        terminal: null
+                    page: 1
+                    pageSize: 20
+                    total: 1
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '422':
+          $ref: '#/components/responses/AccessEventQueryError'
+        '500':
+          $ref: '#/components/responses/InternalError'
+  /me/access-events:
+    get:
+      tags: [AccessEvents]
+      summary: Meu histórico de acessos
+      description: >-
+        Qualquer perfil autenticado; devolve só os eventos do dono do token. Um `usuarioId` enviado
+        na query é ignorado. Mesmo objeto, mesma ordem e mesmos filtros de `GET /access-events`,
+        menos `usuarioId`. Eventos que não identificaram ninguém (uma tag desconhecida) não
+        aparecem para ninguém aqui.
+      operationId: listMyAccessEvents
+      parameters:
+        - name: accessPointId
+          in: query
+          description: Só os eventos deste ponto de acesso.
+          schema:
+            type: string
+            format: uuid
+        - name: terminalId
+          in: query
+          description: Só os eventos deste terminal.
+          schema:
+            type: string
+            format: uuid
+        - name: metodo
+          in: query
+          schema:
+            type: string
+            enum: [QR, NFC]
+        - name: resultado
+          in: query
+          schema:
+            type: string
+            enum: [AUTORIZADO, NEGADO]
+        - name: motivo
+          in: query
+          description: >-
+            Só as negações com este código (seção 4.4 do contrato). `TERMINAL_OFFLINE` é o dos
+            eventos que o terminal envia depois de ficar sem rede.
+          schema:
+            type: string
+            enum:
+              [
+                CREDENCIAL_INVALIDA,
+                CREDENCIAL_EXPIRADA,
+                CREDENCIAL_REUTILIZADA,
+                USUARIO_INATIVO,
+                SEM_AUTORIZACAO,
+                AUTORIZACAO_CANCELADA,
+                FORA_DO_PERIODO,
+                USOS_ESGOTADOS,
+                DISTANTE_DO_TERMINAL,
+                LOCALIZACAO_INVALIDA,
+                TAG_DESCONHECIDA,
+                TAG_INATIVA,
+                TERMINAL_OFFLINE,
+              ]
+        - name: de
+          in: query
+          description: >-
+            Instante ISO 8601, com `Z` ou com fuso (`2026-10-20T14:00:00Z`,
+            `2026-10-20T11:00:00-03:00`). Só os eventos desse instante em diante: o limite é
+            **inclusivo**. Na URL, o `+` de um fuso positivo vai como `%2B`
+            (`2026-10-20T17:00:00%2B03:00`); sem isso ele vira espaço e a resposta é 422. Uma data
+            sem hora (`2026-10-20`) não é aceita.
+          schema:
+            type: string
+            format: date-time
+        - name: ate
+          in: query
+          description: >-
+            Instante ISO 8601, como em `de`. Só os eventos até esse instante: o limite é
+            **inclusivo**. Não pode ser anterior a `de` (igual a `de` vale, e é um instante só).
+          schema:
+            type: string
+            format: date-time
+        - $ref: '#/components/parameters/Page'
+        - $ref: '#/components/parameters/PageSize'
+      responses:
+        '200':
+          description: Página dos meus eventos
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ListaEventosDeAcesso'
+              example:
+                data:
+                  - id: 5eed0000-0000-4000-8000-000000000101
+                    ocorridoEm: '2026-10-20T14:32:07.123Z'
+                    metodo: QR
+                    resultado: AUTORIZADO
+                    motivo: null
+                    distanciaM: 14.25
+                    authorizationId: 5eed0000-0000-4000-8000-000000000008
+                    usuario:
+                      id: 5eed0000-0000-4000-8000-000000000002
+                      nome: Maria Souza
+                      perfil: VISITANTE
+                    local:
+                      id: 5eed0000-0000-4000-8000-000000000005
+                      nome: Catraca Social
+                      tipo: CATRACA
+                      edificio:
+                        id: 5eed0000-0000-4000-8000-000000000004
+                        nome: Edifício Central
+                    terminal:
+                      id: 5eed0000-0000-4000-8000-000000000006
+                      nome: Terminal Social
+                page: 1
+                pageSize: 20
+                total: 1
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '422':
+          $ref: '#/components/responses/AccessEventQueryError'
+        '500':
+          $ref: '#/components/responses/InternalError'
   /terminal/heartbeat:
     post:
       tags: [Terminal]
@@ -1228,6 +1941,378 @@ paths:
           $ref: '#/components/responses/HeartbeatValidationError'
         '429':
           $ref: '#/components/responses/HeartbeatRateLimited'
+        '500':
+          $ref: '#/components/responses/InternalError'
+  /terminal/qr:
+    post:
+      tags: [Terminal]
+      summary: Emitir o QR Code do terminal
+      description: >-
+        O terminal chama a cada `renovarEmMs` (10 s) e mostra o `payload` como QR Code. Autenticado
+        pela chave do terminal (cabeçalhos `X-Terminal-Id` e `X-Terminal-Key`), nunca pelo token de
+        usuário. Não tem corpo.
+
+
+        O backend sorteia 16 bytes, codifica em base64url (22 caracteres) e grava só o **SHA-256**
+        do token, nunca o token. O payload é `ACS1:` + token e bate com `^ACS1:[A-Za-z0-9_-]{22}$`.
+        O QR vale `QR_TTL_SECONDS` + `QR_TOLERANCE_SECONDS` (10 + 5 = 15 s) e é de uso único. O QR
+        anterior **continua válido** até a própria expiração: dois QRs válidos por poucos segundos
+        é intencional.
+
+
+        **Limite:** um QR a cada `QR_ISSUE_MIN_INTERVAL_S` (5 s) por terminal. O intervalo exato de
+        5 s ainda passa; antes disso a resposta é 429 e nada é emitido. O limite é atômico: pedidos
+        simultâneos do mesmo terminal emitem um único QR.
+      operationId: issueQrCredential
+      security:
+        - terminalId: []
+          terminalKey: []
+      responses:
+        '200':
+          description: QR emitido
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/QrEmitido'
+              example:
+                payload: ACS1:q3F8k2Zr1pLw9XbTn0YhVA
+                emitidoEm: '2026-10-20T14:32:07.000Z'
+                expiraEm: '2026-10-20T14:32:22.000Z'
+                renovarEmMs: 10000
+        '401':
+          $ref: '#/components/responses/TerminalUnauthorized'
+        '403':
+          $ref: '#/components/responses/TerminalForbidden'
+        '429':
+          $ref: '#/components/responses/QrRateLimited'
+        '500':
+          $ref: '#/components/responses/InternalError'
+  /terminal/nfc:
+    post:
+      tags: [Terminal]
+      summary: Validar a leitura de uma tag NFC
+      description: >-
+        O terminal envia o UID que leu e recebe a decisão **na própria resposta**. Autenticado pela
+        chave do terminal (cabeçalhos `X-Terminal-Id` e `X-Terminal-Key`), nunca pelo token de
+        usuário. O cabeçalho `Idempotency-Key` (um UUID novo a cada leitura) é obrigatório.
+
+
+        **Sempre 200 com a decisão**: `AUTORIZADO` (com `aberturaMs`), `NEGADO` (com o `motivo`) ou
+        `CADASTRADA`. Só problemas de HTTP têm outro status (401, 403, 409, 422, 500). Não cria
+        comando para o terminal: ele abre ou nega pela resposta. Meta de até 2 s.
+
+
+        **Ordem** (a primeira que falhar define o motivo): a `Idempotency-Key` já vista; o modo de
+        cadastro do terminal; a repetição em menos de `NFC_DEBOUNCE_SECONDS` (3 s); a tag existe
+        (`TAG_DESCONHECIDA`), está ativa (`TAG_INATIVA`) e o usuário está ativo (`USUARIO_INATIVO`);
+        e as verificações de autorização do QR, **sem a distância** (`SEM_AUTORIZACAO`,
+        `AUTORIZACAO_CANCELADA`, `FORA_DO_PERIODO`, `USOS_ESGOTADOS`). A aprovação grava o evento
+        `NFC` e consome um uso na mesma transação. Cada tentativa gera exatamente um evento, aprovada
+        ou negada.
+
+
+        **Idempotência:** repetir a mesma `Idempotency-Key` devolve a decisão anterior, sem novo uso
+        e sem novo evento, mesmo que a tag tenha sido desativada depois (a chave vale em minúsculas
+        ou maiúsculas). Uma chave que já pertence a outro terminal, ou a um evento que não foi uma
+        leitura NFC, dá 409 `CONFLICT`.
+
+
+        **Repetição rápida:** a mesma tag lida de novo neste terminal em menos de
+        `NFC_DEBOUNCE_SECONDS` (3 s) recebe a decisão anterior, sem novo uso e sem novo evento. Em
+        3 s exatos já é uma nova tentativa. Por isso desativar a tag, ou reativá-la, pode levar até
+        esse tempo para valer na mesma tag e no mesmo terminal.
+
+
+        **Modo de cadastro:** se o administrador ligou o modo (`POST /terminals/{id}/enroll-mode`) e
+        o prazo não venceu (o instante exato ainda vale), esta leitura vincula a tag ao usuário
+        combinado, gasta o modo e responde `CADASTRADA`. Não consome uso, não grava evento e não
+        cria comando. UID que já existe: 409 `TAG_JA_CADASTRADA` (e o modo já foi gasto); usuário do
+        modo inativo: 422; usuário do modo inexistente: 404 `NOT_FOUND`, que na prática não ocorre
+        porque a chave estrangeira impede apagar o usuário. Como não há evento, repetir a mesma
+        chave depois de `CADASTRADA` conta como uma leitura de acesso.
+
+
+        `lidoEm` é opcional e só é conferido: quem decide é o relógio do servidor.
+      operationId: validateNfcAccess
+      security:
+        - terminalId: []
+          terminalKey: []
+      parameters:
+        - name: Idempotency-Key
+          in: header
+          required: true
+          description: UUID gerado pelo terminal a cada leitura, guardado em minúsculas.
+          schema:
+            type: string
+            format: uuid
+          example: 3f1c9a52-8e0b-4f55-9d57-2a6f0c1d7e44
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/NfcLeitura'
+            example:
+              uid: 04:a1:b2:c3:d4
+              lidoEm: '2026-10-20T14:32:07Z'
+      responses:
+        '200':
+          description: A decisão, qualquer que seja
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/NfcResultado'
+              examples:
+                AUTORIZADO:
+                  summary: Tag válida com autorização válida
+                  value:
+                    resultado: AUTORIZADO
+                    aberturaMs: 5000
+                CADASTRADA:
+                  summary: Modo de cadastro ligado; a tag foi vinculada
+                  value:
+                    resultado: CADASTRADA
+                TAG_DESCONHECIDA:
+                  summary: Nenhuma tag tem este UID
+                  value:
+                    resultado: NEGADO
+                    motivo: TAG_DESCONHECIDA
+                TAG_INATIVA:
+                  summary: A tag foi desativada
+                  value:
+                    resultado: NEGADO
+                    motivo: TAG_INATIVA
+                USUARIO_INATIVO:
+                  summary: O dono da tag está inativo
+                  value:
+                    resultado: NEGADO
+                    motivo: USUARIO_INATIVO
+                SEM_AUTORIZACAO:
+                  summary: O usuário não tem autorização para este local
+                  value:
+                    resultado: NEGADO
+                    motivo: SEM_AUTORIZACAO
+                AUTORIZACAO_CANCELADA:
+                  summary: Todas as autorizações deste local foram canceladas
+                  value:
+                    resultado: NEGADO
+                    motivo: AUTORIZACAO_CANCELADA
+                FORA_DO_PERIODO:
+                  summary: Fora das datas ou do horário da autorização
+                  value:
+                    resultado: NEGADO
+                    motivo: FORA_DO_PERIODO
+                USOS_ESGOTADOS:
+                  summary: Os usos da autorização acabaram
+                  value:
+                    resultado: NEGADO
+                    motivo: USOS_ESGOTADOS
+        '401':
+          $ref: '#/components/responses/TerminalUnauthorized'
+        '403':
+          $ref: '#/components/responses/TerminalForbidden'
+        '409':
+          $ref: '#/components/responses/NfcReadConflict'
+        '422':
+          $ref: '#/components/responses/NfcReadValidationError'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+        '500':
+          $ref: '#/components/responses/InternalError'
+  /terminal/events/batch:
+    post:
+      tags: [Terminal]
+      summary: Enviar as tentativas guardadas enquanto o terminal estava sem conexão
+      description: >-
+        Sem rede, o terminal **nega** as leituras e as guarda. Ao reconectar, envia aqui, em lote, o que
+        guardou. Autenticado pela chave do terminal (cabeçalhos `X-Terminal-Id` e `X-Terminal-Key`),
+        nunca pelo token de usuário.
+
+
+        **Só negações:** o terminal sem conexão não consumiu nenhum uso, então um evento `AUTORIZADO` é
+        recusado (422), assim como um `metodo` que não seja `NFC` e um `motivo` que não seja
+        `TERMINAL_OFFLINE`. Cada evento vira uma linha do histórico (`GET /access-events`) com esse
+        motivo, o terminal e o local de quem enviou e, quando a tag é conhecida (ativa ou não), a
+        pessoa dela em `usuario`; uma tag desconhecida fica sem pessoa. O envio não consome uso, não
+        cria comando e não altera nenhuma autorização.
+
+
+        **Idempotência:** cada evento traz uma `clientEventId`, um UUID escolhido pelo terminal (vale em
+        minúsculas ou maiúsculas) e único em todo o sistema. Um evento cuja chave já está guardada não
+        é gravado de novo e **não é erro**: entra na contagem de `duplicados`. Por isso o terminal pode
+        reenviar o mesmo lote quantas vezes precisar (depois de um 500, ou de uma queda antes de ler a
+        resposta) e deve guardar os eventos até receber o 200. Uma chave repetida dentro do mesmo lote
+        também conta como duplicada. Uma chave que já pertence a outro terminal, ou a uma leitura NFC ao
+        vivo (`Idempotency-Key`), conta como duplicada também; o evento que já existia não é alterado.
+
+
+        **Limites:** de 1 a 50 eventos por lote e corpo de até 64 kb (acima disso, 413
+        `PAYLOAD_TOO_LARGE`). `ocorridoEm` é o instante do relógio do terminal e precisa estar entre
+        7 dias antes e 5 minutos depois do relógio do servidor, as duas pontas incluídas. Um problema em
+        qualquer evento rejeita o lote inteiro com 422, sem gravar nada, e o `details` aponta cada
+        problema com o índice do evento (`events.1.resultado`).
+
+
+        Os eventos aparecem no histórico no instante em que ocorreram, não no do envio. As leituras NFC
+        ao vivo não são afetadas por eles: a repetição rápida (`NFC_DEBOUNCE_SECONDS`) só olha leituras
+        ao vivo.
+      operationId: ingestOfflineEvents
+      security:
+        - terminalId: []
+          terminalKey: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LoteOffline'
+            example:
+              events:
+                - clientEventId: 3f1c9a52-8e0b-4f55-9d57-2a6f0c1d7e44
+                  metodo: NFC
+                  uid: 04A1B2C3D4
+                  ocorridoEm: '2026-10-20T14:12:07Z'
+                  resultado: NEGADO
+                  motivo: TERMINAL_OFFLINE
+      responses:
+        '200':
+          description: O lote foi processado, inclusive quando todos os eventos já eram conhecidos
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ResultadoLote'
+              example:
+                aceitos: 3
+                duplicados: 1
+        '401':
+          $ref: '#/components/responses/TerminalUnauthorized'
+        '403':
+          $ref: '#/components/responses/TerminalForbidden'
+        '413':
+          $ref: '#/components/responses/PayloadTooLarge'
+        '422':
+          $ref: '#/components/responses/OfflineBatchValidationError'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+        '500':
+          $ref: '#/components/responses/InternalError'
+  /terminal/commands:
+    get:
+      tags: [Terminal]
+      summary: Consultar os comandos pendentes do terminal
+      description: >-
+        O terminal chama a cada `commandPollMs` (1 s) com o `id` do último comando que viu em
+        `after`. Autenticado pela chave do terminal (cabeçalhos `X-Terminal-Id` e `X-Terminal-Key`),
+        nunca pelo token de usuário.
+
+
+        Devolve só os comandos **deste terminal**, em ordem crescente de `id`, com `id` maior que
+        `after`, e **que ainda não venceram**. Um comando vale por `COMMAND_TTL_SECONDS` (10 s) a
+        partir da criação: com exatamente 10 s de vida ainda é entregue, com mais não. Um `ABRIR`
+        vencido nunca é entregue, para a catraca não abrir minutos depois do pedido.
+
+
+        Cada comando é marcado como entregue (`entregueEm`) na primeira vez que sai aqui; as
+        consultas seguintes não mudam essa hora. A lista vazia é a resposta normal quando não há
+        nada novo.
+
+
+        O `ABRIR` traz `aberturaMs` (por quanto tempo abrir, `OPEN_DURATION_MS`); o `NEGAR` traz
+        `motivo` (um dos códigos de negação). Os comandos são criados pela validação de acesso
+        (B15).
+      operationId: listPendingCommands
+      security:
+        - terminalId: []
+          terminalKey: []
+      parameters:
+        - name: after
+          in: query
+          description: Só vêm comandos com `id` maior que este. Use o maior `id` que o terminal já viu.
+          schema:
+            type: integer
+            minimum: 0
+            maximum: 2147483647
+            default: 0
+        - name: limit
+          in: query
+          description: Quantos comandos, no máximo, numa resposta.
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 10
+      responses:
+        '200':
+          description: Comandos pendentes (lista vazia quando não há nada novo)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ComandosPendentes'
+              examples:
+                abrirENegar:
+                  summary: Um ABRIR e um NEGAR
+                  value:
+                    commands:
+                      - id: 42
+                        tipo: ABRIR
+                        aberturaMs: 5000
+                        criadoEm: '2026-10-20T14:32:07.123Z'
+                      - id: 43
+                        tipo: NEGAR
+                        motivo: DISTANTE_DO_TERMINAL
+                        criadoEm: '2026-10-20T14:32:08.456Z'
+                semNovidade:
+                  summary: Nada novo
+                  value:
+                    commands: []
+        '401':
+          $ref: '#/components/responses/TerminalUnauthorized'
+        '403':
+          $ref: '#/components/responses/TerminalForbidden'
+        '422':
+          $ref: '#/components/responses/CommandsValidationError'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+        '500':
+          $ref: '#/components/responses/InternalError'
+  /terminal/commands/{id}/ack:
+    post:
+      tags: [Terminal]
+      summary: Confirmar que o terminal executou um comando
+      description: >-
+        O terminal avisa que executou o comando `id`. Autenticado pela chave do terminal (cabeçalhos
+        `X-Terminal-Id` e `X-Terminal-Key`). Não tem corpo.
+
+
+        Grava `executadoEm`. Só vale para comando **do próprio terminal**: o de outro terminal, um
+        `id` que não existe e um `id` que não é um inteiro positivo dão o mesmo 404, para não
+        revelar o que existe. Repetir o ack é inofensivo: devolve 204 de novo e mantém a primeira
+        hora. Um comando já vencido que o terminal recebeu a tempo ainda pode ser confirmado.
+      operationId: ackCommand
+      security:
+        - terminalId: []
+          terminalKey: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: '`id` do comando (inteiro crescente, não é uuid).'
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 2147483647
+          example: 42
+      responses:
+        '204':
+          description: Comando confirmado (sem corpo)
+        '401':
+          $ref: '#/components/responses/TerminalUnauthorized'
+        '403':
+          $ref: '#/components/responses/TerminalForbidden'
+        '404':
+          $ref: '#/components/responses/CommandNotFound'
+        '429':
+          $ref: '#/components/responses/RateLimited'
         '500':
           $ref: '#/components/responses/InternalError'
 components:
@@ -1298,6 +2383,20 @@ components:
           description: >-
             Estado do PostgreSQL. A API responde 200 mesmo com o banco fora do ar
             (nesse caso `down`, em até cerca de 2 s).
+    Readiness:
+      type: object
+      required: [status, db, time]
+      properties:
+        status:
+          type: string
+          enum: [ready, unavailable]
+          description: '`ready` com o banco respondendo; `unavailable` sem ele.'
+        db:
+          type: string
+          enum: [up, down]
+        time:
+          type: string
+          format: date-time
     LoginRequest:
       type: object
       required: [email, senha]
@@ -1718,6 +2817,112 @@ components:
             aberturaMs:
               type: integer
               description: Por quanto tempo a catraca fica aberta (`OPEN_DURATION_MS`).
+    QrEmitido:
+      type: object
+      required: [payload, emitidoEm, expiraEm, renovarEmMs]
+      properties:
+        payload:
+          type: string
+          pattern: '^ACS1:[A-Za-z0-9_-]{22}$'
+          description: O que o terminal desenha no QR Code.
+        emitidoEm:
+          type: string
+          format: date-time
+          description: Instante da emissão, em UTC, com milissegundos.
+        expiraEm:
+          type: string
+          format: date-time
+          description: '`emitidoEm` + `QR_TTL_SECONDS` + `QR_TOLERANCE_SECONDS` (15 s por padrão).'
+        renovarEmMs:
+          type: integer
+          description: Quando pedir o próximo QR (`QR_REFRESH_MS`, 10000).
+    ComandoTerminal:
+      type: object
+      required: [id, tipo, criadoEm]
+      description: >-
+        Um comando para o terminal. O `ABRIR` traz `aberturaMs` e o `NEGAR` traz `motivo`; o outro
+        campo não vem.
+      properties:
+        id:
+          type: integer
+          description: Inteiro crescente (não é uuid), para o terminal pedir só o que veio depois.
+        tipo:
+          type: string
+          enum: [ABRIR, NEGAR]
+        aberturaMs:
+          type: integer
+          description: Só no `ABRIR`. Por quanto tempo abrir a catraca (`OPEN_DURATION_MS`).
+        motivo:
+          type: string
+          description: Só no `NEGAR`. Código de negação (seção 4.4 do contrato), por exemplo `DISTANTE_DO_TERMINAL`.
+        criadoEm:
+          type: string
+          format: date-time
+          description: Instante da criação, em UTC, com milissegundos.
+    ComandosPendentes:
+      type: object
+      required: [commands]
+      properties:
+        commands:
+          type: array
+          items:
+            $ref: '#/components/schemas/ComandoTerminal'
+    ValidarQrRequest:
+      type: object
+      required: [payload]
+      properties:
+        payload:
+          type: string
+          pattern: '^ACS1:[A-Za-z0-9_-]{22}$'
+          description: O texto lido do QR Code do terminal, inteiro.
+        latitude:
+          type:
+            - number
+            - 'null'
+          minimum: -90
+          maximum: 90
+          description: Posição do celular. Ausente ou nula dá `LOCALIZACAO_INVALIDA`.
+        longitude:
+          type:
+            - number
+            - 'null'
+          minimum: -180
+          maximum: 180
+          description: Posição do celular. Ausente ou nula dá `LOCALIZACAO_INVALIDA`.
+        precisaoMetros:
+          type:
+            - number
+            - 'null'
+          minimum: 0
+          description: Precisão do GPS do celular, em metros. Fica no `detalhes` do evento.
+    AcessoAutorizado:
+      type: object
+      required: [resultado, mensagem, local, usosRestantes, distanciaM, ocorridoEm]
+      properties:
+        resultado:
+          type: string
+          enum: [AUTORIZADO]
+        mensagem:
+          type: string
+          example: Acesso autorizado. Pode passar.
+        local:
+          type: object
+          required: [nome]
+          properties:
+            nome:
+              type: string
+              description: Nome do ponto de acesso.
+        usosRestantes:
+          type: integer
+          minimum: 0
+          description: Usos que sobram na autorização usada, já descontado este.
+        distanciaM:
+          type: integer
+          description: Distância entre o celular e o terminal, arredondada ao metro.
+        ocorridoEm:
+          type: string
+          format: date-time
+          description: Instante da decisão, em UTC, ao segundo.
     ChaveDoTerminal:
       type: object
       required: [id, apiKey]
@@ -1746,6 +2951,91 @@ components:
         total:
           type: integer
           description: Total de terminais, antes da paginação.
+    TagNfc:
+      type: object
+      required: [id, usuarioId, uid, descricao, ativa, criadaEm]
+      description: Uma tag NFC vinculada a um usuário.
+      properties:
+        id:
+          type: string
+          format: uuid
+        usuarioId:
+          type: string
+          format: uuid
+        uid:
+          type: string
+          pattern: '^[0-9A-F]{8,20}$'
+          description: Hexadecimal, maiúsculo, sem separadores, de 8 a 20 caracteres.
+        descricao:
+          type: [string, 'null']
+          maxLength: 120
+        ativa:
+          type: boolean
+        criadaEm:
+          type: string
+          format: date-time
+    CriarTagNfc:
+      type: object
+      required: [usuarioId, uid]
+      properties:
+        usuarioId:
+          type: string
+          format: uuid
+        uid:
+          type: string
+          description: >-
+            Como a pessoa digitou ou como o terminal leu; `:`, `-` e espaços são ignorados e as
+            letras podem ser minúsculas.
+          examples: ['04:a1:b2:c3', '04A1B2C3', '04-A1-B2-C3']
+        descricao:
+          type: string
+          maxLength: 120
+    AtualizarTagNfc:
+      type: object
+      required: [ativa]
+      additionalProperties: false
+      properties:
+        ativa:
+          type: boolean
+    ListaTagsNfc:
+      type: object
+      required: [data, page, pageSize, total]
+      properties:
+        data:
+          type: array
+          items:
+            $ref: '#/components/schemas/TagNfc'
+        page:
+          type: integer
+        pageSize:
+          type: integer
+        total:
+          type: integer
+          description: Total de tags que atendem aos filtros, antes da paginação.
+    LigarModoCadastro:
+      type: object
+      required: [usuarioId]
+      properties:
+        usuarioId:
+          type: string
+          format: uuid
+          description: O usuário a quem a próxima tag lida será vinculada.
+    ModoCadastro:
+      type: object
+      required: [terminalId, usuarioId, expiraEm]
+      properties:
+        terminalId:
+          type: string
+          format: uuid
+        usuarioId:
+          type: string
+          format: uuid
+        expiraEm:
+          type: string
+          format: date-time
+          description: >-
+            Agora mais `ENROLL_MODE_SECONDS`. A leitura feita nesse instante exato ainda vale; um
+            milissegundo depois, não.
     CriarAutorizacao:
       type: object
       required: [usuarioId, accessPointId, dataInicio, dataFim, horaInicio, horaFim, usosPermitidos]
@@ -1799,6 +3089,114 @@ components:
         total:
           type: integer
           description: Total de autorizações que atendem aos filtros, antes da paginação.
+    ListaEventosDeAcesso:
+      type: object
+      required: [data, page, pageSize, total]
+      properties:
+        data:
+          type: array
+          items:
+            $ref: '#/components/schemas/EventoDeAcesso'
+        page:
+          type: integer
+        pageSize:
+          type: integer
+        total:
+          type: integer
+          description: Total de eventos que atendem aos filtros, antes da paginação.
+    EventoDeAcesso:
+      type: object
+      description: >-
+        Uma tentativa de acesso. Não traz o UID da tag, o prefixo do hash da credencial nem a
+        `Idempotency-Key` da leitura: são dados internos do registro.
+      required:
+        - id
+        - ocorridoEm
+        - metodo
+        - resultado
+        - motivo
+        - distanciaM
+        - authorizationId
+        - usuario
+        - local
+        - terminal
+      properties:
+        id:
+          type: string
+          format: uuid
+        ocorridoEm:
+          type: string
+          format: date-time
+          description: >-
+            O instante da tentativa, em UTC. É o do servidor, exceto nos eventos com `motivo`
+            `TERMINAL_OFFLINE`: nesses é o do relógio do terminal, que enviou o lote depois (até 7 dias
+            depois).
+        metodo:
+          type: string
+          enum: [QR, NFC]
+        resultado:
+          type: string
+          enum: [AUTORIZADO, NEGADO]
+        motivo:
+          type: string
+          nullable: true
+          description: Código de negação (seção 4.4 do contrato). `null` quando `AUTORIZADO`.
+        distanciaM:
+          type: number
+          nullable: true
+          description: >-
+            Distância medida até o terminal, em metros. Só existe no QR, quando aprovado e em
+            `DISTANTE_DO_TERMINAL`; `null` no NFC e nas demais negações.
+        authorizationId:
+          type: string
+          format: uuid
+          nullable: true
+          description: A autorização usada. Preenchida quando `AUTORIZADO` e em algumas negações do QR.
+        usuario:
+          type: object
+          nullable: true
+          required: [id, nome, perfil]
+          properties:
+            id:
+              type: string
+              format: uuid
+            nome:
+              type: string
+            perfil:
+              type: string
+              enum: [ADMIN, CONDOMINO, VISITANTE]
+        local:
+          type: object
+          nullable: true
+          required: [id, nome, tipo, edificio]
+          properties:
+            id:
+              type: string
+              format: uuid
+            nome:
+              type: string
+            tipo:
+              type: string
+              enum: [PORTARIA, PORTA, CATRACA]
+            edificio:
+              type: object
+              required: [id, nome]
+              properties:
+                id:
+                  type: string
+                  format: uuid
+                nome:
+                  type: string
+        terminal:
+          type: object
+          nullable: true
+          required: [id, nome]
+          properties:
+            id:
+              type: string
+              format: uuid
+            nome:
+              type: string
     Autorizacao:
       type: object
       required:
@@ -1932,9 +3330,21 @@ components:
                   AUTO_DESATIVACAO,
                   ULTIMO_ADMIN,
                   LOCAL_COM_AUTORIZACOES_ATIVAS,
+                  TAG_JA_CADASTRADA,
                   CONFLICT,
                   RATE_LIMITED,
+                  PAYLOAD_TOO_LARGE,
                   INTERNAL_ERROR,
+                  CREDENCIAL_INVALIDA,
+                  CREDENCIAL_EXPIRADA,
+                  CREDENCIAL_REUTILIZADA,
+                  USUARIO_INATIVO,
+                  SEM_AUTORIZACAO,
+                  AUTORIZACAO_CANCELADA,
+                  FORA_DO_PERIODO,
+                  USOS_ESGOTADOS,
+                  DISTANTE_DO_TERMINAL,
+                  LOCALIZACAO_INVALIDA,
                 ]
             message:
               type: string
@@ -1949,6 +3359,95 @@ components:
                     type: string
                   message:
                     type: string
+    NfcLeitura:
+      type: object
+      required: [uid]
+      properties:
+        uid:
+          type: string
+          description: >-
+            UID da tag: hexadecimal, 8 a 20 caracteres depois de tirar `:`, `-` e espaços; maiúsculas
+            ou minúsculas.
+          example: 04:a1:b2:c3:d4
+        lidoEm:
+          type: string
+          format: date-time
+          description: Instante da leitura segundo o terminal. Opcional; é conferido e não é usado.
+    NfcResultado:
+      type: object
+      required: [resultado]
+      properties:
+        resultado:
+          type: string
+          enum: [AUTORIZADO, NEGADO, CADASTRADA]
+        aberturaMs:
+          type: integer
+          description: Só em `AUTORIZADO`. Por quanto tempo abrir (`OPEN_DURATION_MS`).
+        motivo:
+          type: string
+          enum:
+            - TAG_DESCONHECIDA
+            - TAG_INATIVA
+            - USUARIO_INATIVO
+            - SEM_AUTORIZACAO
+            - AUTORIZACAO_CANCELADA
+            - FORA_DO_PERIODO
+            - USOS_ESGOTADOS
+          description: Só em `NEGADO`.
+    LoteOffline:
+      type: object
+      required: [events]
+      properties:
+        events:
+          type: array
+          minItems: 1
+          maxItems: 50
+          items:
+            $ref: '#/components/schemas/EventoOffline'
+    EventoOffline:
+      type: object
+      description: Uma tentativa que o terminal negou e guardou enquanto estava sem conexão.
+      required: [clientEventId, metodo, uid, ocorridoEm, resultado, motivo]
+      properties:
+        clientEventId:
+          type: string
+          format: uuid
+          description: >-
+            Chave do evento, escolhida pelo terminal e única em todo o sistema. Reenviar o evento com a
+            mesma chave não o grava de novo (conta em `duplicados`).
+        metodo:
+          type: string
+          enum: [NFC]
+          description: Só `NFC` (o QR depende do servidor e não acontece sem conexão).
+        uid:
+          type: string
+          description: >-
+            UID da tag: hexadecimal, 8 a 20 caracteres depois de tirar `:`, `-` e espaços; maiúsculas
+            ou minúsculas.
+          example: 04:a1:b2:c3:d4
+        ocorridoEm:
+          type: string
+          format: date-time
+          description: >-
+            Instante da tentativa segundo o relógio do terminal. No máximo 7 dias antes e 5 minutos
+            depois do relógio do servidor.
+        resultado:
+          type: string
+          enum: [NEGADO]
+          description: Só `NEGADO` (sem conexão o terminal nega, e nenhum uso foi consumido).
+        motivo:
+          type: string
+          enum: [TERMINAL_OFFLINE]
+    ResultadoLote:
+      type: object
+      required: [aceitos, duplicados]
+      properties:
+        aceitos:
+          type: integer
+          description: Eventos gravados agora.
+        duplicados:
+          type: integer
+          description: Eventos cuja `clientEventId` já estava guardada (ou repetida no próprio lote), ignorados.
   responses:
     ValidationError:
       description: Corpo inválido ou JSON malformado
@@ -2146,6 +3645,33 @@ components:
                   details:
                     - field: dataAte
                       message: deve ser igual ou depois de dataDe
+    AccessEventQueryError:
+      description: Filtro ou paginação inválidos, com a mensagem de cada parâmetro em `details`
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          examples:
+            filtrosInvalidos:
+              summary: Método desconhecido e instante que não é ISO 8601
+              value:
+                error:
+                  code: VALIDATION_ERROR
+                  message: Dados inválidos
+                  details:
+                    - field: metodo
+                      message: deve ser QR ou NFC
+                    - field: de
+                      message: deve ser um instante ISO 8601
+            periodoInvertido:
+              summary: ate antes de de
+              value:
+                error:
+                  code: VALIDATION_ERROR
+                  message: Dados inválidos
+                  details:
+                    - field: ate
+                      message: não pode ser anterior a de
     AuthorizationCancelError:
       description: Motivo com mais de 200 caracteres
       content:
@@ -2197,6 +3723,68 @@ components:
             error:
               code: NOT_FOUND
               message: Usuário não encontrado
+    NfcTagValidationError:
+      description: >-
+        Corpo inválido ou regra violada (UID que não é hexadecimal de 8 a 20 caracteres, usuário
+        inativo), com a mensagem de cada campo em `details`.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          examples:
+            uidInvalido:
+              value:
+                error:
+                  code: VALIDATION_ERROR
+                  message: Dados inválidos
+                  details:
+                    - field: uid
+                      message: deve ser hexadecimal, com 8 a 20 caracteres (":", "-" e espaços são ignorados)
+            usuarioInativo:
+              value:
+                error:
+                  code: VALIDATION_ERROR
+                  message: Dados inválidos
+                  details:
+                    - field: usuarioId
+                      message: Usuário inativo
+    NfcTagConflict:
+      description: '`TAG_JA_CADASTRADA`: já existe uma tag com este UID (de qualquer usuário).'
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          example:
+            error:
+              code: TAG_JA_CADASTRADA
+              message: Esta tag já está cadastrada
+    NfcTagNotFound:
+      description: Tag inexistente, ou `id` que não é UUID
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          example:
+            error:
+              code: NOT_FOUND
+              message: Tag não encontrada
+    EnrollModeNotFound:
+      description: Terminal (ou `id` que não é UUID) ou usuário inexistente
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          examples:
+            terminal:
+              value:
+                error:
+                  code: NOT_FOUND
+                  message: Terminal não encontrado
+            usuario:
+              value:
+                error:
+                  code: NOT_FOUND
+                  message: Usuário não encontrado
     TerminalUnauthorized:
       description: >-
         Chave errada, ausente, terminal inexistente ou id malformado: sempre a mesma resposta, para
@@ -2234,8 +3822,17 @@ components:
                   message: deve estar entre -90 e 90
     HeartbeatRateLimited:
       description: >-
-        Outro heartbeat do mesmo terminal em menos de `HEARTBEAT_MIN_INTERVAL_S` (2 s). Nada foi
-        gravado; basta mandar o próximo no ritmo normal.
+        Dois motivos. (1) Outro heartbeat do mesmo terminal em menos de `HEARTBEAT_MIN_INTERVAL_S`
+        (2 s), o intervalo mínimo: nada foi gravado, não vem `Retry-After` e basta mandar o próximo no
+        ritmo normal. (2) O limite por minuto do terminal ou das falhas de autenticação do IP
+        estourou: vem `Retry-After`.
+      headers:
+        Retry-After:
+          description: >-
+            Segundos até poder tentar de novo. Só vem no limite por minuto, nunca no intervalo
+            mínimo.
+          schema:
+            type: integer
       content:
         application/json:
           schema:
@@ -2244,8 +3841,31 @@ components:
             error:
               code: RATE_LIMITED
               message: Heartbeat muito frequente. Aguarde alguns segundos
+    QrRateLimited:
+      description: >-
+        Dois motivos. (1) Outro QR do mesmo terminal em menos de `QR_ISSUE_MIN_INTERVAL_S` (5 s), o
+        intervalo mínimo: nada foi emitido, não vem `Retry-After`, e o terminal segue mostrando o QR
+        atual e pede o próximo no ritmo normal. (2) O limite por minuto do terminal ou das falhas de
+        autenticação do IP estourou: vem `Retry-After`.
+      headers:
+        Retry-After:
+          description: >-
+            Segundos até poder tentar de novo. Só vem no limite por minuto, nunca no intervalo
+            mínimo.
+          schema:
+            type: integer
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          example:
+            error:
+              code: RATE_LIMITED
+              message: QR Code pedido com muita frequência. Aguarde alguns segundos
     RateLimited:
-      description: Limite de tentativas por minuto excedido
+      description: >-
+        Limite de requisições por minuto excedido. Espere o tempo do `Retry-After` antes de tentar de
+        novo.
       headers:
         Retry-After:
           description: Segundos até poder tentar de novo.
@@ -2259,6 +3879,46 @@ components:
             error:
               code: RATE_LIMITED
               message: Muitas tentativas. Aguarde um minuto e tente novamente
+    CommandsValidationError:
+      description: '`after` ou `limit` inválido, com a mensagem do campo em `details`'
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          example:
+            error:
+              code: VALIDATION_ERROR
+              message: Dados inválidos
+              details:
+                - field: limit
+                  message: deve ser um número inteiro entre 1 e 100
+    QrValidateValidationError:
+      description: >-
+        `payload` fora do padrão `ACS1:` mais 22 caracteres, ou coordenadas fora da faixa, ou
+        `precisaoMetros` negativa. Não é uma tentativa de acesso: nenhum evento é gravado.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          example:
+            error:
+              code: VALIDATION_ERROR
+              message: Dados inválidos
+              details:
+                - field: payload
+                  message: 'deve ser o texto lido do QR Code do terminal (ACS1: e 22 caracteres)'
+    CommandNotFound:
+      description: >-
+        O comando não existe, é de outro terminal ou o `id` não é um inteiro positivo (a mesma
+        resposta nos três casos)
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          example:
+            error:
+              code: NOT_FOUND
+              message: Comando não encontrado
     NotFound:
       description: Rota ou recurso inexistente
       content:
@@ -2269,6 +3929,115 @@ components:
             error:
               code: NOT_FOUND
               message: Rota não encontrada
+    NfcReadConflict:
+      description: >-
+        `CONFLICT`: a `Idempotency-Key` já pertence a outro terminal ou a um evento que não foi uma
+        leitura NFC. `TAG_JA_CADASTRADA`: no modo de cadastro, já existe uma tag com este UID.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          examples:
+            chaveRepetida:
+              value:
+                error:
+                  code: CONFLICT
+                  message: Esta Idempotency-Key já foi usada por outro evento
+            tagJaCadastrada:
+              value:
+                error:
+                  code: TAG_JA_CADASTRADA
+                  message: Esta tag já está cadastrada
+    NfcReadValidationError:
+      description: >-
+        UID inválido, `lidoEm` que não é um instante, `Idempotency-Key` ausente ou fora do formato de
+        UUID, ou (no modo de cadastro) usuário inativo, com a mensagem de cada campo em `details`.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          examples:
+            uidInvalido:
+              value:
+                error:
+                  code: VALIDATION_ERROR
+                  message: Dados inválidos
+                  details:
+                    - field: uid
+                      message: deve ser hexadecimal, com 8 a 20 caracteres (":", "-" e espaços são ignorados)
+            chaveInvalida:
+              value:
+                error:
+                  code: VALIDATION_ERROR
+                  message: Dados inválidos
+                  details:
+                    - field: Idempotency-Key
+                      message: deve ser um UUID
+            usuarioDoModoInativo:
+              value:
+                error:
+                  code: VALIDATION_ERROR
+                  message: Dados inválidos
+                  details:
+                    - field: usuarioId
+                      message: Usuário inativo
+    PayloadTooLarge:
+      description: >-
+        Corpo maior que o limite: 64 kb no lote offline (`POST /terminal/events/batch`) e 100 kb nas
+        demais rotas. Nada foi processado.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          example:
+            error:
+              code: PAYLOAD_TOO_LARGE
+              message: O corpo da requisição é maior que o limite permitido
+    OfflineBatchValidationError:
+      description: >-
+        O lote inteiro foi rejeitado e nada foi gravado. O `details` traz um item por problema, com o
+        índice do evento no campo (`events.1.resultado`). Os problemas de formato (chave que não é UUID,
+        instante inválido, valor fora do vocabulário do contrato, lote vazio ou com mais de 50 eventos)
+        vêm sozinhos; corrigidos esses, vêm os das regras do terminal sem conexão, todos de uma vez
+        (aprovação, método que não seja NFC, motivo que não seja `TERMINAL_OFFLINE`, UID inválido e
+        `ocorridoEm` fora da janela).
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          examples:
+            aprovacaoNoLote:
+              value:
+                error:
+                  code: VALIDATION_ERROR
+                  message: Dados inválidos
+                  details:
+                    - field: events.1.resultado
+                      message: o terminal sem conexão só envia NEGADO; uma aprovação não pode ser enviada em lote
+            instanteForaDaJanela:
+              value:
+                error:
+                  code: VALIDATION_ERROR
+                  message: Dados inválidos
+                  details:
+                    - field: events.0.ocorridoEm
+                      message: deve estar entre 7 dias antes e 5 minutos depois do horário do servidor
+            uidInvalido:
+              value:
+                error:
+                  code: VALIDATION_ERROR
+                  message: Dados inválidos
+                  details:
+                    - field: events.2.uid
+                      message: deve ser hexadecimal, com 8 a 20 caracteres (":", "-" e espaços são ignorados)
+            loteGrande:
+              value:
+                error:
+                  code: VALIDATION_ERROR
+                  message: Dados inválidos
+                  details:
+                    - field: events
+                      message: deve ter no máximo 50 eventos
     InternalError:
       description: Erro interno (sem stack trace em produção)
       content:

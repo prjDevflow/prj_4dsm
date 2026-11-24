@@ -31,6 +31,9 @@ export const TextField = ({
   ref,
   onFocus,
   onBlur,
+  secureTextEntry,
+  multiline = !secureTextEntry,
+  submitBehavior = multiline ? 'blurAndSubmit' : undefined,
   ...inputProps
 }: TextFieldProps) => {
   const theme = useTheme();
@@ -44,6 +47,11 @@ export const TextField = ({
         <TextInput
           ref={ref}
           {...inputProps}
+          secureTextEntry={secureTextEntry}
+          // A long value wraps instead of showing only its end (Android scrolls a single line to
+          // the end). Enter still leaves the field, as in a single line.
+          multiline={multiline}
+          submitBehavior={submitBehavior}
           accessibilityLabel={label}
           accessibilityHint={error ?? help}
           editable={editable && !readOnly}

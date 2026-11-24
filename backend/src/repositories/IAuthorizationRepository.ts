@@ -51,6 +51,11 @@ export interface IAuthorizationRepository {
   findViewById(id: string): Promise<AuthorizationDetails | null>;
   list(filter: AuthorizationListFilter): Promise<AuthorizationListResult>;
   /**
+   * Every authorization of the user for the access point, cancelled ones included, ordered by `dataFim`
+   * and then `id`. The access evaluator decides which one counts. Both ids must already be validated.
+   */
+  findByUserAndAccessPoint(userId: string, accessPointId: string): Promise<Authorization[]>;
+  /**
    * Cancels only while the stored status is still `ATIVA`, in one statement, so two cancellations
    * at once cannot overwrite each other. Returns whether this call was the one that cancelled.
    */

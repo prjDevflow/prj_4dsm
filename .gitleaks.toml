@@ -1,0 +1,25 @@
+# Configuração do gitleaks (varredura de segredos no CI: job "Segurança" de .github/workflows/ci.yml).
+# Usa todas as regras padrão e só dispensa os falsos positivos abaixo, que foram revisados um a um
+# (veja backend/docs/seguranca.md). Cada dispensa vale para UMA regra em certos caminhos: uma chave de
+# nuvem, um token do GitHub ou uma chave privada continuam sendo achados em qualquer arquivo.
+title = "prj_4dsm"
+
+[extend]
+useDefault = true
+
+[[allowlists]]
+description = "Chaves de idempotência, tokens, senhas e segredos de EXEMPLO e de TESTE, e os exemplos do openapi.yaml"
+targetRules = ["generic-api-key"]
+paths = [
+  '''(^|/)[^/]+\.spec\.tsx?$''',
+  '''^backend/test/''',
+  '''^backend/openapi\.yaml$''',
+]
+
+[[allowlists]]
+description = "Exemplos de curl que usam a chave do terminal de DESENVOLVIMENTO, que é pública (está no repositório)"
+targetRules = ["curl-auth-header"]
+paths = [
+  '''^backend/README\.md$''',
+  '''^backend/docs/''',
+]

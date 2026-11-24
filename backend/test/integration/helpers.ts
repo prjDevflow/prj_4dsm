@@ -157,3 +157,21 @@ export async function insertQrCredential(
 }
 
 export const newId = () => randomUUID();
+
+/** A command created at 14:00:00Z and valid for 10 s (the `expiraEm` must be after `criadoEm`). */
+export async function insertTerminalCommand(
+  overrides: Partial<Prisma.TerminalCommandUncheckedCreateInput> = {},
+) {
+  const terminalId = overrides.terminalId ?? (await insertTerminal()).id;
+  const criadoEm = overrides.criadoEm ?? new Date('2026-10-20T14:00:00Z');
+  return prisma.terminalCommand.create({
+    data: {
+      terminalId,
+      tipo: 'ABRIR',
+      aberturaMs: 5000,
+      criadoEm,
+      expiraEm: new Date((criadoEm as Date).getTime() + 10_000),
+      ...overrides,
+    },
+  });
+}

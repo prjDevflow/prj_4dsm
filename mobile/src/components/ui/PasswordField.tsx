@@ -18,6 +18,7 @@ export const PasswordField = (props: PasswordFieldProps) => {
       autoComplete="current-password"
       {...props}
       secureTextEntry={!visible}
+      multiline={false}
       trailing={
         <Pressable
           accessibilityRole="button"

@@ -1,9 +1,12 @@
 export { Alert, type AlertTone } from './Alert';
+export { Avatar } from './Avatar';
 export { Button, type ButtonProps, type ButtonVariant } from './Button';
 export { Card } from './Card';
+export { ChipRow } from './ChipRow';
 export { DateField, TimeField } from './DateField';
 export { Dialog } from './Dialog';
 export { Fab } from './Fab';
+export { FieldRow } from './FieldRow';
 export { FilterChip } from './FilterChip';
 export { Header } from './Header';
 export { ListItem } from './ListItem';
@@ -11,7 +14,10 @@ export { NavRow } from './NavRow';
 export { NumberStepper } from './NumberStepper';
 export { PasswordField } from './PasswordField';
 export { ProgressBar } from './ProgressBar';
+export { RadioGroup, type RadioOption } from './RadioGroup';
 export { ScreenContainer } from './ScreenContainer';
+export { SearchField } from './SearchField';
+export { SegmentedField } from './SegmentedField';
 export { SelectField, type SelectOption } from './SelectField';
 export { EmptyState, ErrorState, LoadingState, OfflineBanner } from './states';
 export {
@@ -25,3 +31,4 @@ export { SwitchField } from './SwitchField';
 export { Text, type TextProps } from './Text';
 export { TextField, type TextFieldProps } from './TextField';
 export { ToastProvider, useToast } from './Toast';
+export { LARGE_FONT_SCALE, useLargeFont } from './useLargeFont';

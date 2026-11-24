@@ -1,6 +1,6 @@
 # 03 — Domínio, requisitos do backend e contrato da API
 
-Carregue este arquivo ao mexer em qualquer endpoint, DTO, código de erro, regra de negócio, modelo de dados ou variável de ambiente. O contrato vale para os três (Eduardo, Lucas e Pedro): não altere sem alinhar.
+Carregue este arquivo ao mexer em qualquer endpoint, DTO, código de erro, regra de negócio, modelo de dados ou variável de ambiente. O contrato vale para os três (Eduardo, Pedro e Matheus): não altere sem alinhar.
 
 Legenda: 📄 exigência do documento oficial do desafio · 💡 decisão ou sugestão do time · ★ entrega que destrava outra pessoa.
 
@@ -76,8 +76,8 @@ Prefixo `/api/v1`. Ver arquivo `docs/contrato-api.md` e `openapi.yaml` no reposi
 | Auth do terminal | `X-Terminal-Id: <uuid>` e `X-Terminal-Key: <chave>` |
 | Paginação | `?page=1&pageSize=20` (máximo 100). Resposta `{ "data": [], "page": 1, "pageSize": 20, "total": 134 }` |
 | Erro | `{ "error": { "code": "CODIGO", "message": "Texto", "details": [ { "field": "email", "message": "..." } ] } }`; `details` só em validação |
-| Status | 200/201 sucesso; 401 sem login ou token inválido; 403 perfil sem permissão **ou acesso negado**; 404; 409 conflito; 422 validação; 429 limite; 500 erro interno |
-| Códigos genéricos | `VALIDATION_ERROR`, `CREDENCIAIS_INVALIDAS`, `UNAUTHORIZED`, `FORBIDDEN`, `NOT_FOUND`, `CONFLICT`, `RATE_LIMITED`, `INTERNAL_ERROR` |
+| Status | 200/201 sucesso; 401 sem login ou token inválido; 403 perfil sem permissão **ou acesso negado**; 404; 409 conflito; 413 corpo maior que o limite; 422 validação; 429 limite de requisições (`RATE_LIMITED`; `Retry-After` nos limites por minuto, não no intervalo mínimo do heartbeat e do QR); 500 erro interno; 503 só em `GET /ready`, com o banco fora |
+| Códigos genéricos | `VALIDATION_ERROR`, `CREDENCIAIS_INVALIDAS`, `UNAUTHORIZED`, `FORBIDDEN`, `NOT_FOUND`, `CONFLICT`, `PAYLOAD_TOO_LARGE`, `RATE_LIMITED`, `INTERNAL_ERROR` |
 | Códigos específicos de conflito | `EMAIL_JA_CADASTRADO`, `ULTIMO_ADMIN`, `AUTO_DESATIVACAO`, `LOCAL_COM_AUTORIZACOES_ATIVAS`, `TAG_JA_CADASTRADA` |
 
 ### 4.2 Rotas
@@ -150,7 +150,7 @@ Sucesso do QR: `"Acesso autorizado. Pode passar."`
 ```
 
 ```json
-// GET /terminal/commands?after=41   (só comandos com menos de 10 s de vida)
+// GET /terminal/commands?after=41   (só comandos com até 10 s de vida, inclusive; limit 1 a 100, padrão 10)
 { "commands": [ { "id": 42, "tipo": "ABRIR", "aberturaMs": 5000, "criadoEm": "..." },
                 { "id": 43, "tipo": "NEGAR", "motivo": "DISTANTE_DO_TERMINAL", "criadoEm": "..." } ] }
 
@@ -165,6 +165,94 @@ Sucesso do QR: `"Acesso autorizado. Pode passar."`
 ```
 
 UID da tag: hexadecimal, maiúsculo, sem separadores, 8 a 20 caracteres.
+
+Regras da leitura (B17; o `openapi.yaml` é a fonte final):
+
+- `Idempotency-Key` é **obrigatório** (UUID, guardado em minúsculas; sem ele ou fora do formato: 422 no campo `Idempotency-Key`). `uid` é obrigatório e vale em qualquer grafia (`04:a1:b2:c3`); `lidoEm` é opcional e só é conferido: o relógio do servidor decide.
+- Repetir a chave devolve a decisão anterior, sem novo uso nem novo evento. Chave de outro terminal, ou de um evento que não foi leitura NFC: 409 `CONFLICT`.
+- A mesma tag no mesmo terminal em menos de `NFC_DEBOUNCE_SECONDS` devolve a decisão anterior (3 s exatos já é nova tentativa).
+- No modo de cadastro, UID já cadastrado: 409 `TAG_JA_CADASTRADA` (o modo já foi gasto); usuário do modo inativo: 422 em `usuarioId`; inexistente: 404.
+- Não cria comando `ABRIR` nem `NEGAR`: o terminal age pela resposta. O evento guarda o `Idempotency-Key` em `clientEventId` e o UID inteiro em `detalhes.uid` (`docs/eventos-campos.md`).
+
+Lote de eventos offline (B19; o `openapi.yaml` é a fonte final, pergunta #16 no `STATUS.md`):
+
+```json
+// POST /terminal/events/batch   (de 1 a 50 eventos; corpo de até 64 kb)
+{ "events": [ { "clientEventId": "uuid", "metodo": "NFC", "uid": "04A1B2C3",
+                "ocorridoEm": "2026-10-20T14:12:07Z", "resultado": "NEGADO", "motivo": "TERMINAL_OFFLINE" } ] }
+// resposta 200
+{ "aceitos": 3, "duplicados": 1 }
+```
+
+- Só negações: `resultado` `AUTORIZADO`, `metodo` que não seja `NFC` e `motivo` que não seja `TERMINAL_OFFLINE` são 422. `ocorridoEm` é o relógio do terminal e vale de 7 dias antes a 5 minutos depois do servidor (as pontas valem).
+- Um problema em qualquer evento rejeita o lote inteiro (422, nada gravado) e o `details` traz o índice: `events.1.resultado`. Lote vazio e mais de 50 eventos também são 422. Corpo acima de 64 kb: 413 `PAYLOAD_TOO_LARGE` (acima de 100 kb o mesmo vale em qualquer rota).
+- Idempotência pela `clientEventId` (UUID, guardado em minúsculas, única no sistema): chave já guardada não é gravada de novo nem é erro, e conta em `duplicados`. Vale para a repetida no mesmo lote e para a de outro terminal ou de uma leitura ao vivo. O terminal guarda os eventos até receber o 200.
+- O evento guarda o terminal e o ponto de quem enviou, o UID inteiro em `detalhes.uid` e, se a tag existe (ativa ou não), o `usuarioId` dela. Não consome uso, não cria comando e não entra na repetição rápida do NFC.
+
+### 4.6 Tags NFC e modo de cadastro (B16)
+
+Só `ADMIN`. Formatos adotados na B16 (o `openapi.yaml` é a fonte final; pergunta #13 no `STATUS.md`).
+
+```json
+// POST /nfc-tags   { "usuarioId": "uuid", "uid": "04:a1:b2:c3", "descricao": "Cartão azul" }   (descricao é opcional, até 120)
+// 201
+{ "id": "uuid", "usuarioId": "uuid", "uid": "04A1B2C3", "descricao": "Cartão azul", "ativa": true, "criadaEm": "2026-11-07T14:32:07.000Z" }
+
+// GET /nfc-tags?usuarioId=&ativa=&page=&pageSize=   → formato paginado padrão, da mais nova para a mais antiga (criadaEm, id)
+// PATCH /nfc-tags/:id   { "ativa": false }   (só este campo; strict) → 200 com a tag
+
+// POST /terminals/:id/enroll-mode   { "usuarioId": "uuid" }
+// 200
+{ "terminalId": "uuid", "usuarioId": "uuid", "expiraEm": "2026-11-07T14:33:07.000Z" }
+```
+
+- O UID é normalizado ao gravar (`:`, `-` e espaços saem; maiúsculas) e é único no sistema, de qualquer usuário. UID que não é hexadecimal de 8 a 20 caracteres: 422 no campo `uid`. UID repetido: 409 `TAG_JA_CADASTRADA`.
+- Usuário inexistente: 404 `NOT_FOUND`; inativo: 422 no campo `usuarioId`. Vale para a tag e para o modo de cadastro. Terminal inexistente (ou `:id` que não é UUID): 404.
+- Tags não se apagam: desativar é `ativa: false`. `uid` e `usuarioId` não mudam (422 no `PATCH`).
+- Modo de cadastro: grava `modoCadastroUsuarioId` e `modoCadastroAte = agora + ENROLL_MODE_SECONDS`. O prazo ainda vale no instante exato do `modoCadastroAte` (inclusivo, como o QR e os comandos). Ligar de novo substitui o anterior. Terminal inativo é aceito. `GET /terminals` não mostra o modo.
+
+### 4.7 Histórico de acessos (B18)
+
+`GET /access-events` (só `ADMIN`) e `GET /me/access-events` (qualquer perfil, só os do token). Formato adotado na B18 (o `openapi.yaml` é a fonte final; pergunta #15 no `STATUS.md`).
+
+```json
+// GET /access-events?usuarioId=&accessPointId=&terminalId=&metodo=&resultado=&motivo=&de=&ate=&page=&pageSize=
+{ "data": [ { "id": "uuid", "ocorridoEm": "2026-10-20T14:32:07.123Z", "metodo": "QR", "resultado": "AUTORIZADO",
+    "motivo": null, "distanciaM": 14.25, "authorizationId": "uuid",
+    "usuario": { "id": "uuid", "nome": "Maria Souza", "perfil": "VISITANTE" },
+    "local": { "id": "uuid", "nome": "Catraca Social", "tipo": "CATRACA", "edificio": { "id": "uuid", "nome": "Edifício Central" } },
+    "terminal": { "id": "uuid", "nome": "Terminal Social" } } ],
+  "page": 1, "pageSize": 20, "total": 134 }
+```
+
+- Do mais recente para o mais antigo (`ocorridoEm`, depois `id`). Formato paginado padrão. Os filtros se combinam; `/me/access-events` aceita os mesmos, menos `usuarioId` (ignorado: o dono é o do token).
+- `usuario`, `local` e `terminal` são `null` quando a tentativa não os identificou (tag NFC desconhecida: sem pessoa; QR inexistente: sem local e sem terminal). Não saem na resposta: `detalhes` (UID, prefixo do hash, precisão) e `clientEventId`.
+- `de` e `ate`: instantes ISO 8601 (`Z` ou fuso), os dois **inclusivos**. Data sem hora, `ate` anterior a `de` e instante antes do ano 1 dão 422 (o PostgreSQL não tem ano 0). `motivo` aceita só os 13 códigos da seção 4.4; método e resultado, os valores do contrato.
+- Eventos são somente leitura: nenhuma rota os altera ou apaga.
+
+### 4.8 Prontidão e limites de requisição (B20)
+
+`GET /ready` (pública, para monitores) confere o banco. O `GET /health` continua respondendo 200 mesmo com o banco fora; o `/ready` é o que serve para alerta.
+
+```json
+// 200, banco no ar
+{ "status": "ready", "db": "up", "time": "2026-11-08T12:00:00.000Z" }
+// 503, banco fora (não é o formato de erro: o monitor lê o status; a mensagem do erro do banco nunca aparece)
+{ "status": "unavailable", "db": "down", "time": "2026-11-08T12:00:00.000Z" }
+```
+
+Todo limite de requisições responde `429` com `{ "error": { "code": "RATE_LIMITED", "message": "..." } }`. Os limites por minuto trazem também o cabeçalho `Retry-After` (segundos). A exceção é o intervalo mínimo do heartbeat e do QR (última linha da tabela, das etapas B11 e B12): o `429` vem sem `Retry-After` e o terminal manda o próximo no ritmo normal. Quem é contado em cada grupo de rotas:
+
+| Rotas | Contado por | Variável |
+|---|---|---|
+| `POST /auth/login` | IP e e-mail | `LOGIN_MAX_PER_MINUTE` |
+| `POST /access/qr/validate` | usuário | `QR_VALIDATE_MAX_PER_MINUTE` |
+| `GET /health`, `GET /ready` | IP (as duas somam) | `PUBLIC_MAX_PER_MINUTE` |
+| `/terminal/*` (todas somadas) | terminal | `TERMINAL_MAX_PER_MINUTE` |
+| `/terminal/*`, só as falhas de autenticação (`401`, `403`) | IP | `TERMINAL_AUTH_FAIL_MAX_PER_MINUTE` |
+| `POST /terminal/heartbeat`, `POST /terminal/qr` | terminal, intervalo mínimo | `HEARTBEAT_MIN_INTERVAL_S`, `QR_ISSUE_MIN_INTERVAL_S` |
+
+Passando do limite de falhas de autenticação, o IP recebe `429` em todas as rotas do terminal até o minuto acabar, mesmo com a chave certa. Detalhes, motivos e evidências: `docs/seguranca.md`.
 
 ## 5. Regras de acesso
 
@@ -183,22 +271,27 @@ A primeira verificação que falhar define o motivo.
 | 7 | Há alguma não cancelada | `AUTORIZACAO_CANCELADA` |
 | 8 | Alguma dentro de `dataInicio..dataFim` e de `horaInicio..horaFim` (inclusivo, São Paulo) | `FORA_DO_PERIODO` |
 | 9 | Alguma com usos restantes | `USOS_ESGOTADOS` |
-| 10 | Coordenadas presentes e válidas | `LOCALIZACAO_INVALIDA` |
+| 10 | Coordenadas presentes (ausentes ou nulas) | `LOCALIZACAO_INVALIDA` |
 | 11 | Distância (Haversine) até a posição de referência do terminal no máximo `MAX_DISTANCE_M` | `DISTANTE_DO_TERMINAL` |
 
 Se houver mais de uma autorização elegível, usar a de `dataFim` mais próxima. As verificações 6 a 9 são o `AccessEvaluator`, reaproveitado pelo NFC.
 
+Coordenadas que o app **não envia** (ausentes ou `null`) dentro de um QR bem formado são a negação `LOCALIZACAO_INVALIDA` (403, com evento). Coordenadas **fora da faixa** (latitude de -90 a 90, longitude de -180 a 180) ou que não são números são erro de formato do corpo: 422 `VALIDATION_ERROR`, antes desta ordem, sem evento e sem consumir a credencial. Decisão da B15, a confirmar com o Pedro (pergunta #12 do `STATUS.md`).
+
 ### 5.2 Ordem do NFC (`POST /terminal/nfc`)
 
-1. Terminal em modo de cadastro e prazo vigente: vincula a tag, responde `CADASTRADA`, não consome uso.
+0. `Idempotency-Key` já vista: devolve a decisão do evento anterior.
+1. Terminal em modo de cadastro e prazo vigente (o instante exato ainda vale): gasta o modo, vincula a tag, responde `CADASTRADA`, não consome uso nem grava evento.
+1b. Mesma tag no mesmo terminal em menos de `NFC_DEBOUNCE_SECONDS`: devolve a decisão anterior.
 2. Tag existe (`TAG_DESCONHECIDA`), tag ativa (`TAG_INATIVA`), usuário ativo (`USUARIO_INATIVO`).
 3. `AccessEvaluator` (verificações 6 a 9 acima, sem distância).
-4. Consumo do uso e evento na mesma transação. Sempre HTTP 200 com a decisão.
+4. Evento e consumo do uso na mesma transação (o evento primeiro: o `clientEventId` é único, e a repetição que corre contra o original nunca vira falso `USOS_ESGOTADOS`). Sempre HTTP 200 com a decisão.
 
 ### 5.3 Efeitos de uma decisão
 
-- **Aprovação (transação única):** consumir a credencial (`consumidoEm IS NULL`), consumir um uso (`usosRealizados < usosPermitidos AND situacao = 'ATIVA'`), inserir evento `AUTORIZADO`, inserir comando `ABRIR`. Se qualquer passo falhar, tudo é desfeito. Falha ao gravar o evento → 500 `INTERNAL_ERROR`, uso não consumido.
-- **Negação:** inserir evento `NEGADO` com motivo e, se o terminal foi identificado, comando `NEGAR`. O QR **não** é consumido numa negação. Se a gravação do evento falhar, registrar no log e **mesmo assim negar**.
+- **Aprovação do QR (transação única):** consumir a credencial (`consumidoEm IS NULL`), consumir um uso (`usosRealizados < usosPermitidos AND situacao = 'ATIVA'`), inserir evento `AUTORIZADO`, inserir comando `ABRIR`. Se qualquer passo falhar, tudo é desfeito. Falha ao gravar o evento → 500 `INTERNAL_ERROR`, uso não consumido.
+- **Negação do QR:** inserir evento `NEGADO` com motivo e, se o terminal foi identificado, comando `NEGAR`. O QR **não** é consumido numa negação. Se a gravação do evento falhar, registrar no log e **mesmo assim negar**.
+- **NFC (B17):** a aprovação é o evento `AUTORIZADO` (com o `Idempotency-Key` em `clientEventId`) e o consumo de um uso na mesma transação, **sem credencial e sem comando**: a resposta da rota é a decisão e o terminal abre ou nega por ela. A negação grava só o evento `NEGADO` (se a gravação falhar, registra no log e **mesmo assim nega**). Falha ao gravar o evento de uma aprovação → 500, uso não consumido.
 - Credencial desconhecida: evento com `terminalId` nulo e, em `detalhes`, só um prefixo do hash.
 
 ### 5.4 Regras puras reutilizáveis
@@ -251,8 +344,13 @@ Os CHECK vão em SQL na migração. Eventos são somente inserção.
 | `TERMINAL_POSITION_SOURCE`, `GPS_MAX_AGE_MIN` | GPS_COM_FALLBACK, 10 | posição de referência |
 | `TERMINAL_ONLINE_WINDOW_S` | 30 | online ou offline |
 | `COMMAND_TTL_SECONDS`, `OPEN_DURATION_MS` | 10, 5000 | comandos |
+| `COMMAND_PURGE_AFTER_HOURS` | 1 | limpeza de comandos vencidos |
 | `QR_REFRESH_MS`, `COMMAND_POLL_MS` | 10000, 1000 | enviados no heartbeat |
 | `ENROLL_MODE_SECONDS`, `NFC_DEBOUNCE_SECONDS` | 60, 3 | NFC |
+| `TERMINAL_MAX_PER_MINUTE` | 300 | requisições por terminal, somando as rotas `/terminal/*` |
+| `TERMINAL_AUTH_FAIL_MAX_PER_MINUTE` | 20 | falhas de autenticação do terminal por IP |
+| `PUBLIC_MAX_PER_MINUTE` | 120 | `/health` e `/ready` por IP |
+| `TRUST_PROXY` | 0 | quantos proxies reversos ficam na frente da API (número, nunca `true`) |
 | `SEED_ADMIN_EMAIL`, `SEED_ADMIN_PASSWORD` | — | seed |
 
 Toda variável nova entra em `.env.example` e em `config/env.ts`.
@@ -275,7 +373,7 @@ Cada linha precisa de teste automatizado (U = unidade com doubles; I = integraç
 | 8 | Dentro do período, fora do horário | `FORA_DO_PERIODO` | U e I |
 | 9 | Usos esgotados | `USOS_ESGOTADOS` | U e I |
 | 10 | Distância acima do limite (99 m passa, 101 m não) | `DISTANTE_DO_TERMINAL` | U e I |
-| 11 | Coordenadas ausentes ou inválidas | `LOCALIZACAO_INVALIDA` | U e I |
+| 11 | Coordenadas ausentes ou nulas (fora da faixa ou não numéricas: 422, sem evento) | `LOCALIZACAO_INVALIDA` | U e I |
 | 12 | Usuário inativo | `USUARIO_INATIVO` | U e I |
 | 13 | Duas leituras simultâneas com um uso restante | Só uma aprovada | **I** |
 | 14 | Sem autenticação | 401 | I |
@@ -299,4 +397,4 @@ Mais: dois QRs diferentes com um uso restante → só um aprovado (**I**); `hora
 - Só `ADMIN` cria, cancela e consulta autorizações (403 para os demais).
 - Cada filtro da consulta devolve o conjunto certo; usuário só vê as próprias (teste de vazamento: A lendo a de B → 404).
 - Cancelamento é imediato e aparece na validação seguinte.
-- Lote offline duplicado grava cada evento uma vez; evento `AUTORIZADO` no lote é rejeitado.
+- Lote offline duplicado grava cada evento uma vez; evento `AUTORIZADO` no lote é rejeitado (B19, `terminalEventsBatch.test.ts`).

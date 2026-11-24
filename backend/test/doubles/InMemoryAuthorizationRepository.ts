@@ -56,6 +56,13 @@ export class InMemoryAuthorizationRepository implements IAuthorizationRepository
     };
   }
 
+  async findByUserAndAccessPoint(userId: string, accessPointId: string) {
+    return [...this.items.values()]
+      .filter((a) => a.usuarioId === userId && a.accessPointId === accessPointId)
+      .sort((a, b) => a.dataFim.localeCompare(b.dataFim) || a.id.localeCompare(b.id))
+      .map((a) => ({ ...a }));
+  }
+
   async cancelIfActive(input: {
     id: string;
     canceladoPorId: string;
@@ -72,6 +79,28 @@ export class InMemoryAuthorizationRepository implements IAuthorizationRepository
       motivoCancelamento: input.motivo,
     });
     return true;
+  }
+
+  /**
+   * Not part of the port: consumes one use as the approval does, only while the status is `ATIVA` and
+   * a use is left. Returns the uses left afterwards, or null when nothing was consumed.
+   */
+  consumeUseIfAvailable(id: string) {
+    const current = this.items.get(id);
+    if (!current || current.situacao !== 'ATIVA') return null;
+    if (current.usosRealizados >= current.usosPermitidos) return null;
+    const usosRealizados = current.usosRealizados + 1;
+    this.items.set(id, { ...current, usosRealizados });
+    return current.usosPermitidos - usosRealizados;
+  }
+
+  /** Not part of the port: the state to go back to when an approval fails halfway. */
+  snapshot() {
+    return new Map(this.items);
+  }
+
+  restore(snapshot: Map<string, Authorization>) {
+    this.items = new Map(snapshot);
   }
 
   async hasActiveNonExpiredForAccessPoint(accessPointId: string, today: string) {
@@ -116,6 +145,11 @@ export class InMemoryAuthorizationRepository implements IAuthorizationRepository
       criadoPor: { id: author.id, nome: author.nome },
       canceladoPor: canceller ? { id: canceller.id, nome: canceller.nome } : null,
     };
+  }
+
+  /** Not part of the port: empties the store, to replace the default scene of a test. */
+  clear() {
+    this.items.clear();
   }
 
   /** Not part of the port: lets a test see every stored authorization. */

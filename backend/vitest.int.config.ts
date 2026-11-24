@@ -23,6 +23,15 @@ export default defineConfig({
       JWT_SECRET: 'segredo-somente-para-testes-de-integracao-0123456789',
       // Cheapest bcrypt cost, so the tests that hash passwords stay fast.
       BCRYPT_COST: '4',
+      // Not the default (60): the enroll-mode test then fails if the wiring of the variable breaks.
+      ENROLL_MODE_SECONDS: '45',
+      // Not the default (3): the debounce test then fails if the wiring of the variable breaks.
+      NFC_DEBOUNCE_SECONDS: '5',
+      // Not the defaults (300, 20 and 120), and low enough for the rate-limit tests to run fast. The tests
+      // read them back from the env, so a limiter that ignores the variable fails them.
+      TERMINAL_MAX_PER_MINUTE: '100',
+      TERMINAL_AUTH_FAIL_MAX_PER_MINUTE: '12',
+      PUBLIC_MAX_PER_MINUTE: '60',
     },
   },
 });

@@ -8,11 +8,11 @@ Legenda: **U** = unitário (doubles, sem banco) · **I** = integração (superte
 
 ### B16 — Tags NFC: vínculo com usuários (apoio ao RF10)
 
-- **Depende de:** B06, B07 · **Libera:** B17; Lucas (F13); Pedro (I10, I11)
+- **Depende de:** B06, B07 · **Libera:** B17; Pedro (F13); Matheus (I10, I11)
 - **Prazo:** Sprint 3, semana 1 (início) · **Prioridade:** 🔴
 - **Objetivo:** o documento não diz como a tag é associada a uma pessoa (ambiguidade 3). O administrador vincula a tag.
 
-**Use cases** (`src/useCases/Nfc/`): `CreateNfcTag`, `ListNfcTags`, `UpdateNfcTag`, 🟢 `EnableEnrollMode`. Regra pura `normalizeUid` em `entities/rules`. Port `INfcTagRepository` (`save`, `findByUid`, `list`, `update`).
+**Use cases** (`src/useCases/Nfc/`): `CreateNfcTag`, `ListNfcTags`, `UpdateNfcTag`, 🟢 `EnableEnrollMode`. Regra pura `normalizeUid` em `entities/rules`. Port `INfcTagRepository` (`save`, `list`, `updateStatus`; o `findByUid` entra na B17, que é quem o usa).
 
 **Regras**
 
@@ -23,35 +23,36 @@ Legenda: **U** = unitário (doubles, sem banco) · **I** = integração (superte
 
 **Lista de testes**
 
-- [ ] U `normalizeUid`: `04:a1:b2:c3` e `04A1B2C3` resultam em `04A1B2C3`; também com hífens e espaços.
-- [ ] U `normalizeUid`: caractere não hexadecimal, 7 caracteres e 21 caracteres são rejeitados; 8 e 20 passam.
-- [ ] U `CreateNfcTag`: grava o UID normalizado e `ativa: true`.
-- [ ] U `CreateNfcTag`: UID duplicado, mesmo escrito de outro jeito, lança 409 `TAG_JA_CADASTRADA`.
-- [ ] U `CreateNfcTag`: usuário inexistente → 404; inativo → 422.
-- [ ] U `UpdateNfcTag`: desativar e reativar; tag inexistente → 404.
-- [ ] U `EnableEnrollMode` (se feito): grava prazo de 60 s e o modo expira sozinho (`FakeClock` T+61 s).
-- [ ] I UID inválido → 422; tag duplicada → 409; só `ADMIN` acessa (403 para os demais).
-- [ ] I filtros `usuarioId` e `ativa` da listagem.
+- [x] U `normalizeUid`: `04:a1:b2:c3` e `04A1B2C3` resultam em `04A1B2C3`; também com hífens e espaços.
+- [x] U `normalizeUid`: caractere não hexadecimal, 7 caracteres e 21 caracteres são rejeitados; 8 e 20 passam.
+- [x] U `CreateNfcTag`: grava o UID normalizado e `ativa: true`.
+- [x] U `CreateNfcTag`: UID duplicado, mesmo escrito de outro jeito, lança 409 `TAG_JA_CADASTRADA`.
+- [x] U `CreateNfcTag`: usuário inexistente → 404; inativo → 422.
+- [x] U `UpdateNfcTag`: desativar e reativar; tag inexistente → 404.
+- [x] U `EnableEnrollMode` (se feito): grava prazo de 60 s e o modo expira sozinho (`FakeClock` T+61 s).
+- [x] I UID inválido → 422; tag duplicada → 409; só `ADMIN` acessa (403 para os demais).
+- [x] I filtros `usuarioId` e `ativa` da listagem.
 
 **Critérios de aceitação**
 
-- [ ] `04:a1:b2:c3` e `04A1B2C3` resultam no mesmo UID salvo.
-- [ ] UID com caracteres inválidos ou tamanho errado → 422.
-- [ ] Tag duplicada → 409.
-- [ ] Desativar a tag impede o uso (verificado na B17).
-- [ ] Só `ADMIN` acessa.
-- [ ] (Opcional) o modo de cadastro expira sozinho em 60 s.
+- [x] `04:a1:b2:c3` e `04A1B2C3` resultam no mesmo UID salvo.
+- [x] UID com caracteres inválidos ou tamanho errado → 422.
+- [x] Tag duplicada → 409.
+- [x] Desativar a tag impede o uso (verificado na B17). _O `PATCH` desativa e reativa (testes de integração da B16); a recusa na leitura (`TAG_INATIVA`) está em `terminalNfc.test.ts` da B17._
+- [x] Só `ADMIN` acessa.
+- [x] (Opcional) o modo de cadastro expira sozinho em 60 s.
 
 **Definição de pronto**
 
-- [ ] Testes de normalização, duplicidade, desativação e perfil.
-- [ ] Swagger atualizado; Lucas avisado (★).
+- [x] Testes de normalização, duplicidade, desativação e perfil.
+- [x] Swagger atualizado.
+- [ ] Pedro avisado (★).
 
 ---
 
 ### B17 — Validação de acesso por NFC (RF14)
 
-- **Depende de:** B15, B16 · **Libera:** **Pedro (I11) ★**; B19
+- **Depende de:** B15, B16 · **Libera:** **Matheus (I11) ★**; B19
 - **Prazo:** Sprint 3, semana 1 · **Prioridade:** 🔴
 - **Objetivo:** o terminal envia o UID lido e recebe a decisão na própria resposta.
 
@@ -68,36 +69,36 @@ Legenda: **U** = unitário (doubles, sem banco) · **I** = integração (superte
 
 **Lista de testes**
 
-- [ ] U tag válida com autorização válida → `AUTORIZADO` com `aberturaMs`, um uso consumido, um evento `NFC`.
-- [ ] U tag desconhecida → `NEGADO` `TAG_DESCONHECIDA`; tag desativada → `TAG_INATIVA`; usuário inativo → `USUARIO_INATIVO` (um evento cada).
-- [ ] U autorização cancelada, fora do período, usos esgotados e de outro local → `NEGADO` com o motivo certo, um evento cada.
-- [ ] U a distância **não** é avaliada (nenhuma coordenada é exigida).
-- [ ] U mesma `Idempotency-Key` repetida → decisão anterior, sem novo consumo e sem novo evento.
-- [ ] U mesma tag no mesmo terminal em menos de 3 s → decisão anterior; a partir de 3 s é nova tentativa (`FakeClock`).
-- [ ] U modo de cadastro vigente → `CADASTRADA`, tag vinculada, nenhum uso consumido, nenhum evento de acesso.
-- [ ] U modo de cadastro vencido → segue o fluxo normal.
-- [ ] I `POST /terminal/nfc` sem cabeçalhos do terminal → 401; terminal inativo → 403; UID inválido → 422.
-- [ ] I duas leituras simultâneas com um uso restante → só uma `AUTORIZADO`.
-- [ ] I resposta em até 2 s.
+- [x] U tag válida com autorização válida → `AUTORIZADO` com `aberturaMs`, um uso consumido, um evento `NFC`.
+- [x] U tag desconhecida → `NEGADO` `TAG_DESCONHECIDA`; tag desativada → `TAG_INATIVA`; usuário inativo → `USUARIO_INATIVO` (um evento cada).
+- [x] U autorização cancelada, fora do período, usos esgotados e de outro local → `NEGADO` com o motivo certo, um evento cada.
+- [x] U a distância **não** é avaliada (nenhuma coordenada é exigida).
+- [x] U mesma `Idempotency-Key` repetida → decisão anterior, sem novo consumo e sem novo evento.
+- [x] U mesma tag no mesmo terminal em menos de 3 s → decisão anterior; a partir de 3 s é nova tentativa (`FakeClock`).
+- [x] U modo de cadastro vigente → `CADASTRADA`, tag vinculada, nenhum uso consumido, nenhum evento de acesso.
+- [x] U modo de cadastro vencido → segue o fluxo normal.
+- [x] I `POST /terminal/nfc` sem cabeçalhos do terminal → 401; terminal inativo → 403; UID inválido → 422.
+- [x] I duas leituras simultâneas com um uso restante → só uma `AUTORIZADO`.
+- [x] I resposta em até 2 s. _Medido localmente (menos de 2 s no teste de integração)._
 
 **Critérios de aceitação**
 
-- [ ] Tag válida com autorização válida → `AUTORIZADO` com `aberturaMs`, um uso consumido, um evento `NFC`.
-- [ ] Tag desconhecida, desativada, usuário inativo, autorização cancelada, fora do período e usos esgotados → `NEGADO` com o código certo e um evento cada.
-- [ ] Repetir a mesma `Idempotency-Key` não consome outro uso.
-- [ ] Resposta em até 2 s no ambiente de homologação.
-- [ ] Modo de cadastro vincula a tag, responde `CADASTRADA` e não registra acesso.
+- [x] Tag válida com autorização válida → `AUTORIZADO` com `aberturaMs`, um uso consumido, um evento `NFC`.
+- [x] Tag desconhecida, desativada, usuário inativo, autorização cancelada, fora do período e usos esgotados → `NEGADO` com o código certo e um evento cada.
+- [x] Repetir a mesma `Idempotency-Key` não consome outro uso.
+- [ ] Resposta em até 2 s no ambiente de homologação. _Medida só local (menos de 2 s nos testes); a homologação depende da B10._
+- [x] Modo de cadastro vincula a tag, responde `CADASTRADA` e não registra acesso.
 
 **Definição de pronto**
 
-- [ ] Os casos NFC da seção 9.2 do arquivo 03 estão automatizados, inclusive a idempotência.
-- [ ] Pedro avisado (★).
+- [x] Os casos NFC da seção 9.2 do arquivo 03 estão automatizados, inclusive a idempotência.
+- [ ] Matheus avisado (★).
 
 ---
 
 ### B18 — Histórico de acessos (RF06)
 
-- **Depende de:** B13 · **Libera:** Lucas (F12)
+- **Depende de:** B13 · **Libera:** Pedro (F12)
 - **Prazo:** Sprint 3, semana 1 · **Prioridade:** 🟡
 - **Objetivo:** consultar as tentativas, aprovadas e negadas, com filtros.
 
@@ -112,31 +113,31 @@ Legenda: **U** = unitário (doubles, sem banco) · **I** = integração (superte
 
 **Lista de testes**
 
-- [ ] U `ListMyAccessEvents`: usa sempre o id do token.
-- [ ] I cada filtro funciona isolado e combinado (um teste por filtro).
-- [ ] I eventos aprovados e negados aparecem; os negados trazem o `motivo`.
-- [ ] I usuário comum só enxerga os próprios em `/me/access-events` e recebe 403 em `/access-events`.
-- [ ] I evento sem usuário (credencial desconhecida) aparece com `usuario: null`.
-- [ ] I com 10 mil eventos (criados em lote no teste) uma página volta em menos de 300 ms.
-- [ ] I não existe rota que altere ou apague eventos.
+- [x] U `ListMyAccessEvents`: usa sempre o id do token.
+- [x] I cada filtro funciona isolado e combinado (um teste por filtro).
+- [x] I eventos aprovados e negados aparecem; os negados trazem o `motivo`.
+- [x] I usuário comum só enxerga os próprios em `/me/access-events` e recebe 403 em `/access-events`.
+- [x] I evento sem usuário (credencial desconhecida) aparece com `usuario: null`. _Na prática só a tag NFC desconhecida fica sem pessoa; o QR desconhecido traz o usuário logado (`docs/eventos-campos.md`). O teste cobre as duas formas, e o fluxo real do NFC._
+- [x] I com 10 mil eventos (criados em lote no teste) uma página volta em menos de 300 ms. _Medido: de 11 a 26 ms por requisição inteira._
+- [x] I não existe rota que altere ou apague eventos.
 
 **Critérios de aceitação**
 
-- [ ] Cada filtro funciona isolado e combinado.
-- [ ] Eventos aprovados e negados aparecem; os negados trazem o `motivo`.
-- [ ] Usuário comum só enxerga os próprios (`/me/access-events`) e recebe 403 em `/access-events`.
-- [ ] Com 10 mil eventos, uma página é devolvida em menos de 300 ms localmente.
-- [ ] Não existe rota que altere ou apague eventos.
+- [x] Cada filtro funciona isolado e combinado.
+- [x] Eventos aprovados e negados aparecem; os negados trazem o `motivo`.
+- [x] Usuário comum só enxerga os próprios (`/me/access-events`) e recebe 403 em `/access-events`.
+- [x] Com 10 mil eventos, uma página é devolvida em menos de 300 ms localmente.
+- [x] Não existe rota que altere ou apague eventos.
 
 **Definição de pronto**
 
-- [ ] Testes por filtro e de isolamento entre usuários; Swagger atualizado.
+- [x] Testes por filtro e de isolamento entre usuários; Swagger atualizado.
 
 ---
 
 ### B19 — Eventos offline e idempotência (RNF03)
 
-- **Depende de:** B13, B17 · **Libera:** **Pedro (I12) ★**
+- **Depende de:** B13, B17 · **Libera:** **Matheus (I12) ★**
 - **Prazo:** Sprint 3, semana 1 · **Prioridade:** 🟡
 - **Objetivo:** quando o terminal perde a conexão, guarda as tentativas e envia depois, sem duplicar e sem "forjar" aprovações.
 
@@ -153,25 +154,28 @@ Legenda: **U** = unitário (doubles, sem banco) · **I** = integração (superte
 
 **Lista de testes**
 
-- [ ] U enviar o mesmo lote duas vezes grava cada evento uma única vez (`aceitos` e `duplicados` corretos).
-- [ ] U lote parcial: 3 novos e 1 já recebido → `aceitos: 3`, `duplicados: 1`.
-- [ ] U evento `AUTORIZADO` é rejeitado com erro de validação.
-- [ ] U `ocorridoEm` 6 minutos no futuro e 8 dias no passado são rejeitados; 5 minutos e 7 dias passam (`FakeClock`).
-- [ ] U UID conhecido preenche `usuarioId`; UID desconhecido deixa nulo.
-- [ ] I lote com 51 eventos → 422; corpo acima de 64 kb → 413.
-- [ ] I chave de terminal inválida → 401.
-- [ ] I o histórico (B18) mostra os eventos offline com `motivo = TERMINAL_OFFLINE`.
+O teste unitário "não consome uso" do plano ficou só na integração: o use case nem recebe o repositório de autorizações, então só o banco prova que o uso e a autorização não mudam.
+
+- [x] U enviar o mesmo lote duas vezes grava cada evento uma única vez (`aceitos` e `duplicados` corretos). _A chave em maiúsculas é a mesma em minúsculas: o DTO a normaliza, então esse caso está no teste de rota._
+- [x] U lote parcial: 3 novos e 1 já recebido → `aceitos: 3`, `duplicados: 1`.
+- [x] U evento `AUTORIZADO` é rejeitado com erro de validação.
+- [x] U `ocorridoEm` 6 minutos no futuro e 8 dias no passado são rejeitados; 5 minutos e 7 dias passam (`FakeClock`).
+- [x] U UID conhecido preenche `usuarioId`; UID desconhecido deixa nulo.
+- [x] I lote com 51 eventos → 422; corpo acima de 64 kb → 413. _Com 64 kb exatos o corpo passa; com 1 byte a mais, 413. Acima de 100 kb qualquer rota dá 413 (antes era 500)._
+- [x] I chave de terminal inválida → 401. _Terminal inativo dá 403._
+- [x] I o histórico (B18) mostra os eventos offline com `motivo = TERMINAL_OFFLINE`.
 
 **Critérios de aceitação**
 
-- [ ] Enviar o mesmo lote duas vezes grava cada evento uma única vez.
-- [ ] Evento com `resultado = AUTORIZADO` é rejeitado (422).
-- [ ] Data fora da janela é rejeitada.
-- [ ] O histórico (B18) mostra os eventos offline com o motivo `TERMINAL_OFFLINE`.
+- [x] Enviar o mesmo lote duas vezes grava cada evento uma única vez. _Também com quatro envios simultâneos do mesmo lote._
+- [x] Evento com `resultado = AUTORIZADO` é rejeitado (422).
+- [x] Data fora da janela é rejeitada.
+- [x] O histórico (B18) mostra os eventos offline com o motivo `TERMINAL_OFFLINE`.
 
 **Definição de pronto**
 
-- [ ] Testes de duplicidade, lote parcial e limites; Pedro avisado (★).
+- [x] Testes de duplicidade, lote parcial e limites.
+- [ ] Matheus avisado (★).
 
 ---
 
@@ -185,38 +189,40 @@ Legenda: **U** = unitário (doubles, sem banco) · **I** = integração (superte
 
 **Segurança (cada item com evidência: print ou comando)**
 
-- [ ] `helmet` e origens do CORS revisados; HTTPS obrigatório (HSTS em produção).
-- [ ] Limites de requisição revisados em todas as rotas públicas e de terminal.
-- [ ] Validação de entrada conferida em **todas** as rotas.
-- [ ] Varredura de segredos no repositório e `npm audit` no CI.
-- [ ] Logs sem dados sensíveis; erros sem stack trace em produção.
-- [ ] Procedimento de troca do `JWT_SECRET` e da chave do terminal documentado.
+- [x] `helmet` e origens do CORS revisados; HTTPS obrigatório (HSTS em produção). _`docs/seguranca.md` seção 1: `securityHeaders.test.ts` e o `curl` em produção. O TLS é do provedor (B10): a API só manda o HSTS._
+- [x] Limites de requisição revisados em todas as rotas públicas e de terminal. _Seção 2: `rateLimits.test.ts` e um spec por limitador._
+- [x] Validação de entrada conferida em **todas** as rotas. _Seção 3: `routeInventory.test.ts` (37 rotas); nenhuma estava sem validação._
+- [x] Varredura de segredos no repositório e `npm audit` no CI. _Seção 4: job "Segurança" do `ci.yml`. Rodado local (0 vulnerabilidades em produção; 31 falsos positivos revisados, 0 achados); a 1ª execução no GitHub acontece no PR._
+- [x] Logs sem dados sensíveis; erros sem stack trace em produção. _Seção 5: `requestLog.test.ts` e `errors.test.ts`._
+- [x] Procedimento de troca do `JWT_SECRET` e da chave do terminal documentado. _Seção 6._
 
 **Monitoramento:** logs estruturados; `/health` e `/ready`; aviso de queda (monitor de disponibilidade gratuito ou notificação do pipeline); selo do CI/CD no README.
 
 **Documentação (RP07):** OpenAPI completo, diagrama ER, diagramas de sequência (QR e NFC), seção "Backend" do documento de arquitetura, descrição da comunicação com terminal e app, plano de testes e relatório de execução, instruções de backup e restauração do banco.
 
+_Entregue em `backend/docs/`: `openapi.yaml` (testado contra as rotas), `modelo-de-dados.md`, `sequencias.md`, `arquitetura-backend.md` (não existe documento de arquitetura do projeto no repositório), `comunicacao.md`, `plano-de-testes.md`, `backup-e-restauracao.md` (testado no compose) e `seguranca.md`._
+
 **Lista de testes**
 
-- [ ] U `GetReadiness`: banco fora → não pronto; banco no ar → pronto.
-- [ ] I `GET /ready`: 200 com o banco no ar.
-- [ ] I cabeçalhos de segurança do `helmet` presentes; com `NODE_ENV=production`, `Strict-Transport-Security` presente.
-- [ ] I CORS recusa origem fora da lista.
-- [ ] I teste genérico: percorre todas as rotas registradas com corpo inválido e espera 422 (nenhuma rota sem validação).
-- [ ] I toda rota de terminal e pública tem limite de requisição (429 ao exceder).
-- [ ] I resposta de erro 500 em produção não contém stack nem mensagem interna.
-- [ ] Verificação manual: parar o banco e conferir o alerta em até 5 minutos.
+- [x] U `GetReadiness`: banco fora → não pronto; banco no ar → pronto. _E a sonda que lança erro também dá "não pronto"._
+- [x] I `GET /ready`: 200 com o banco no ar. _E 503 com ele fora, sem vazar o erro; a sonda real contra uma porta fechada rejeita._
+- [x] I cabeçalhos de segurança do `helmet` presentes; com `NODE_ENV=production`, `Strict-Transport-Security` presente. _E ausente fora de produção._
+- [x] I CORS recusa origem fora da lista. _"Recusa" = a origem não recebe `Access-Control-Allow-Origin`, e o navegador bloqueia._
+- [x] I teste genérico: percorre todas as rotas registradas com corpo inválido e espera 422 (nenhuma rota sem validação). _Corpo inválido → 422, filtro inválido → 422 e id malformado → 404 (decisão da B06); rota nova sem classificação derruba o teste._
+- [x] I toda rota de terminal e pública tem limite de requisição (429 ao exceder). _As rotas do terminal são lidas do router; o login e a validação de QR já tinham o limite delas._
+- [x] I resposta de erro 500 em produção não contém stack nem mensagem interna. _Também numa rota real, com o erro do driver do banco._
+- [ ] Verificação manual: parar o banco e conferir o alerta em até 5 minutos. _Feita a parte local (`/ready` dá 503, a API se recupera sozinha); o alerta depende da B10 e de um monitor externo._
 
 **Critérios de aceitação**
 
-- [ ] A lista de segurança está toda marcada, com evidência (print ou comando) para cada item.
+- [x] A lista de segurança está toda marcada, com evidência (print ou comando) para cada item. _`docs/seguranca.md`._
 - [ ] Parar o banco gera alerta visível em até 5 minutos.
 - [ ] Uma pessoa de fora consegue subir e testar o sistema só com o README.
 
 **Definição de pronto**
 
-- [ ] Documentos revisados por Lucas e Pedro.
-- [ ] Relatório de cobertura de testes anexado.
+- [ ] Documentos revisados por Pedro e Matheus.
+- [x] Relatório de cobertura de testes anexado. _`docs/plano-de-testes.md`, seção 7; o CI também publica o artefato `backend-coverage`._
 
 ---
 

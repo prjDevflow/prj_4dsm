@@ -50,8 +50,8 @@ do banco.
 
 O middleware `authenticateTerminal` (B07) confere os dois cabeçalhos: chave errada, ausente ou id desconhecido dão
 `401 UNAUTHORIZED` (a mesma mensagem nos três casos); terminal inativo com a chave certa dá `403 FORBIDDEN`. As rotas
-`/terminal/*` que o usam chegam aos poucos: o heartbeat (B11) já existe; o QR, os comandos e as validações vêm nas
-etapas seguintes. O administrador vê o terminal do seed em `GET /terminals` (campo `online`).
+`/terminal/*` que o usam são o heartbeat (B11), o QR (B12) e os comandos (B14). A validação de acesso (B15) é do app e usa
+o token do usuário. O administrador vê o terminal do seed em `GET /terminals` (campo `online`).
 
 Heartbeat de teste (o terminal deve mandar a cada 10 s; menos de 2 s entre dois dá `429`):
 
@@ -63,6 +63,89 @@ curl -s -X POST http://localhost:3000/api/v1/terminal/heartbeat \
 # {"serverTime":"2026-10-20T14:32:07Z","config":{"qrRefreshMs":10000,"commandPollMs":1000,"aberturaMs":5000}}
 ```
 
+QR Code de teste, sem terminal físico (B12). O comando emite um QR para o terminal do seed e imprime só o `payload` na
+saída padrão (o aviso de validade vai para a saída de erro):
+
+```bash
+npm run dev:qr
+# ACS1:q3F8k2Zr1pLw9XbTn0YhVA
+# QR emitido para o terminal 5eed0000-0000-4000-8000-000000000006, válido até 2026-10-20T14:32:22.000Z.
+```
+
+- O QR vale 15 s e é de uso único; use-o logo (veja a validação por QR mais abaixo). Um pedido com menos de 5 s do anterior
+  dá `QR Code pedido com muita frequência. Aguarde alguns segundos`, igual à rota.
+- Para ver o QR como imagem: `npm run --silent dev:qr 2>/dev/null | qrencode -t ANSIUTF8` (precisa do `qrencode`).
+- **O comando recusa rodar com `NODE_ENV=production`** (no ambiente ou no `.env`): ele emite credenciais válidas, é só
+  para desenvolvimento. Ele grava no banco do `.env`, então o terminal do seed precisa existir (`npm run db:seed`). Com a `DATABASE_URL` do `.env` apontando para o banco em nuvem (Neon), o QR é gravado lá: confira a URL antes de rodar. O comando também não confere se o terminal está ativo, ao contrário da rota.
+- A mesma emissão por HTTP, com a chave de dev:
+
+```bash
+curl -s -X POST http://localhost:3000/api/v1/terminal/qr \
+  -H 'X-Terminal-Id: 5eed0000-0000-4000-8000-000000000006' \
+  -H 'X-Terminal-Key: terminal-dev-key-1234567890abcdef1234567890'
+# {"payload":"ACS1:q3F8k2Zr1pLw9XbTn0YhVA","emitidoEm":"2026-10-20T14:32:07.000Z","expiraEm":"2026-10-20T14:32:22.000Z","renovarEmMs":10000}
+```
+
+Comandos para o terminal (B14). O terminal consulta a cada 1 s (`commandPollMs`) e confirma o que executou:
+
+```bash
+H=(-H 'X-Terminal-Id: 5eed0000-0000-4000-8000-000000000006' \
+   -H 'X-Terminal-Key: terminal-dev-key-1234567890abcdef1234567890')
+curl -s "${H[@]}" 'http://localhost:3000/api/v1/terminal/commands?after=0&limit=10'
+# {"commands":[{"id":42,"tipo":"ABRIR","aberturaMs":5000,"criadoEm":"2026-10-20T14:32:07.123Z"},
+#              {"id":43,"tipo":"NEGAR","motivo":"DISTANTE_DO_TERMINAL","criadoEm":"2026-10-20T14:32:08.456Z"}]}
+curl -s -o /dev/null -w '%{http_code}\n' -X POST "${H[@]}" http://localhost:3000/api/v1/terminal/commands/42/ack
+# 204
+```
+
+- Na próxima consulta use `after=<maior id que o terminal já viu>`: assim ele não recebe o mesmo comando duas vezes.
+- **Um comando vale 10 s** (`COMMAND_TTL_SECONDS`) depois de criado; passado isso ele nunca é entregue, para um `ABRIR`
+  não abrir a catraca minutos depois. A lista vazia (`{"commands":[]}`) é a resposta normal quando não há nada novo.
+- O `ack` de um comando de outro terminal, ou de um id que não existe, dá `404`; repetir o `ack` dá `204` de novo.
+- Quem cria os comandos é a validação de acesso (B15, abaixo): `ABRIR` quando aprova e `NEGAR` com o motivo quando
+  nega. Para testar só o terminal, sem passar por ela, ainda dá para inserir um na mão (vale 10 s; rode e consulte
+  logo em seguida):
+
+```bash
+docker compose exec db psql -U access -d access -c "INSERT INTO terminal_commands (\"terminalId\", tipo, \"aberturaMs\", \"criadoEm\", \"expiraEm\") VALUES ('5eed0000-0000-4000-8000-000000000006', 'ABRIR', 5000, now(), now() + interval '10 seconds')"
+```
+
+- Os comandos vencidos há mais de 1 hora (`COMMAND_PURGE_AFTER_HOURS`) são apagados por um job a cada minuto, que sobe com
+  o servidor (`npm run dev`, `npm start`).
+
+Validação de acesso por QR (B15). É o que o app faz depois de ler o QR Code: `POST /access/qr/validate`, com o token
+do usuário. O visitante do seed tem uma autorização de 100 usos nesta catraca (00:00 a 23:59), então o fluxo todo roda
+com os dados do seed e do `dev:qr`:
+
+```bash
+B=http://localhost:3000/api/v1
+TOKEN=$(curl -s -X POST $B/auth/login -H 'content-type: application/json' \
+  -d '{"email":"visitante@dev.local","senha":"Usuario-Dev-2026"}' | sed 's/.*"accessToken":"\([^"]*\)".*/\1/')
+QR=$(npm run --silent dev:qr 2>/dev/null)      # o QR vale 15 s: valide logo
+
+curl -s -X POST $B/access/qr/validate -H "Authorization: Bearer $TOKEN" -H 'content-type: application/json' \
+  -d "{\"payload\":\"$QR\",\"latitude\":-23.30512,\"longitude\":-45.96551,\"precisaoMetros\":12.5}"
+# 200 {"resultado":"AUTORIZADO","mensagem":"Acesso autorizado. Pode passar.","local":{"nome":"Catraca de Testes"},
+#      "usosRestantes":99,"distanciaM":0,"ocorridoEm":"2026-10-20T14:32:07Z"}
+
+# o mesmo QR de novo, ou um QR com o celular a mais de 100 m, dá 403 com o motivo e o texto para mostrar:
+# 403 {"error":{"code":"CREDENCIAL_REUTILIZADA","message":"Este QR Code já foi usado. Aguarde o próximo e leia de novo."}}
+```
+
+- **Cada tentativa vira um evento** (`access_events`) e, quando o QR identifica o terminal, um comando para ele: `ABRIR` na
+  aprovação, `NEGAR` com o motivo na negação. O terminal os vê em `GET /terminal/commands` (acima) em até 1 s e tem
+  10 s para executá-los.
+- A aprovação consome a credencial e **um** uso; a negação não consome nada, então o mesmo QR pode ser tentado de novo
+  dentro dos 15 s (por exemplo, depois de chegar mais perto). O visitante do seed perde um uso a cada aprovação e o seed
+  não os devolve (`npm run db:reset` recomeça do zero).
+- Os motivos de negação e os textos estão na seção 4.4 do contrato e, um exemplo de cada, no Swagger (`/docs`).
+- Coordenadas **ausentes** dão `LOCALIZACAO_INVALIDA` (403); coordenadas **fora da faixa**, ou um `payload` que não é
+  `ACS1:` mais 22 caracteres, dão 422 e não geram evento. Sem token é 401, também sem evento.
+- A posição do terminal para medir a distância é o GPS dele, se o último heartbeat tem fix e menos de 10 min; senão,
+  as coordenadas do ponto de acesso (`TERMINAL_POSITION_SOURCE=GPS_COM_FALLBACK`). Para testar com o ponto fixo, mande
+  um heartbeat com `gpsFix: false` ou use `TERMINAL_POSITION_SOURCE=CADASTRO`.
+- Mais de 10 validações por minuto do mesmo usuário dão `429` (`QR_VALIDATE_MAX_PER_MINUTE`).
+
 Para o administrador cadastrar um terminal novo ou trocar a chave (a chave só aparece na resposta):
 
 ```bash
@@ -72,6 +155,120 @@ curl -s http://localhost:3000/api/v1/terminals -H "Authorization: Bearer $TOKEN"
 curl -s -X POST http://localhost:3000/api/v1/terminals/5eed0000-0000-4000-8000-000000000006/rotate-key \
   -H "Authorization: Bearer $TOKEN"   # a chave de dev deixa de valer: rode o seed de novo para restaurá-la
 ```
+
+## Tags NFC (B16)
+
+O administrador vincula uma tag a um usuário. O visitante do seed (`5eed0000-0000-4000-8000-000000000003`) serve
+para o teste. Para o ESP32 de bancada (I10), o UID lido aparece na serial; é esse texto que se digita aqui:
+
+```bash
+B=http://localhost:3000/api/v1
+TOKEN=$(curl -s -X POST $B/auth/login -H 'content-type: application/json' \
+  -d '{"email":"admin@dev.local","senha":"Admin-Dev-2026"}' | sed 's/.*"accessToken":"\([^"]*\)".*/\1/')
+
+# vincula a tag (o UID pode vir com ":" ou "-" e em minúsculas: vira 04A1B2C3)
+curl -s -X POST $B/nfc-tags -H "Authorization: Bearer $TOKEN" -H 'content-type: application/json' \
+  -d '{"usuarioId":"5eed0000-0000-4000-8000-000000000003","uid":"04:a1:b2:c3","descricao":"Cartão azul"}'
+# 201 {"id":"...","usuarioId":"5eed0000-0000-4000-8000-000000000003","uid":"04A1B2C3","descricao":"Cartão azul","ativa":true,"criadaEm":"..."}
+# o mesmo UID de novo, escrito de qualquer jeito, dá 409:
+# 409 {"error":{"code":"TAG_JA_CADASTRADA","message":"Esta tag já está cadastrada"}}
+
+curl -s "$B/nfc-tags?usuarioId=5eed0000-0000-4000-8000-000000000003&ativa=true" -H "Authorization: Bearer $TOKEN"
+
+# desativa (a próxima leitura dá NEGADO TAG_INATIVA); {"ativa":true} reativa
+curl -s -X PATCH $B/nfc-tags/<id> -H "Authorization: Bearer $TOKEN" -H 'content-type: application/json' \
+  -d '{"ativa":false}'
+```
+
+Modo de cadastro (I11): em vez de digitar o UID, o administrador liga o modo no terminal e encosta a tag nele. Ligar o
+modo só grava o usuário e o prazo; quem vincula a tag é a primeira leitura (`POST /terminal/nfc`, próxima seção).
+
+```bash
+curl -s -X POST $B/terminals/5eed0000-0000-4000-8000-000000000006/enroll-mode \
+  -H "Authorization: Bearer $TOKEN" -H 'content-type: application/json' \
+  -d '{"usuarioId":"5eed0000-0000-4000-8000-000000000003"}'
+# 200 {"terminalId":"5eed0000-0000-4000-8000-000000000006","usuarioId":"5eed0000-0000-4000-8000-000000000003","expiraEm":"2026-11-07T14:33:07.000Z"}
+```
+
+- O modo dura `ENROLL_MODE_SECONDS` (60 s) e acaba sozinho; ligar de novo antes disso troca o usuário e renova o prazo.
+  `GET /terminals` não mostra o modo.
+- UID que não é hexadecimal de 8 a 20 caracteres dá `422` no campo `uid`; usuário inexistente dá `404`; usuário
+  inativo dá `422` no campo `usuarioId`.
+
+## Leitura de tag NFC (B17)
+
+O terminal envia o UID e recebe a decisão na resposta (I11). Com a tag `04A1B2C3` do visitante criada acima e uma
+autorização do visitante para o local do terminal (veja a seção abaixo), o roteiro com `curl` simula o ESP32. Cada
+leitura leva um `Idempotency-Key` novo:
+
+```bash
+T=(-H 'X-Terminal-Id: 5eed0000-0000-4000-8000-000000000006'
+   -H 'X-Terminal-Key: terminal-dev-key-1234567890abcdef1234567890' -H 'content-type: application/json')
+KEY=$(cat /proc/sys/kernel/random/uuid)
+
+curl -s -X POST $B/terminal/nfc "${T[@]}" -H "Idempotency-Key: $KEY" -d '{"uid":"04:a1:b2:c3"}'
+# 200 {"resultado":"AUTORIZADO","aberturaMs":5000}   (um uso e um evento NFC)
+
+curl -s -X POST $B/terminal/nfc "${T[@]}" -H "Idempotency-Key: $KEY" -d '{"uid":"04:a1:b2:c3"}'
+# a mesma chave: a mesma resposta, sem outro uso e sem outro evento
+
+curl -s -X POST $B/terminal/nfc "${T[@]}" -H "Idempotency-Key: $(cat /proc/sys/kernel/random/uuid)" -d '{"uid":"04FFEEDD"}'
+# 200 {"resultado":"NEGADO","motivo":"TAG_DESCONHECIDA"}   (um evento NFC negado, sem usuário)
+```
+
+- Uma segunda leitura da mesma tag em menos de `NFC_DEBOUNCE_SECONDS` (3 s), com chave nova, repete a decisão anterior.
+- Para cadastrar pelo terminal: ligue o modo (seção anterior) e leia uma tag nova. A resposta é
+  `{"resultado":"CADASTRADA"}`, a tag aparece em `GET /nfc-tags` e nenhum evento de acesso é gravado.
+- Chave ausente ou fora do formato de UUID dá `422` no campo `Idempotency-Key`; a chave de outro terminal dá `409`.
+
+## Histórico de acessos (B18)
+
+Depois de algumas leituras (QR ou NFC, seções acima), o administrador vê as tentativas (F12). Com `$B` e o token do admin:
+
+```bash
+A=(-H "Authorization: Bearer $TOKEN_ADMIN")
+
+curl -s "$B/access-events" "${A[@]}"
+# {"data":[{"id":"…","ocorridoEm":"…","metodo":"NFC","resultado":"NEGADO","motivo":"TAG_DESCONHECIDA",
+#           "usuario":null,"local":{…},"terminal":{…}, …}],"page":1,"pageSize":20,"total":3}
+
+curl -s "$B/access-events?metodo=NFC&resultado=NEGADO" "${A[@]}"        # só as negações por NFC
+curl -s "$B/access-events?motivo=TAG_INATIVA&pageSize=5" "${A[@]}"      # só um motivo
+curl -s "$B/access-events?de=2026-10-20T11:00:00-03:00" "${A[@]}"       # de um instante em diante (inclusivo)
+curl -s "$B/me/access-events" -H "Authorization: Bearer $TOKEN_VISITANTE"   # só os do visitante
+```
+
+- `usuario`, `local` e `terminal` vêm `null` quando a tentativa não os identificou (a tag desconhecida acima não tem pessoa).
+- Em `de` e `ate`, um fuso positivo precisa de `%2B` na URL (`…T17:00:00%2B03:00`); um `+` solto vira espaço e a resposta é `422`.
+- `GET /access-events` com o token de visitante dá `403`; sem token, `401`.
+
+## Eventos offline (B19)
+
+O terminal guarda as leituras que negou sem conexão e as envia em lote (I12). Com `$B`, o array `T` da seção de
+leitura NFC e a tag `04A1B2C3` do visitante:
+
+```bash
+K1=$(cat /proc/sys/kernel/random/uuid); K2=$(cat /proc/sys/kernel/random/uuid)
+AGO=$(date -u -d '10 minutes ago' +%Y-%m-%dT%H:%M:%SZ)
+EV() { echo "{\"clientEventId\":\"$1\",\"metodo\":\"NFC\",\"uid\":\"$2\",\"ocorridoEm\":\"$AGO\",\"resultado\":\"NEGADO\",\"motivo\":\"TERMINAL_OFFLINE\"}"; }
+
+curl -s -X POST $B/terminal/events/batch "${T[@]}" -d "{\"events\":[$(EV $K1 04A1B2C3),$(EV $K2 04FFEEDD)]}"
+# 200 {"aceitos":2,"duplicados":0}   (um evento por tentativa; a segunda tag é desconhecida e fica sem pessoa)
+
+curl -s -X POST $B/terminal/events/batch "${T[@]}" -d "{\"events\":[$(EV $K1 04A1B2C3)]}"
+# 200 {"aceitos":0,"duplicados":1}   (o mesmo lote de novo não grava nada)
+
+curl -s -X POST $B/terminal/events/batch "${T[@]}" \
+  -d "{\"events\":[$(EV $K1 04A1B2C3 | sed 's/NEGADO/AUTORIZADO/')]}"
+# 422 {"error":{"code":"VALIDATION_ERROR","details":[{"field":"events.0.resultado", …}]}}
+
+curl -s "$B/access-events?motivo=TERMINAL_OFFLINE" -H "Authorization: Bearer $TOKEN_ADMIN"
+# os dois eventos, com o ocorridoEm de 10 minutos atrás e "motivo":"TERMINAL_OFFLINE"
+```
+
+- A chave de terminal errada dá `401`, terminal inativo dá `403`, mais de 50 eventos dá `422` e um corpo acima de 64 kb dá `413 PAYLOAD_TOO_LARGE`.
+- O envio não consome uso da autorização do visitante nem cria comando para o terminal; confira em `GET /authorizations/<id>` (`usosRestantes` igual ao de antes).
+- Uma leitura ao vivo da mesma tag logo depois do lote funciona normalmente (os eventos do lote não entram na repetição rápida).
 
 ## Local e autorização de teste
 
@@ -106,4 +303,10 @@ No pgAdmin: host `localhost`, porta `DB_PORT` do `.env`, banco `access`, usuári
 
 ## Homologação
 
-A URL de homologação (B10) será publicada aqui. Ela **não** usa estas credenciais.
+A API de homologação roda no Azure Container Apps e é publicada a cada merge na `develop` com o CI verde
+(B10). Como configurar, verificar e voltar uma versão: [deploy-azure.md](deploy-azure.md).
+
+- **URL:** `https://api-acesso.blackfield-72312729.chilecentral.azurecontainerapps.io`
+- **Saúde:** `https://api-acesso.blackfield-72312729.chilecentral.azurecontainerapps.io/api/v1/health` · **Swagger:** `https://api-acesso.blackfield-72312729.chilecentral.azurecontainerapps.io/docs`
+
+Ela **não** usa estas credenciais: o seed nunca roda na nuvem.

@@ -1,12 +1,13 @@
 import { fireEvent, render, screen, within } from '@testing-library/react-native';
 import { createRef, useState } from 'react';
-import { AccessibilityInfo, type TextInputInstance } from 'react-native';
+import { AccessibilityInfo, Pressable, type TextInputInstance } from 'react-native';
 import { colors } from '@/theme';
 import { DateField, TimeField } from './DateField';
 import { NumberStepper } from './NumberStepper';
 import { PasswordField } from './PasswordField';
 import { SelectField } from './SelectField';
 import { SwitchField } from './SwitchField';
+import { Text } from './Text';
 import { TextField } from './TextField';
 
 // The native picker does not exist under Jest: a button stands in for it and picks 25/10/2026 14:05.
@@ -111,6 +112,26 @@ describe('TextField', () => {
   });
 });
 
+describe('TextField com texto longo (F14)', () => {
+  it('quebra a linha em vez de mostrar só o fim, e o Enter passa adiante', async () => {
+    await render(
+      <TextField label="Nome" value="Terminal de Desenvolvimento" onChangeText={jest.fn()} />,
+    );
+
+    const input = screen.getByLabelText('Nome');
+    expect(input).toHaveProp('multiline', true);
+    expect(input).toHaveProp('submitBehavior', 'blurAndSubmit');
+  });
+
+  it('quem pede outro comportamento do Enter continua mandando', async () => {
+    await render(
+      <TextField label="E-mail" value="" onChangeText={jest.fn()} submitBehavior="submit" />,
+    );
+
+    expect(screen.getByLabelText('E-mail')).toHaveProp('submitBehavior', 'submit');
+  });
+});
+
 describe('PasswordField', () => {
   const ControlledPassword = () => {
     const [value, setValue] = useState('');
@@ -134,6 +155,14 @@ describe('PasswordField', () => {
     expect(input().props.value).toBe('segredo123');
   });
 
+  it('fica sempre em uma linha, mesmo com a senha à mostra', async () => {
+    await render(<ControlledPassword />);
+
+    expect(screen.getByLabelText('Senha')).toHaveProp('multiline', false);
+    await fireEvent.press(screen.getByRole('button', { name: 'Mostrar senha' }));
+    expect(screen.getByLabelText('Senha')).toHaveProp('multiline', false);
+  });
+
   it('o botão de mostrar tem toque de 48 × 48', async () => {
     await render(<ControlledPassword />);
 
@@ -150,6 +179,52 @@ describe('SelectField', () => {
     { value: 'CONDOMINO', label: 'Condômino' },
     { value: 'VISITANTE', label: 'Visitante' },
   ];
+
+  it('renderTrigger troca a caixa do campo e abre a mesma lista', async () => {
+    const onChange = jest.fn();
+    await render(
+      <SelectField
+        label="Perfil"
+        options={options}
+        value="CONDOMINO"
+        onChange={onChange}
+        renderTrigger={({ selected, open }) => (
+          <Pressable accessibilityRole="button" accessibilityLabel="Abrir" onPress={open}>
+            <Text>{selected?.label ?? 'Nada'}</Text>
+          </Pressable>
+        )}
+      />,
+    );
+
+    expect(screen.getByText('Condômino')).toBeOnTheScreen();
+    expect(screen.queryByRole('button', { name: 'Perfil' })).toBeNull();
+
+    await fireEvent.press(screen.getByRole('button', { name: 'Abrir' }));
+    await fireEvent.press(screen.getByRole('radio', { name: 'Visitante' }));
+
+    expect(onChange).toHaveBeenCalledWith('VISITANTE');
+  });
+
+  it('opções com grupo aparecem embaixo de um título por grupo, na ordem dada', async () => {
+    await render(
+      <SelectField
+        label="Local de acesso"
+        options={[
+          { value: 'a', label: 'Catraca do Anexo', group: 'Edifício Anexo' },
+          { value: 'b', label: 'Catraca Social', group: 'Edifício Central' },
+          { value: 'c', label: 'Portaria Principal', group: 'Edifício Central' },
+        ]}
+        value={null}
+        onChange={jest.fn()}
+      />,
+    );
+
+    await fireEvent.press(screen.getByRole('button', { name: 'Local de acesso' }));
+
+    expect(screen.getByRole('header', { name: 'Edifício Anexo' })).toBeOnTheScreen();
+    expect(screen.getAllByRole('header', { name: 'Edifício Central' })).toHaveLength(1);
+    expect(screen.getByRole('radio', { name: 'Portaria Principal' })).toBeOnTheScreen();
+  });
 
   it('mostra o rótulo e a opção escolhida', async () => {
     await render(

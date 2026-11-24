@@ -12,7 +12,7 @@ Como ler cada etapa:
 
 ### B01 — Setup do projeto backend
 
-- **Depende de:** G01 · **Libera:** B02 e todo o backend; Pedro (I04, via `/health`)
+- **Depende de:** G01 · **Libera:** B02 e todo o backend; Matheus (I04, via `/health`)
 - **Prazo:** Sprint 1, **16/10** · **Prioridade:** 🔴
 - **Objetivo:** servidor Express em TypeScript que sobe, responde `/health` e já tem a estrutura que as outras etapas usam.
 
@@ -97,7 +97,7 @@ Como ler cada etapa:
 
 ### B03 — Pipeline de CI (build, lint e testes)
 
-- **Depende de:** B01, B02 · **Libera:** B10 (CD); Lucas (F01) e Pedro (I03) usam como modelo
+- **Depende de:** B01, B02 · **Libera:** B10 (CD); Pedro (F01) e Matheus (I03) usam como modelo
 - **Prazo:** Sprint 1, **17/10** · **Prioridade:** 🔴 — ⚠️ **RP10 é eliminatória: sem testes automatizados no pipeline o projeto não é aceito**
 - **Requisitos:** RNF08, RNF10, RNF12, RP09
 
@@ -130,13 +130,13 @@ Como ler cada etapa:
 **Definição de pronto**
 
 - [ ] Evidência (print) de um pipeline vermelho seguido de verde.
-- [ ] Lucas e Pedro avisados de como adicionar o próprio job (arquivo separado ou job adicional com filtro de pasta).
+- [ ] Pedro e Matheus avisados de como adicionar o próprio job (arquivo separado ou job adicional com filtro de pasta).
 
 ---
 
 ### B04 — Modelo de dados v1 e seed
 
-- **Depende de:** B02 · **Libera:** B05 em diante; Lucas (credenciais de dev); Pedro (terminal de dev)
+- **Depende de:** B02 · **Libera:** B05 em diante; Pedro (credenciais de dev); Matheus (terminal de dev)
 - **Prazo:** Sprint 1, **17/10** · **Prioridade:** 🔴
 
 **Objetivo:** criar todas as tabelas e os dados de desenvolvimento de uma vez; as etapas seguintes só consomem.
@@ -178,7 +178,7 @@ Como ler cada etapa:
 **Definição de pronto**
 
 - [x] Diagrama ER gerado a partir do schema e salvo em `docs/`.
-- [ ] Lucas e Pedro conseguem entrar com os usuários do seed (a partir da B05).
+- [ ] Pedro e Matheus conseguem entrar com os usuários do seed (a partir da B05).
 
 ---
 
@@ -195,7 +195,7 @@ Como ler cada etapa:
 - `Auth/AuthenticateUser` (sem Controller; usado pelo middleware `authenticate({ allowInactive? })` em `infra/http`) e `authorize(...perfis)`.
 - Ports: `IUserRepository` (`findByEmail`, `findById`), `IHashProvider`, `ITokenProvider`. Fakes: `InMemoryUserRepository`, `FakeHashProvider`, `FakeTokenProvider`.
 - Limite de tentativas no login: 5 por minuto por combinação IP e e-mail → 429 `RATE_LIMITED` (middleware em `infra/http`).
-- Swagger em `/docs` com `login` e `me` (primeiro contrato que o Lucas usa).
+- Swagger em `/docs` com `login` e `me` (primeiro contrato que o Pedro usa).
 
 **Regras**
 
@@ -245,4 +245,4 @@ Como ler cada etapa:
 **Definição de pronto**
 
 - [x] Testes: sucesso, senha errada, e-mail inexistente, inativo, token expirado, token malformado, perfil errado, limite de tentativas.
-- [ ] Lucas avisado de que o contrato está publicado (★).
+- [ ] Pedro avisado de que o contrato está publicado (★).

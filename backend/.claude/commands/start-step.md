@@ -30,7 +30,7 @@ Write all user-facing text (plan, questions, commit messages) in Portuguese. Fol
 
 Present the plan in Portuguese with exactly these sections, short and concrete:
 
-1. **Etapa e objetivo:** ID, name, requirements (RFxx, RNFxx), dependencies and what it unblocks (★ for Lucas or Pedro).
+1. **Etapa e objetivo:** ID, name, requirements (RFxx, RNFxx), dependencies and what it unblocks (★ for Pedro or Matheus).
 2. **Estado do repositório:** branch atual, árvore limpa ou não, a BASE (e se é uma branch empilhada, com o PR que ela depende) e a branch que será criada (`feature/<ID>-<descrição-curta-em-kebab-case>`, por exemplo `feature/B08-create-authorization`).
 3. **O que será criado ou alterado:** use cases, entities and rules, ports, providers, Prisma repositories, controllers, routes, migration, env variables, `openapi.yaml`.
 4. **Lista de testes na ordem de execução:** unit (U) first, then integration (I), exactly as they will become `it.todo`. Include boundaries and the unhappy paths. Map each acceptance criterion to at least one test.

@@ -181,6 +181,116 @@ describe('parseEnv', () => {
     }
   });
 
+  it('deve usar os padrões do QR e converter para número', () => {
+    expect(parseEnv(validSource)).toMatchObject({
+      QR_TTL_SECONDS: 10,
+      QR_TOLERANCE_SECONDS: 5,
+      QR_ISSUE_MIN_INTERVAL_S: 5,
+      QR_PURGE_AFTER_HOURS: 1,
+    });
+    expect(
+      parseEnv({ ...validSource, QR_TTL_SECONDS: '20', QR_ISSUE_MIN_INTERVAL_S: '3' }),
+    ).toMatchObject({ QR_TTL_SECONDS: 20, QR_ISSUE_MIN_INTERVAL_S: 3 });
+  });
+
+  it.each(['QR_TTL_SECONDS', 'QR_ISSUE_MIN_INTERVAL_S', 'QR_PURGE_AFTER_HOURS'])(
+    'deve rejeitar %s zero, negativo, decimal ou não numérico',
+    (name) => {
+      for (const value of ['0', '-1', 'abc', '2.5']) {
+        expect(() => parseEnv({ ...validSource, [name]: value })).toThrow(new RegExp(name));
+      }
+    },
+  );
+
+  it('deve usar 10 segundos como padrão de COMMAND_TTL_SECONDS e converter para número', () => {
+    expect(parseEnv(validSource).COMMAND_TTL_SECONDS).toBe(10);
+    expect(parseEnv({ ...validSource, COMMAND_TTL_SECONDS: '20' }).COMMAND_TTL_SECONDS).toBe(20);
+  });
+
+  it('deve rejeitar COMMAND_TTL_SECONDS zero, negativo, decimal ou não numérico', () => {
+    for (const value of ['0', '-1', 'abc', '2.5']) {
+      expect(() => parseEnv({ ...validSource, COMMAND_TTL_SECONDS: value })).toThrow(
+        /COMMAND_TTL_SECONDS/,
+      );
+    }
+  });
+
+  it('deve usar 1 hora como padrão de COMMAND_PURGE_AFTER_HOURS e converter para número', () => {
+    expect(parseEnv(validSource).COMMAND_PURGE_AFTER_HOURS).toBe(1);
+    expect(
+      parseEnv({ ...validSource, COMMAND_PURGE_AFTER_HOURS: '6' }).COMMAND_PURGE_AFTER_HOURS,
+    ).toBe(6);
+  });
+
+  it('deve rejeitar COMMAND_PURGE_AFTER_HOURS zero, negativo, decimal ou não numérico', () => {
+    for (const value of ['0', '-1', 'abc', '2.5']) {
+      expect(() => parseEnv({ ...validSource, COMMAND_PURGE_AFTER_HOURS: value })).toThrow(
+        /COMMAND_PURGE_AFTER_HOURS/,
+      );
+    }
+  });
+
+  it('deve usar 10 como padrão de QR_VALIDATE_MAX_PER_MINUTE e converter para número', () => {
+    expect(parseEnv(validSource).QR_VALIDATE_MAX_PER_MINUTE).toBe(10);
+    expect(
+      parseEnv({ ...validSource, QR_VALIDATE_MAX_PER_MINUTE: '3' }).QR_VALIDATE_MAX_PER_MINUTE,
+    ).toBe(3);
+  });
+
+  it('deve rejeitar QR_VALIDATE_MAX_PER_MINUTE zero, negativo, decimal ou não numérico', () => {
+    for (const value of ['0', '-1', 'abc', '2.5']) {
+      expect(() => parseEnv({ ...validSource, QR_VALIDATE_MAX_PER_MINUTE: value })).toThrow(
+        /QR_VALIDATE_MAX_PER_MINUTE/,
+      );
+    }
+  });
+
+  it('deve usar 100 m como padrão de MAX_DISTANCE_M e converter para número', () => {
+    expect(parseEnv(validSource).MAX_DISTANCE_M).toBe(100);
+    expect(parseEnv({ ...validSource, MAX_DISTANCE_M: '50' }).MAX_DISTANCE_M).toBe(50);
+  });
+
+  it('deve rejeitar MAX_DISTANCE_M zero, negativo, decimal ou não numérico', () => {
+    for (const value of ['0', '-1', 'abc', '2.5']) {
+      expect(() => parseEnv({ ...validSource, MAX_DISTANCE_M: value })).toThrow(/MAX_DISTANCE_M/);
+    }
+  });
+
+  it('deve usar 60 s como padrão de ENROLL_MODE_SECONDS e converter para número', () => {
+    expect(parseEnv(validSource).ENROLL_MODE_SECONDS).toBe(60);
+    expect(parseEnv({ ...validSource, ENROLL_MODE_SECONDS: '90' }).ENROLL_MODE_SECONDS).toBe(90);
+  });
+
+  it('deve rejeitar ENROLL_MODE_SECONDS zero, negativo, decimal ou não numérico', () => {
+    for (const value of ['0', '-1', 'abc', '2.5']) {
+      expect(() => parseEnv({ ...validSource, ENROLL_MODE_SECONDS: value })).toThrow(
+        /ENROLL_MODE_SECONDS/,
+      );
+    }
+  });
+
+  it('deve usar 3 s como padrão de NFC_DEBOUNCE_SECONDS e converter para número', () => {
+    expect(parseEnv(validSource).NFC_DEBOUNCE_SECONDS).toBe(3);
+    expect(parseEnv({ ...validSource, NFC_DEBOUNCE_SECONDS: '5' }).NFC_DEBOUNCE_SECONDS).toBe(5);
+  });
+
+  it('deve rejeitar NFC_DEBOUNCE_SECONDS zero, negativo, decimal ou não numérico', () => {
+    for (const value of ['0', '-1', 'abc', '2.5']) {
+      expect(() => parseEnv({ ...validSource, NFC_DEBOUNCE_SECONDS: value })).toThrow(
+        /NFC_DEBOUNCE_SECONDS/,
+      );
+    }
+  });
+
+  it('deve aceitar tolerância do QR igual a zero e rejeitar negativa, decimal ou não numérica', () => {
+    expect(parseEnv({ ...validSource, QR_TOLERANCE_SECONDS: '0' }).QR_TOLERANCE_SECONDS).toBe(0);
+    for (const value of ['-1', 'abc', '2.5']) {
+      expect(() => parseEnv({ ...validSource, QR_TOLERANCE_SECONDS: value })).toThrow(
+        /QR_TOLERANCE_SECONDS/,
+      );
+    }
+  });
+
   it('deve usar GPS_COM_FALLBACK como padrão de TERMINAL_POSITION_SOURCE e aceitar os três modos', () => {
     expect(parseEnv(validSource).TERMINAL_POSITION_SOURCE).toBe('GPS_COM_FALLBACK');
     for (const source of ['GPS_COM_FALLBACK', 'CADASTRO', 'GPS']) {
@@ -198,4 +308,43 @@ describe('parseEnv', () => {
       );
     },
   );
+
+  it('deve usar os limites de requisição por minuto como padrão e converter para número (B20)', () => {
+    const env = parseEnv(validSource);
+    expect(env.TERMINAL_MAX_PER_MINUTE).toBe(300);
+    expect(env.TERMINAL_AUTH_FAIL_MAX_PER_MINUTE).toBe(20);
+    expect(env.PUBLIC_MAX_PER_MINUTE).toBe(120);
+
+    const custom = parseEnv({
+      ...validSource,
+      TERMINAL_MAX_PER_MINUTE: '50',
+      TERMINAL_AUTH_FAIL_MAX_PER_MINUTE: '7',
+      PUBLIC_MAX_PER_MINUTE: '9',
+    });
+    expect(custom.TERMINAL_MAX_PER_MINUTE).toBe(50);
+    expect(custom.TERMINAL_AUTH_FAIL_MAX_PER_MINUTE).toBe(7);
+    expect(custom.PUBLIC_MAX_PER_MINUTE).toBe(9);
+  });
+
+  it.each([
+    'TERMINAL_MAX_PER_MINUTE',
+    'TERMINAL_AUTH_FAIL_MAX_PER_MINUTE',
+    'PUBLIC_MAX_PER_MINUTE',
+  ])('deve rejeitar %s zero, negativo, decimal ou não numérico', (key) => {
+    for (const value of ['0', '-1', 'abc', '2.5']) {
+      expect(() => parseEnv({ ...validSource, [key]: value })).toThrow(new RegExp(key));
+    }
+  });
+
+  it('deve usar 0 como padrão de TRUST_PROXY (não confia em nenhum proxy) e aceitar o número de proxies', () => {
+    expect(parseEnv(validSource).TRUST_PROXY).toBe(0);
+    expect(parseEnv({ ...validSource, TRUST_PROXY: '1' }).TRUST_PROXY).toBe(1);
+    expect(parseEnv({ ...validSource, TRUST_PROXY: '2' }).TRUST_PROXY).toBe(2);
+  });
+
+  it('deve rejeitar TRUST_PROXY negativo, decimal ou não numérico (inclusive true, que confiaria em qualquer cabeçalho)', () => {
+    for (const value of ['-1', 'abc', '1.5', 'true']) {
+      expect(() => parseEnv({ ...validSource, TRUST_PROXY: value })).toThrow(/TRUST_PROXY/);
+    }
+  });
 });

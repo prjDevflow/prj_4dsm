@@ -6,7 +6,7 @@ This file is the entry point. Read it fully, then load only the files the curren
 
 Backend of an integrated access-control system (IoT terminal + mobile app + API). Stack: Node.js, Express 5, TypeScript (`strict`), Prisma, PostgreSQL, Docker, GitHub Actions. The API serves two clients: the mobile app (JWT) and the access terminal (ESP32 or virtual simulator, authenticated by terminal key). The backend generates a QR code per terminal every 10 s, validates access requests (QR from the app, NFC UID from the terminal), consumes authorization uses atomically, records one event per attempt and tells the terminal to open or deny.
 
-Owner of this part: Eduardo (backend). Frontend: Lucas. IoT: Pedro. The API contract is shared; never change it silently.
+Owner of this part: Eduardo (backend). Frontend: Pedro. IoT: Matheus. The API contract is shared; never change it silently.
 
 ## 2. Non-negotiable rules
 

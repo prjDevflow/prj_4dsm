@@ -32,22 +32,22 @@ No PATCH, envie **só os campos que mudaram**, e nunca o `email`.
 
 **Lista de testes**
 
-- [ ] U schema: cada mensagem de campo; senha obrigatória na criação e opcional na edição; confirmação diferente impede o envio.
-- [ ] U model da lista: busca com atraso de 400 ms, filtro de perfil e inativos combinados na consulta; carrega a página seguinte.
-- [ ] U model do formulário: 409 `EMAIL_JA_CADASTRADO` vira erro no campo E-mail; `details` do 422 vão para os campos certos.
-- [ ] U model do formulário: PATCH só com os campos alterados e sem `email`.
-- [ ] U serviços (MSW): parâmetros da consulta e corpos de POST e PATCH.
+- [x] U schema: cada mensagem de campo; senha obrigatória na criação e opcional na edição; confirmação diferente impede o envio.
+- [x] U model da lista: busca com atraso de 400 ms, filtro de perfil e inativos combinados na consulta; carrega a página seguinte.
+- [x] U model do formulário: 409 `EMAIL_JA_CADASTRADO` vira erro no campo E-mail; `details` do 422 vão para os campos certos.
+- [x] U model do formulário: PATCH só com os campos alterados e sem `email`.
+- [x] U serviços (MSW): parâmetros da consulta e corpos de POST e PATCH.
 
 **Critérios de aceitação**
 
-- [ ] Usuário criado aparece na lista logo em seguida (invalidação da consulta).
-- [ ] E-mail repetido mostra o erro no campo E-mail.
-- [ ] Desativar a si mesmo mostra a mensagem amigável.
-- [ ] Busca, filtro e paginação funcionam juntos.
+- [x] Usuário criado aparece na lista logo em seguida (invalidação da consulta).
+- [x] E-mail repetido mostra o erro no campo E-mail.
+- [x] Desativar a si mesmo mostra a mensagem amigável.
+- [x] Busca, filtro e paginação funcionam juntos.
 
 **Definição de pronto**
 
-- [ ] Testado com a API real (seed).
+- [x] Testado com a API real (seed).
 
 ---
 
@@ -75,21 +75,21 @@ Coordenadas: aceite vírgula ou ponto na digitação e envie número (❓ 9).
 
 **Lista de testes**
 
-- [ ] U schema: limites de latitude e longitude (−90, 90, −180, 180 passam; 90,0001 não); vírgula decimal convertida.
-- [ ] U model "Usar minha localização": preenche os dois campos; permissão negada mostra a mensagem.
-- [ ] U model do terminal: a chave da resposta aparece na T22 e não é guardada em nenhum outro lugar.
-- [ ] U model: 409 `LOCAL_COM_AUTORIZACOES_ATIVAS` mostra "Este local ainda tem autorizações ativas. Cancele-as antes."
-- [ ] U tela T20: selo Online/Offline e "Visto há" com relógio controlado no teste.
+- [x] U schema: limites de latitude e longitude (−90, 90, −180, 180 passam; 90,0001 não); vírgula decimal convertida.
+- [x] U model "Usar minha localização": preenche os dois campos; permissão negada mostra a mensagem.
+- [x] U model do terminal: a chave da resposta aparece na T22 e não é guardada em nenhum outro lugar.
+- [x] U model: 409 `LOCAL_COM_AUTORIZACOES_ATIVAS` mostra "Este local ainda tem autorizações ativas. Cancele-as antes."
+- [x] U tela T20: selo Online/Offline e "Visto há" com relógio controlado no teste.
 
 **Critérios de aceitação**
 
-- [ ] Dá para criar edifício → ponto de acesso → terminal em sequência, só pelo app.
-- [ ] A chave aparece uma única vez e "Copiar chave" funciona.
-- [ ] O selo Online/Offline acompanha o terminal ligado e desligado (com a B11 pronta).
+- [x] Dá para criar edifício → ponto de acesso → terminal em sequência, só pelo app.
+- [x] A chave aparece uma única vez e "Copiar chave" funciona.
+- [x] O selo Online/Offline acompanha o terminal ligado e desligado (com a B11 pronta).
 
 **Definição de pronto**
 
-- [ ] O Matheus cadastrou o terminal dele pelo app e o terminal entrou online com a chave copiada.
+- [ ] O Matheus cadastrou o terminal dele pelo app e o terminal entrou online com a chave copiada. (fluxo conferido no emulador com a API real e um heartbeat simulado com a chave copiada; falta o terminal de verdade)
 
 ---
 
@@ -120,19 +120,19 @@ Não há campo "situação": toda autorização nasce ativa. Sem pessoas ou loca
 
 **Lista de testes**
 
-- [ ] U schema: cada mensagem; `dataFim` igual à inicial passa; `horaFim` igual à inicial é recusada; 0 e 1001 recusados.
-- [ ] U `buildSummary`: o resumo bate exatamente com o que será enviado (inclusive "1 vez" e "3 vezes").
-- [ ] U atalhos "Só hoje" e "Próximos 7 dias" com relógio controlado no teste.
-- [ ] U model: envia os campos com os nomes do contrato; 422 vai para o campo certo.
+- [x] U schema: cada mensagem; `dataFim` igual à inicial passa; `horaFim` igual à inicial é recusada; 0 e 1001 recusados.
+- [x] U `buildSummary`: o resumo bate exatamente com o que será enviado (inclusive "1 vez" e "3 vezes").
+- [x] U atalhos "Só hoje" e "Próximos 7 dias" com relógio controlado no teste.
+- [x] U model: envia os campos com os nomes do contrato; 422 vai para o campo certo.
 
 **Critérios de aceitação**
 
-- [ ] Não dá para escolher data final antes da inicial nem horário final igual ou antes do inicial.
-- [ ] Depois de criar, a autorização aparece na lista com "Ativa" e o visitante a vê na T04.
+- [x] Não dá para escolher data final antes da inicial nem horário final igual ou antes do inicial.
+- [x] Depois de criar, a autorização aparece na lista com "Ativa" e o visitante a vê na T04. (na lista, conferido em 03/11 com a F08; na T04, com a F09)
 
 **Definição de pronto**
 
-- [ ] Autorização criada pelo app aparece no Swagger com os mesmos valores.
+- [x] Autorização criada pelo app aparece no Swagger com os mesmos valores. (conferido pelo Pedro no Swagger em 03/11: Bruna Lopes, Catraca do Bloco B, 03/11 a 09/11/2026, 08:00 às 18:00, 3 usos, ATIVA)
 
 ---
 
@@ -156,18 +156,18 @@ Depois de cancelar: aviso curto e o selo muda para "Cancelada" na lista e no det
 
 **Lista de testes**
 
-- [ ] U model da lista: cada filtro vira o parâmetro certo, sozinho e combinado; "Limpar filtros" zera.
-- [ ] U model do detalhe: botão de cancelar só com `situacaoEfetiva = ATIVA`.
-- [ ] U model do cancelamento: envia o motivo (ou nada); atualiza lista e detalhe; segundo cancelamento não mostra erro.
-- [ ] U schema do motivo: 200 caracteres passam, 201 não.
+- [x] U model da lista: cada filtro vira o parâmetro certo, sozinho e combinado; "Limpar filtros" zera.
+- [x] U model do detalhe: botão de cancelar só com `situacaoEfetiva = ATIVA`.
+- [x] U model do cancelamento: envia o motivo (ou nada); atualiza lista e detalhe; segundo cancelamento não mostra erro.
+- [x] U schema do motivo: 200 caracteres passam, 201 não.
 
 **Critérios de aceitação**
 
-- [ ] A confirmação sempre aparece antes de cancelar.
-- [ ] Depois do cancelamento, a próxima leitura do QR com essa autorização é negada com "Sua autorização foi cancelada. Procure a administração." (cenário 3 do M4).
+- [x] A confirmação sempre aparece antes de cancelar.
+- [x] Depois do cancelamento, a próxima leitura do QR com essa autorização é negada com "Sua autorização foi cancelada. Procure a administração." (cenário 3 do M4). (conferido em 07/11 no emulador, com a API real da `develop`)
 
 **Definição de pronto**
 
-- [ ] Testado com a API real.
+- [x] Testado com a API real. (emulador em 03/11, em 100% e 200%: filtros sozinhos e combinados, paginação, puxar para atualizar, as quatro situações, cancelamento com e sem motivo e dois administradores cancelando a mesma)
 
 ---
