@@ -74,6 +74,19 @@ o app e a identidade do passo 5 ficam **todos na mesma região**.
 
 Depois de criado, ajuste:
 
+- **Probes na porta 3000.** A imagem de exemplo deixa as probes de *liveness*, *readiness* e *startup* em TCP na
+  porta **80**. Como a API escuta na 3000, a *startup probe* falha por cerca de 4 minutos e o Azure reinicia o container
+  em ciclo (a API recebe `SIGTERM` e o log mostra "Desligando o servidor"). Isso aconteceu em 2026-11-24. O `cd.yml`
+  corrige só a porta do ingress, não as probes. Corrija uma vez pelo Cloud Shell:
+
+  ```bash
+  az containerapp show -n api-acesso -g rg-abp-acesso -o yaml > app.yaml
+  sed -i 's/port: 80$/port: 3000/' app.yaml   # as três probes
+  az containerapp update -n api-acesso -g rg-abp-acesso --yaml app.yaml -o none
+  az containerapp show -n api-acesso -g rg-abp-acesso --query "properties.template.containers[0].probes[].{tipo:type, porta:tcpSocket.port}" -o table
+  ```
+
+  Os deploys seguintes mantêm as probes: o `update --image` troca só a imagem.
 - **Application → Scale:** mínimo **1** e máximo **1** réplica. Sempre ligada responde na hora para o terminal; uma réplica só porque os limites por IP ficam na memória do processo.
 - **Application → Containers → Edit and deploy → (container) → Edit:** CPU **0.25**, memória **0.5 Gi**.
 - **Settings → Secrets → Add** (tipo *Container Apps Secret*):
