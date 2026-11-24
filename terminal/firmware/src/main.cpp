@@ -65,7 +65,7 @@ void logBoot() {
   LOGI("boot", "id %s, chave %s, API %s", TERMINAL_ID, maskSecret(TERMINAL_KEY, maskedKey, sizeof maskedKey),
        API_BASE_URL);
   if (strncmp(API_BASE_URL, "https", 5) == 0) {
-    LOGW("boot", "API_BASE_URL com https: o TLS chega na I14; na rede local use http");
+    LOGI("boot", "API com https: certificado validado pela CA raiz de ca_cert.h");
   }
 }
 

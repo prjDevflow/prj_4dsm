@@ -28,7 +28,7 @@
 #include "wifi_manager.h"
 
 namespace {
-constexpr uint32_t kStackBytes = 10240;
+constexpr uint32_t kStackBytes = 16384;  // the TLS handshake (mbedTLS) needs about 6 KB more than plain http
 constexpr UBaseType_t kPriority = 1;
 constexpr BaseType_t kCore = 0;  // loop() runs on core 1
 constexpr uint32_t kTickMs = 50;
